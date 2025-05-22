@@ -1,24 +1,100 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import NavBar from "./components/NavBar";
 
-const queryClient = new QueryClient();
+// Páginas
+import LandingPage from "./pages/LandingPage";
+import SignupPage from "./pages/SignupPage";
+import LoginPage from "./pages/LoginPage";
+import ChatPage from "./pages/ChatPage";
+import Home from "./pages/Home";
+import NotFound from "./pages/NotFound";
+import PlanPage from "./pages/PlanPage";
+import FreePlanPage from "./pages/FreePlanPage";
+import BasicPlanPage from "./pages/BasicPlanPage";
+import PremiumPlanPage from "./pages/PremiumPlanPage";
+import UltimatePlanPage from "./pages/UltimatePlanPage";
+import SelectedPlanPage from "./pages/SelectedPlanPage";
+import ProfilePage from "./pages/ProfilePage";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <Toaster />
+            <Sonner />
+            <NavBar />
+            <Routes>
+              {/* Rotas públicas */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/home" element={<Home />} />
+              
+              {/* Páginas específicas para cada plano */}
+              <Route path="/plan/:planId" element={<PlanPage />} />
+              <Route path="/plan/free" element={<FreePlanPage />} />
+              <Route path="/plan/basic" element={<BasicPlanPage />} />
+              <Route path="/plan/premium" element={<PremiumPlanPage />} />
+              <Route path="/plan/ultimate" element={<UltimatePlanPage />} />
+              
+              {/* Redirecionar /personalize para /signup - agora é uma experiência integrada */}
+              <Route path="/personalize" element={<Navigate to="/signup" />} />
+              
+              {/* Redirecionamento da antiga página de planos para a home */}
+              <Route path="/plans" element={<Navigate to="/" />} />
+              
+              {/* Rotas protegidas */}
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/selected-plan" 
+                element={
+                  <ProtectedRoute>
+                    <SelectedPlanPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/chat" 
+                element={
+                  <ProtectedRoute>
+                    <ChatPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Rota de catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </SubscriptionProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

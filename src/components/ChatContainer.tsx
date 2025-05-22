@@ -1,0 +1,265 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import MessageBubble, { Message } from './MessageBubble';
+import ChatHeader from './ChatHeader';
+import ChatInput from './ChatInput';
+import { useToast } from '@/hooks/use-toast';
+import { Subscription } from '@/contexts/SubscriptionContext';
+import GiftSelection from './GiftSelection';
+import EmoticonSelector from './EmoticonSelector';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ChatContainerProps {
+  className?: string;
+  agentId: string;
+  nickname: string;
+  agentAvatar?: string;
+  subscription: Subscription | null;
+  hasPremiumFeatures?: boolean;
+  hasAudioFeature?: boolean;
+}
+
+const ChatContainer: React.FC<ChatContainerProps> = ({ 
+  className, 
+  agentId, 
+  nickname,
+  agentAvatar,
+  subscription,
+  hasPremiumFeatures = false,
+  hasAudioFeature = false
+}) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      content: `Olá! Sou ${nickname}, seu companheiro virtual. Como está se sentindo hoje?`,
+      sender: 'ai',
+      timestamp: new Date(),
+    },
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [showEmoticons, setShowEmoticons] = useState(false);
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const webhookUrl = "https://carlos0409.app.n8n.cloud/webhook/d9739-ohasd-5-pijasd54-asd42";
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleSendMessage = async (content: string) => {
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Simulate AI typing...
+    setIsTyping(true);
+    
+    try {
+      // Send message to n8n webhook
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: content,
+          userId: "user-" + Date.now(),
+          timestamp: new Date().toISOString(),
+          agentId: agentId,
+          nickname: nickname,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Received n8n response:", data);
+      
+      // Extract AI response from n8n
+      let aiContent = "";
+      
+      // Handle different response formats
+      if (data.output) {
+        // Format 1: { output: "message" }
+        aiContent = data.output;
+      } else if (Array.isArray(data) && data[0] && data[0].output) {
+        // Format 2: [{ output: "message" }]
+        aiContent = data[0].output;
+      } else if (data.response) {
+        // Format 3: { response: "message" }
+        aiContent = data.response;
+      } else {
+        // Fallback if no expected format is found
+        aiContent = "Desculpe, não consegui processar essa mensagem.";
+      }
+      
+      // Add AI message
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: aiContent,
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Error communicating with n8n:", error);
+      toast({
+        title: "Erro de Conexão",
+        description: "Não foi possível conectar ao serviço de IA. Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+      
+      // Show fallback message if there's an error
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Desculpe, estou com problemas para me conectar agora. Tente novamente mais tarde.",
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleSendGift = async (giftId: string, giftName: string, giftPrice: number) => {
+    // Fechamos a seleção de presentes
+    setShowGiftSelection(false);
+    
+    try {
+      // Fetch the gift emoji from the database
+      const { data: giftData, error: giftError } = await supabase
+        .from('gifts')
+        .select('image_url')
+        .eq('id', giftId)
+        .single();
+      
+      if (giftError) throw giftError;
+      
+      const giftEmoji = giftData?.image_url || '🎁';
+      
+      // Adicionamos uma mensagem de sistema sobre o presente
+      const systemMessage: Message = {
+        id: Date.now().toString(),
+        content: `Você enviou um presente: ${giftName}`,
+        sender: 'system',
+        timestamp: new Date(),
+        isGift: true,
+        giftId: giftId,
+        giftEmoji: giftEmoji
+      };
+      
+      setMessages(prev => [...prev, systemMessage]);
+      
+      // Simulamos uma resposta do agente agradecendo pelo presente
+      setIsTyping(true);
+      
+      setTimeout(() => {
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: `Uau! Muito obrigado pelo ${giftName}! Você é incrível! ❤️`,
+          sender: 'ai',
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+        setIsTyping(false);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Erro ao buscar emoji do presente:', error);
+      
+      // Fallback if there's an error
+      const systemMessage: Message = {
+        id: Date.now().toString(),
+        content: `Você enviou um presente: ${giftName}`,
+        sender: 'system',
+        timestamp: new Date(),
+        isGift: true,
+        giftId: giftId
+      };
+      
+      setMessages(prev => [...prev, systemMessage]);
+    }
+  };
+
+  const addEmoticon = (emoticon: string) => {
+    setInput(prev => prev + emoticon);
+    setShowEmoticons(false);
+  };
+
+  return (
+    <div className={cn('flex flex-col h-full bg-white', className)}>
+      <ChatHeader 
+        nickname={nickname} 
+        onGiftClick={() => setShowGiftSelection(true)}
+        hasPremiumFeatures={hasPremiumFeatures}
+      />
+      
+      <div className="flex-1 overflow-y-auto p-4 bg-sweetheart-light/20">
+        {messages.map((message) => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+        
+        {isTyping && (
+          <div className="flex items-center mt-4">
+            <div className="h-8 w-8 rounded-full overflow-hidden bg-gradient-sweet flex-shrink-0 flex items-center justify-center mr-2">
+              <span className="text-white text-xs font-bold">AI</span>
+            </div>
+            <div className="bg-white py-2 px-4 rounded-2xl shadow-sm">
+              <div className="flex space-x-1">
+                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse"></div>
+                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
+                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {showEmoticons && (
+        <EmoticonSelector 
+          onSelect={addEmoticon} 
+          hasPremiumEmoticons={hasPremiumFeatures}
+          onClose={() => setShowEmoticons(false)}
+        />
+      )}
+      
+      <ChatInput 
+        onSendMessage={handleSendMessage} 
+        disabled={isTyping} 
+        hasAudioFeature={hasAudioFeature} 
+        onEmoticonClick={() => setShowEmoticons(!showEmoticons)}
+        onGiftClick={() => setShowGiftSelection(true)}
+        value={input}
+        onChange={(value) => setInput(value)}
+      />
+
+      {showGiftSelection && (
+        <GiftSelection 
+          onClose={() => setShowGiftSelection(false)} 
+          onSelectGift={handleSendGift}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ChatContainer;
