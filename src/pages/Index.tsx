@@ -12,14 +12,6 @@ const Index: React.FC = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
   const navigate = useNavigate();
-
-  // If there's no user logged in, we show a simple preview version
-  // For logged in users, redirect to the chat page
-  React.useEffect(() => {
-    if (user) {
-      navigate('/chat');
-    }
-  }, [user, navigate]);
   
   // Sample data for demo purposes only
   const demoAgent = {
