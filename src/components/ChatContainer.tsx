@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import MessageBubble, { Message } from './MessageBubble';
@@ -10,6 +9,7 @@ import GiftSelection from './GiftSelection';
 import EmoticonSelector from './EmoticonSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface ChatContainerProps {
   className?: string;
