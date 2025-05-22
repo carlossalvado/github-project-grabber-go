@@ -10,6 +10,10 @@ const Home = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
   
+  const handleNavigateToSignup = () => {
+    navigate('/signup');
+  };
+  
   return (
     <div className="min-h-screen bg-sweetheart-bg flex flex-col items-center justify-center p-4">
       <div className="max-w-3xl w-full text-center">
@@ -26,6 +30,18 @@ const Home = () => {
             >
               Go to home page
             </button>
+            
+            {!user && (
+              <div className="mt-4">
+                <button 
+                  onClick={handleNavigateToSignup}
+                  className="px-6 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
+            
             {user && (
               <div className="flex justify-center space-x-4 mt-4">
                 <button 
