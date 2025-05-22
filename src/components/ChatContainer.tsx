@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import MessageBubble, { Message } from './MessageBubble';
@@ -8,6 +9,7 @@ import { Subscription } from '@/contexts/SubscriptionContext';
 import GiftSelection from './GiftSelection';
 import EmoticonSelector from './EmoticonSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ChatContainerProps {
   className?: string;
@@ -209,30 +211,44 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         nickname={nickname} 
         onGiftClick={() => setShowGiftSelection(true)}
         hasPremiumFeatures={hasPremiumFeatures}
+        agentAvatar={agentAvatar}
       />
       
-      <div className="flex-1 overflow-y-auto p-4 bg-sweetheart-light/20">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
-        
-        {isTyping && (
-          <div className="flex items-center mt-4">
-            <div className="h-8 w-8 rounded-full overflow-hidden bg-gradient-sweet flex-shrink-0 flex items-center justify-center mr-2">
-              <span className="text-white text-xs font-bold">AI</span>
-            </div>
-            <div className="bg-white py-2 px-4 rounded-2xl shadow-sm">
-              <div className="flex space-x-1">
-                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse"></div>
-                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
-                <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4 pb-2">
+          {messages.map((message) => (
+            <MessageBubble 
+              key={message.id} 
+              message={message} 
+              agentAvatar={agentAvatar}
+              agentName={nickname}
+            />
+          ))}
+          
+          {isTyping && (
+            <div className="flex items-center mt-4">
+              <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+                {agentAvatar ? (
+                  <AvatarImage src={agentAvatar} alt={nickname} />
+                ) : (
+                  <AvatarFallback className="bg-black text-white">
+                    {nickname.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="bg-gray-100 py-3 px-4 rounded-3xl rounded-bl-none">
+                <div className="flex space-x-1">
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse"></div>
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
       
       {showEmoticons && (
         <EmoticonSelector 

@@ -1,18 +1,27 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Gift, Phone, Video, MoreVertical } from 'lucide-react';
+import { ChevronLeft, Phone, Video, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatHeaderProps {
   nickname: string;
   onGiftClick: () => void;
   hasPremiumFeatures: boolean;
+  agentAvatar?: string;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ nickname, onGiftClick, hasPremiumFeatures }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ 
+  nickname, 
+  onGiftClick, 
+  hasPremiumFeatures,
+  agentAvatar
+}) => {
   const { userSubscription } = useSubscription();
+  const navigate = useNavigate();
   
   // Fixed the TypeScript error by properly handling the plan name retrieval
   let planName = "Plano Básico"; // Default value
@@ -47,61 +56,55 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ nickname, onGiftClick, hasPremi
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 py-3 px-4 flex justify-between items-center">
+    <div className="bg-white py-3 px-4 flex justify-between items-center">
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-sweet flex items-center justify-center text-white font-bold text-xl">
-          {nickname.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <h3 className="font-bold text-gray-800">{nickname}</h3>
-          <div className="flex items-center">
-            <span className="h-2 w-2 bg-green-500 rounded-full mr-1"></span>
-            <span className="text-xs text-gray-500">Online</span>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="rounded-full"
+          onClick={() => navigate('/')}
+        >
+          <ChevronLeft size={24} />
+        </Button>
+        
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8 border">
+            {agentAvatar ? (
+              <AvatarImage src={agentAvatar} alt={nickname} />
+            ) : (
+              <AvatarFallback className="bg-black text-white">
+                {nickname.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <div>
+            <h3 className="font-medium text-gray-800">{nickname}</h3>
+            <div className="flex items-center">
+              <span className="h-2 w-2 bg-green-500 rounded-full mr-1"></span>
+              <span className="text-xs text-gray-500">Online</span>
+            </div>
           </div>
         </div>
       </div>
       
-      <div className="flex items-center">
-        <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs mr-3">
-          {planName}
-        </div>
+      <div className="flex items-center space-x-1">
+        <Button 
+          size="icon" 
+          variant="ghost"
+          className="rounded-full text-black"
+          onClick={handleVoiceCall}
+        >
+          <Phone size={20} />
+        </Button>
         
-        <div className="flex items-center space-x-1">
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={onGiftClick}
-            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
-          >
-            <Gift size={20} />
-          </Button>
-          
-          <Button 
-            size="icon" 
-            variant="ghost"
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            onClick={handleVoiceCall}
-          >
-            <Phone size={20} />
-          </Button>
-          
-          <Button 
-            size="icon" 
-            variant="ghost"
-            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-            onClick={handleVideoCall}
-          >
-            <Video size={20} />
-          </Button>
-          
-          <Button 
-            size="icon" 
-            variant="ghost"
-            className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-          >
-            <MoreVertical size={20} />
-          </Button>
-        </div>
+        <Button 
+          size="icon" 
+          variant="ghost"
+          className="rounded-full text-black"
+          onClick={handleVideoCall}
+        >
+          <Video size={20} />
+        </Button>
       </div>
     </div>
   );

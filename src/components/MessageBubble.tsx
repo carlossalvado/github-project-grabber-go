@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export interface Message {
   id: string;
@@ -15,9 +16,16 @@ export interface Message {
 interface MessageBubbleProps {
   message: Message;
   className?: string;
+  agentAvatar?: string;
+  agentName?: string;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, className }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ 
+  message, 
+  className,
+  agentAvatar,
+  agentName = "AI"
+}) => {
   const isUser = message.sender === 'user';
   const isSystem = message.sender === 'system';
   
@@ -42,6 +50,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, className }) => 
     );
   }
   
+  // Format the timestamp in a more readable format
+  const formattedTime = new Date(message.timestamp).toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit'
+  });
+  
   return (
     <div
       className={cn(
@@ -51,34 +65,42 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, className }) => 
       )}
     >
       {!isUser && (
-        <div className="h-8 w-8 rounded-full overflow-hidden bg-gradient-sweet flex-shrink-0 flex items-center justify-center mr-2">
-          <span className="text-white text-xs font-bold">AI</span>
-        </div>
+        <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+          {agentAvatar ? (
+            <AvatarImage src={agentAvatar} alt={agentName} />
+          ) : (
+            <AvatarFallback className="bg-black text-white">
+              {agentName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          )}
+        </Avatar>
       )}
       
       <div
         className={cn(
-          'py-2 px-4 rounded-2xl max-w-[80%]',
+          'py-3 px-4 rounded-3xl max-w-[75%]',
           isUser
-            ? 'bg-gradient-sweet text-white rounded-tr-none'
-            : 'bg-white shadow-sm rounded-tl-none'
+            ? 'bg-black text-white rounded-br-none'
+            : 'bg-gray-100 text-black rounded-bl-none'
         )}
       >
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        <div className="whitespace-pre-wrap text-sm">{message.content}</div>
         <div
           className={cn(
             'text-xs mt-1',
-            isUser ? 'text-pink-100' : 'text-gray-400'
+            isUser ? 'text-gray-300' : 'text-gray-500'
           )}
         >
-          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {formattedTime}
         </div>
       </div>
       
       {isUser && (
-        <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center ml-2">
-          <span className="text-gray-600 text-xs font-bold">EU</span>
-        </div>
+        <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+          <AvatarFallback className="bg-gray-300 text-gray-600">
+            EU
+          </AvatarFallback>
+        </Avatar>
       )}
     </div>
   );

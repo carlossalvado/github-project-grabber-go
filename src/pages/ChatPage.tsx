@@ -38,7 +38,7 @@ const ChatPage = () => {
   
   // Create a temporary agentId for demo purposes
   const agentId = "ai-agent-1"; 
-  const agentName = "Sweet AI";
+  const agentName = "Helena Hills";
   const agentAvatar = "https://i.imgur.com/nV9pbvg.jpg";
   
   // Use a simpler state to determine features directly from cache
@@ -58,8 +58,8 @@ const ChatPage = () => {
     false;
 
   return (
-    <div className="min-h-screen bg-sweetheart-light/20 flex flex-col">
-      <div className="flex-1 flex flex-col h-screen">
+    <div className="h-screen bg-white">
+      <div className="flex-1 flex flex-col h-screen max-w-lg mx-auto">
         <ChatContainer 
           agentId={agentId}
           nickname={agentName}
