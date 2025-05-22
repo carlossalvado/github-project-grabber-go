@@ -60,6 +60,12 @@ const Index: React.FC = () => {
                   Login
                 </Button>
                 
+                <Button 
+                  onClick={() => navigate('/signup')} 
+                  className="bg-gradient-sweet"
+                >
+                  Sign Up
+                </Button>
               </div>
             </div>
           </div>

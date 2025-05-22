@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -177,21 +176,19 @@ const SignupPage = () => {
       
       toast.success('Preferências salvas com sucesso!');
       
-      // Redirecionar para a página do plano específico selecionado
-      if (selectedPlan) {
-        console.log("Redirecionando para plano:", selectedPlan.name);
+      // Verificar se há um plano selecionado e redirecionar para o checkout
+      if (selectedPlanId) {
+        console.log("Iniciando checkout para o plano:", selectedPlanId);
         
-        // Mapear o nome do plano para a rota correspondente
-        if (selectedPlan.name === 'Text Only') {
-          navigate('/plan/free');
-        } else if (selectedPlan.name === 'Text & Audio') {
-          navigate('/plan/basic');
-        } else if (selectedPlan.name === 'Premium') {
-          navigate('/plan/premium');
-        } else if (selectedPlan.name === 'Ultimate') {
-          navigate('/plan/ultimate');
-        } else {
-          // Caso genérico, usar o ID do plano
+        try {
+          // Chamar a função selectPlan para iniciar o checkout
+          await selectPlan(selectedPlanId);
+          // O redirecionamento para o Stripe será feito pela função selectPlan
+        } catch (checkoutError: any) {
+          console.error("Erro ao iniciar checkout:", checkoutError);
+          toast.error("Erro ao processar pagamento. Por favor, tente novamente.");
+          
+          // Em caso de erro no checkout, redirecionar para a página do plano específico
           navigate(`/plan/${selectedPlanId}`);
         }
       } else {
