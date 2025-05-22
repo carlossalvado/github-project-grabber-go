@@ -22,10 +22,10 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Login attempt
+      // Tentativa de login
       await signIn(email, password);
       
-      // After successful login, check user profile
+      // Após login bem-sucedido, consultar o perfil do usuário para verificar o plano
       const { data: userData, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
@@ -33,7 +33,7 @@ const LoginPage = () => {
       }
       
       if (userData && userData.user) {
-        // Query user profile to check plan
+        // Consultar o perfil do usuário para verificar o plano
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('plan_name, plan_active')
@@ -41,10 +41,10 @@ const LoginPage = () => {
           .single();
         
         if (profileError) {
-          console.error("Error querying profile:", profileError);
+          console.error("Erro ao consultar perfil:", profileError);
         }
         
-        // Also check if there's an active subscription
+        // Também verificar se há uma assinatura ativa
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('subscriptions')
           .select('plan_name, status')
@@ -53,10 +53,10 @@ const LoginPage = () => {
           .maybeSingle();
         
         if (subscriptionError) {
-          console.error("Error querying subscription:", subscriptionError);
+          console.error("Erro ao consultar assinatura:", subscriptionError);
         }
 
-        // Use subscription data if available, otherwise use profile
+        // Usar dados da assinatura se disponíveis, senão usar perfil
         const hasActivePlan = 
           (subscriptionData && subscriptionData.status === 'active') || 
           (profileData && profileData.plan_active === true);
@@ -65,7 +65,7 @@ const LoginPage = () => {
           (subscriptionData && subscriptionData.plan_name) || 
           (profileData && profileData.plan_name);
         
-        // If there's a discrepancy between profile and subscription, update profile
+        // Se existir discrepância entre o perfil e a assinatura, atualizar o perfil
         if (subscriptionData && profileData && 
             (subscriptionData.plan_name !== profileData.plan_name || 
              profileData.plan_active !== (subscriptionData.status === 'active'))) {
@@ -80,23 +80,27 @@ const LoginPage = () => {
             .eq('id', userData.user.id);
             
           if (updateError) {
-            console.error("Error updating profile with subscription data:", updateError);
+            console.error("Erro ao atualizar perfil com dados de assinatura:", updateError);
           } else {
-            console.log("Profile updated with subscription data");
+            console.log("Perfil atualizado com dados de assinatura");
           }
         }
         
-        // Simple login success toast without redirects
-        toast.success(hasActivePlan ? 
-          `Welcome! ${planName} plan active.` : 
-          "Login successful! Choose a plan to continue.");
-          
-        // Direct to chat if plan is active, otherwise to home
-        navigate(hasActivePlan ? '/chat' : '/home');
+        // Verificar se o usuário tem um plano ativo e redirecionar para o chat
+        if (hasActivePlan) {
+          console.log(`Usuário tem o plano ${planName} ativo, redirecionando para o chat`);
+          toast.success(`Bem-vindo! Plano ${planName} ativo.`);
+          navigate('/chat');
+        } else {
+          // Se não tiver plano ativo, redirecionar para a home
+          console.log("Usuário logado, mas sem plano ativo");
+          toast.success("Login bem-sucedido! Escolha um plano para continuar.");
+          navigate('/home');
+        }
       }
     } catch (error: any) {
-      console.error("Login error:", error);
-      toast.error(error.message || "Login failed");
+      console.error("Erro no login:", error);
+      toast.error(error.message || "Falha ao fazer login");
     } finally {
       setLoading(false);
     }
@@ -107,16 +111,16 @@ const LoginPage = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-sweet bg-clip-text text-transparent">
-            Welcome back
+            Bem-vindo de volta
           </h1>
-          <p className="text-gray-600">Sign in to continue your journey</p>
+          <p className="text-gray-600">Entre para continuar sua jornada</p>
         </div>
         
         <Card>
           <CardHeader>
             <CardTitle>Login</CardTitle>
             <CardDescription>
-              Enter your credentials to access your account
+              Entre com suas credenciais para acessar sua conta
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -126,7 +130,7 @@ const LoginPage = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="your@email.com"
+                  placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -134,18 +138,18 @@ const LoginPage = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Senha</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Your password"
+                  placeholder="Sua senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
                 <div className="text-right">
                   <Button variant="link" className="p-0 text-sm">
-                    Forgot password?
+                    Esqueceu a senha?
                   </Button>
                 </div>
               </div>
@@ -155,9 +159,9 @@ const LoginPage = () => {
                 className="w-full bg-gradient-sweet flex items-center justify-center gap-2"
                 disabled={loading}
               >
-                {loading ? 'Processing...' : (
+                {loading ? 'Processando...' : (
                   <>
-                    <LogIn size={16} /> Sign In
+                    <LogIn size={16} /> Entrar
                   </>
                 )}
               </Button>
@@ -165,13 +169,13 @@ const LoginPage = () => {
           </CardContent>
           <CardFooter className="flex justify-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Não tem uma conta?{' '}
               <Button 
                 variant="link" 
-                onClick={() => navigate('/home')}  // Redirects to home
+                onClick={() => navigate('/home')}  // Redireciona para home
                 className="p-0"
               >
-                Sign Up
+                Cadastre-se
               </Button>
             </p>
           </CardFooter>

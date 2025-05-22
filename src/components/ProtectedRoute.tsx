@@ -30,15 +30,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Render children if authenticated
-  if (user) {
-    console.log("User authenticated, rendering content");
-    return <>{children}</>;
+  // Redirect if not authenticated
+  if (!user) {
+    console.log("User not authenticated, redirecting to", redirectTo);
+    return <Navigate to={redirectTo} />;
   }
-  
-  // User not authenticated
-  console.log("User not authenticated, showing login prompt");
-  return <Navigate to={redirectTo} />;
+
+  // Render children if authenticated
+  console.log("User authenticated, rendering content");
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

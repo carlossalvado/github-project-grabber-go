@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Plan } from '@/contexts/SubscriptionContext';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -16,7 +14,6 @@ interface SinglePlanCardProps {
 const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   const [processing, setProcessing] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -25,8 +22,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     // Verificar no cache do navegador se o plano está ativo
     const checkPaymentStatus = () => {
       // Verificar se há informações de assinatura no localStorage
-      const cachedSubscription = localStorage.getItem('sweet-ai-subscription-data');
-      const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
+      const cachedSubscription = localStorage.getItem('userSubscription');
+      const cachedProfile = localStorage.getItem('userProfile');
       
       if (cachedSubscription) {
         try {
@@ -77,40 +74,15 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   }, [plan.id, plan.name]);
 
   const handleSelectPlan = async () => {
+    setProcessing(true);
     try {
       console.log("Selecionando plano:", plan.name, "com ID:", plan.id);
       localStorage.setItem('selectedPlanId', plan.id.toString());
-      
-      setProcessing(true);
-      
-      // Se o usuário não estiver logado, envie-o para a página de cadastro
-      if (!user) {
-        navigate('/signup');
-        return;
-      }
-      
-      // Inicie o checkout do Stripe
-      await initiateCheckout();
-      
+      await onSelectPlan(plan.id);
     } catch (error) {
       console.error("Error selecting plan:", error);
       toast.error("Erro ao selecionar o plano. Tente novamente.");
-      setProcessing(false);
-    }
-  };
-  
-  const initiateCheckout = async () => {
-    try {
-      setIsCheckingOut(true);
-      console.log("Iniciando checkout do Stripe para o plano:", plan.name);
-      
-      await onSelectPlan(plan.id);
-      // O redirecionamento para o Stripe será feito pela função onSelectPlan
-      // que chama a função do Supabase e faz o redirecionamento
-    } catch (error) {
-      console.error("Erro ao iniciar checkout:", error);
-      toast.error("Falha ao iniciar o checkout. Por favor, tente novamente.");
-      setIsCheckingOut(false);
+    } finally {
       setProcessing(false);
     }
   };
@@ -199,15 +171,14 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
                 <Button 
                   className="w-full bg-gradient-sweet" 
                   onClick={handleSelectPlan}
-                  disabled={processing || isCheckingOut}
+                  disabled={processing}
                 >
-                  {isCheckingOut ? "Carregando checkout..." : 
-                   processing ? "Processando..." : "Confirmar e Continuar"}
+                  {processing ? "Processando..." : "Confirmar e Continuar"}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => navigate('/')}
-                  disabled={processing || isCheckingOut}
+                  disabled={processing}
                   className="w-full"
                 >
                   Voltar para a Página Inicial
