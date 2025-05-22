@@ -181,8 +181,15 @@ const SignupPage = () => {
         console.log("Iniciando processo de checkout para o plano:", selectedPlan.name);
         
         // Processar seleção do plano e iniciar checkout do Stripe
-        await selectPlan(selectedPlan.id);
-        // O redirecionamento para o checkout acontecerá dentro da função selectPlan
+        try {
+          await selectPlan(selectedPlan.id);
+          // O redirecionamento para o checkout acontecerá dentro da função selectPlan
+        } catch (checkoutError: any) {
+          console.error('Erro ao iniciar checkout:', checkoutError);
+          toast.error(checkoutError.message || 'Erro ao processar o plano');
+          // Se falhar o checkout, navegar para página de planos
+          navigate('/plans');
+        }
       } else {
         // Se não há plano selecionado, ir para a página de planos
         navigate('/plans');

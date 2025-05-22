@@ -33,10 +33,10 @@ const Home = () => {
                   Login to your account
                 </button>
                 <button 
-                  onClick={() => navigate('/plans')}
+                  onClick={() => navigate('/signup')}
                   className="px-6 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
                 >
-                  View subscription plans
+                  Create an account
                 </button>
               </div>
             ) : (
