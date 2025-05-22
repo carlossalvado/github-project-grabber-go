@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,8 +23,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     // Verificar no cache do navegador se o plano está ativo
     const checkPaymentStatus = () => {
       // Verificar se há informações de assinatura no localStorage
-      const cachedSubscription = localStorage.getItem('userSubscription');
-      const cachedProfile = localStorage.getItem('userProfile');
+      const cachedSubscription = localStorage.getItem('sweet-ai-subscription-data');
+      const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
       
       if (cachedSubscription) {
         try {
@@ -78,6 +79,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     try {
       console.log("Selecionando plano:", plan.name, "com ID:", plan.id);
       localStorage.setItem('selectedPlanId', plan.id.toString());
+      
+      // Iniciar o checkout com o Stripe
       await onSelectPlan(plan.id);
     } catch (error) {
       console.error("Error selecting plan:", error);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -176,20 +177,26 @@ const SignupPage = () => {
       
       toast.success('Preferências salvas com sucesso!');
       
-      // Verificar se há um plano selecionado e redirecionar para o checkout
+      // Verificar se há um plano selecionado e redirecionar para a página específica do plano
       if (selectedPlanId) {
-        console.log("Iniciando checkout para o plano:", selectedPlanId);
+        console.log("Redirecionando para o plano selecionado:", selectedPlanId);
         
-        try {
-          // Chamar a função selectPlan para iniciar o checkout
-          await selectPlan(selectedPlanId);
-          // O redirecionamento para o Stripe será feito pela função selectPlan
-        } catch (checkoutError: any) {
-          console.error("Erro ao iniciar checkout:", checkoutError);
-          toast.error("Erro ao processar pagamento. Por favor, tente novamente.");
-          
-          // Em caso de erro no checkout, redirecionar para a página do plano específico
-          navigate(`/plan/${selectedPlanId}`);
+        // Redirecionar para a página específica do plano
+        switch (selectedPlan?.name) {
+          case 'Text Only':
+            navigate('/plan/free');
+            break;
+          case 'Text & Audio':
+            navigate('/plan/basic');
+            break;
+          case 'Premium':
+            navigate('/plan/premium');
+            break;
+          case 'Trial':
+            navigate('/plan/ultimate');
+            break;
+          default:
+            navigate(`/plan/${selectedPlanId}`);
         }
       } else {
         // Se não há plano selecionado, ir para a página de chat
@@ -401,7 +408,7 @@ const SignupPage = () => {
                     className="px-8 py-2 bg-gradient-sweet"
                     disabled={loading || !selectedAgentId}
                   >
-                    {loading ? 'Salvando...' : selectedPlanId ? 'Continuar para o Pagamento' : 'Continuar para o Chat'}
+                    {loading ? 'Salvando...' : selectedPlanId ? 'Continuar para Escolher Plano' : 'Continuar para o Chat'}
                   </Button>
                 </div>
               </form>
