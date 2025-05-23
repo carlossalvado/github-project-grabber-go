@@ -15,6 +15,7 @@ import SignupPage from "./pages/SignupPage";
 import PersonalizePage from "./pages/PersonalizePage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
+import ModernChatPage from "./pages/ModernChatPage";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import PlanPage from "./pages/PlanPage";
@@ -94,6 +95,15 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ChatPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/modern-chat" 
+                element={
+                  <ProtectedRoute>
+                    <ModernChatPage />
                   </ProtectedRoute>
                 } 
               />
