@@ -28,13 +28,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Função para carregar dados do usuário do Supabase e salvar no cache
+  const loadUserDataToCache = async (userId: string) => {
+    try {
+      console.log("Carregando dados do usuário do Supabase para o cache:", userId);
+      
+      // Buscar dados do perfil do usuário
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('plan_name, plan_active')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (profileError) {
+        console.error("Erro ao buscar perfil:", profileError);
+      }
+      
+      // Buscar dados da assinatura
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select('plan_name, status, start_date, end_date')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      
+      if (subscriptionError) {
+        console.error("Erro ao buscar assinatura:", subscriptionError);
+      }
+      
+      // Salvar dados no cache
+      if (profileData || subscriptionData) {
+        const cacheData = {
+          plan_name: subscriptionData?.plan_name || profileData?.plan_name || null,
+          plan_active: subscriptionData?.status === 'active' || profileData?.plan_active || false,
+          cached_at: Date.now()
+        };
+        
+        localStorage.setItem('sweet-ai-user-profile', JSON.stringify(cacheData));
+        console.log("Dados do usuário salvos no cache:", cacheData);
+        
+        // Se há assinatura ativa, salvar também no cache de assinatura
+        if (subscriptionData?.status === 'active') {
+          const subscriptionCache = {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            plan_id: 1, // ID genérico
+            plan_name: subscriptionData.plan_name,
+            status: subscriptionData.status,
+            start_date: subscriptionData.start_date,
+            end_date: subscriptionData.end_date,
+            cached_at: Date.now()
+          };
+          
+          localStorage.setItem('sweet-ai-subscription-data', JSON.stringify(subscriptionCache));
+          console.log("Dados de assinatura salvos no cache:", subscriptionCache);
+        }
+      }
+      
+    } catch (error) {
+      console.error("Erro ao carregar dados para o cache:", error);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Quando o usuário faz login, carregar dados do Supabase para o cache
+        if (event === 'SIGNED_IN' && session?.user) {
+          setTimeout(async () => {
+            await loadUserDataToCache(session.user.id);
+            
+            // Redirecionar para o perfil após login confirmado e dados carregados
+            console.log("Redirecionando para o perfil após login");
+            window.location.href = '/profile';
+          }, 100);
+        }
+        
         setLoading(false);
       }
     );

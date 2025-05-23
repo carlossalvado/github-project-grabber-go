@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -57,6 +56,13 @@ const ProfilePage = () => {
 
   const handleSignOut = async () => {
     try {
+      // Limpar todos os dados do cache antes do logout
+      localStorage.removeItem('sweet-ai-subscription-data');
+      localStorage.removeItem('sweet-ai-user-profile');
+      localStorage.removeItem('sweet-ai-selected-plan-details');
+      
+      console.log("Cache limpo no logout");
+      
       await signOut();
       toast.success("Logout realizado com sucesso");
     } catch (err) {
