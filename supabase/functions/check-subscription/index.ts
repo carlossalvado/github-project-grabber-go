@@ -162,7 +162,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existingSubscription) {
-        // Atualizar assinatura existente
+        // Atualizar assinatura existente para ATIVO
         await supabaseClient.from("subscriptions")
           .update({
             plan_id: planId,
@@ -174,7 +174,7 @@ serve(async (req) => {
           })
           .eq('user_id', user.id);
       } else {
-        // Criar nova assinatura
+        // Criar nova assinatura ATIVA
         await supabaseClient.from("subscriptions")
           .insert({
             user_id: user.id,
@@ -187,13 +187,13 @@ serve(async (req) => {
           });
       }
       
-      logStep("Subscriptions table updated successfully");
+      logStep("Subscriptions table updated with ACTIVE status", { planName, status: "active" });
     } catch (updateError) {
       logStep("Error updating subscriptions table", { error: updateError.message });
       throw updateError;
     }
 
-    // Atualizar a tabela de perfis
+    // Atualizar a tabela de perfis para ATIVO
     try {
       await supabaseClient.from("profiles")
         .update({
@@ -203,7 +203,7 @@ serve(async (req) => {
         })
         .eq('id', user.id);
       
-      logStep("Profile updated successfully", { planName, planActive: true });
+      logStep("Profile updated with ACTIVE plan status", { planName, planActive: true });
     } catch (profileError) {
       logStep("Error updating profile", { error: profileError.message });
       throw profileError;
@@ -217,7 +217,7 @@ serve(async (req) => {
         planActive: true,
         subscriptionId: activeSubscription.id,
         periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString(),
-        status: activeSubscription.status
+        status: "active"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

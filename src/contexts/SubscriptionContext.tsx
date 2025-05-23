@@ -184,15 +184,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadPlans();
   }, []);
 
-  // Atualizar perfil no Supabase com dados confirmados de pagamento
+  // Atualizar perfil no Supabase com dados confirmados de pagamento - GARANTINDO STATUS ATIVO
   const updateProfileInSupabase = async (userId: string, planName: string | null, planActive: boolean) => {
     try {
-      console.log("Atualizando perfil no Supabase após confirmação de pagamento:", planName, planActive);
+      console.log("Atualizando perfil no Supabase com STATUS ATIVO:", planName, planActive);
       const { error } = await supabase
         .from('profiles')
         .update({
           plan_name: planName,
-          plan_active: planActive,
+          plan_active: true, // SEMPRE ATIVO quando confirmado o pagamento
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
@@ -202,15 +202,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return false;
       }
       
-      // Atualizar cache do perfil com dados confirmados
+      // Atualizar cache do perfil com STATUS ATIVO
       cacheUserProfile({
         id: userId,
         plan_name: planName,
-        plan_active: planActive,
+        plan_active: true, // SEMPRE ATIVO
         cached_at: Date.now()
       });
       
-      console.log("Perfil atualizado no Supabase e cache após confirmação de pagamento:", planName, planActive);
+      console.log("Perfil atualizado no Supabase e cache com STATUS ATIVO:", planName, true);
       return true;
     } catch (err) {
       console.error("Erro ao atualizar perfil no Supabase:", err);
@@ -386,7 +386,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadUserSubscription();
   }, [user]);
 
-  // Check subscription status with Stripe - usado para confirmar pagamento
+  // Check subscription status with Stripe - GARANTINDO STATUS ATIVO
   const checkSubscriptionStatus = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para verificar seu status de assinatura");
@@ -407,10 +407,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       // Se o pagamento foi confirmado (hasActiveSubscription = true)
       if (data.hasActiveSubscription && data.planName && data.planActive) {
-        console.log("Pagamento confirmado! Salvando dados no Supabase e cache...");
+        console.log("PAGAMENTO CONFIRMADO! Salvando STATUS ATIVO no Supabase e cache...");
         
-        // Atualizar o perfil no Supabase com dados confirmados
-        await updateProfileInSupabase(user.id, data.planName, data.planActive);
+        // Atualizar o perfil no Supabase com STATUS ATIVO
+        await updateProfileInSupabase(user.id, data.planName, true);
         
         // Buscar dados atualizados da assinatura do banco
         const { data: subscriptionData, error: subscriptionError } = await supabase
@@ -427,6 +427,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           const transformedSubscription = {
             ...subscription,
             plan_name: subscription.plan_name || subscription.plan?.name,
+            status: 'active', // GARANTINDO STATUS ATIVO
             plan: subscription.plan ? {
               ...subscription.plan,
               features: transformFeatures(subscription.plan.features as Json)
@@ -434,11 +435,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
             cached_at: Date.now()
           };
           
-          // Atualizar estado e cache com dados confirmados
+          // Atualizar estado e cache com STATUS ATIVO
           setUserSubscription(transformedSubscription);
           cacheSubscription(transformedSubscription);
           
-          console.log("Dados de assinatura salvos após confirmação de pagamento:", transformedSubscription);
+          console.log("Dados de assinatura ATIVA salvos após confirmação de pagamento:", transformedSubscription);
           
           toast.success(`Pagamento confirmado! Plano ${data.planName} ativado com sucesso!`);
           
