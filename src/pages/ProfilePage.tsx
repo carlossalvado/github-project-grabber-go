@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -21,27 +20,40 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!user) return;
     
-    const fetchProfile = async () => {
+    // Buscar dados do perfil apenas do cache
+    const getCachedProfile = () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('full_name, plan_name, plan_active')
-          .eq('id', user.id)
-          .single();
-          
-        if (error) throw error;
-        setProfile(data);
+        const cached = localStorage.getItem('sweet-ai-user-profile');
+        if (cached) {
+          const profileData = JSON.parse(cached);
+          setProfile({
+            full_name: user.user_metadata?.full_name || null,
+            plan_name: profileData.plan_name || null,
+            plan_active: profileData.plan_active || false
+          });
+        } else {
+          // Se não há cache, usar dados básicos do usuário
+          setProfile({
+            full_name: user.user_metadata?.full_name || null,
+            plan_name: null,
+            plan_active: false
+          });
+        }
       } catch (err) {
-        console.error("Erro ao carregar perfil:", err);
-        toast.error("Não foi possível carregar seus dados");
+        console.error("Erro ao carregar perfil do cache:", err);
+        setProfile({
+          full_name: user.user_metadata?.full_name || null,
+          plan_name: null,
+          plan_active: false
+        });
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProfile();
-  }, [user]);
+    getCachedProfile();
+  }, [user, userSubscription]);
 
   const handleSignOut = async () => {
     try {
@@ -82,7 +94,7 @@ const ProfilePage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-600">Nome:</h3>
-                    <p className="text-lg">{profile?.full_name || user?.user_metadata?.full_name || 'Não disponível'}</p>
+                    <p className="text-lg">{profile?.full_name || 'Não disponível'}</p>
                   </div>
                   
                   <div className="flex items-center justify-between">
@@ -96,7 +108,7 @@ const ProfilePage = () => {
                     <h3 className="font-semibold text-gray-600">Plano atual:</h3>
                     <div className="flex items-center">
                       <span className={`px-3 py-1 rounded-full text-sm ${
-                        (profile?.plan_active || userSubscription?.status === 'active') 
+                        (userSubscription?.status === 'active' || profile?.plan_active) 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>
@@ -109,11 +121,11 @@ const ProfilePage = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-600">Status:</h3>
                       <span className={`px-3 py-1 rounded-full text-sm ${
-                        (profile?.plan_active || userSubscription?.status === 'active') 
+                        (userSubscription?.status === 'active' || profile?.plan_active) 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {(profile?.plan_active || userSubscription?.status === 'active') ? 'Ativo' : 'Inativo'}
+                        {(userSubscription?.status === 'active' || profile?.plan_active) ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>
                   )}
