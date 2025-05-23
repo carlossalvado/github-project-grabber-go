@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 const SignupPage = () => {
-  const navigate = useNavigate();
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -53,14 +50,18 @@ const SignupPage = () => {
       localStorage.setItem('userCountry', country);
       toast.success('Cadastro realizado com sucesso!');
       
-      // Redirecionar para personalização
-      navigate('/personalize');
+      // Redirecionar para personalização via URL
+      window.location.href = '/personalize';
     } catch (error: any) {
       console.error('Erro no cadastro:', error);
       toast.error(error.message || 'Erro ao criar conta');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoginRedirect = () => {
+    window.location.href = '/login';
   };
 
   return (
@@ -172,7 +173,7 @@ const SignupPage = () => {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-gray-600">
               Já tem uma conta?{' '}
-              <Button variant="link" className="p-0" onClick={() => navigate('/login')}>
+              <Button variant="link" className="p-0" onClick={handleLoginRedirect}>
                 Entrar
               </Button>
             </p>

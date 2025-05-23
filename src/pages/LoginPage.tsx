@@ -21,12 +21,17 @@ const LoginPage = () => {
     try {
       await signIn(email, password);
       toast.success("Login realizado com sucesso!");
+      // O redirecionamento será feito automaticamente pelo AuthContext
     } catch (error: any) {
       console.error("Erro no login:", error);
       toast.error(error.message || "Falha ao fazer login");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSignupRedirect = () => {
+    window.location.href = '/signup';
   };
 
   return (
@@ -93,7 +98,7 @@ const LoginPage = () => {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-gray-600">
               Não tem uma conta?{' '}
-              <Button variant="link" className="p-0">
+              <Button variant="link" className="p-0" onClick={handleSignupRedirect}>
                 Cadastre-se
               </Button>
             </p>

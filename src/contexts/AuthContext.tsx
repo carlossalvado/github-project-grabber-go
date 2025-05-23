@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
@@ -103,9 +103,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(async () => {
             await loadUserDataToCache(session.user.id);
             
-            // Redirecionar para o perfil após login confirmado e dados carregados
-            console.log("Redirecionando para o perfil após login");
-            window.location.href = '/profile';
+            // Verificar se o login foi feito através da página de login (não durante cadastro)
+            const isFromLoginPage = localStorage.getItem('loginRedirect');
+            if (isFromLoginPage === 'true') {
+              localStorage.removeItem('loginRedirect');
+              console.log("Redirecionando para o perfil após login da página de login");
+              window.location.href = '/profile';
+            }
           }, 100);
         }
         
@@ -124,12 +128,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Marcar que o login está sendo feito através da página de login
+    localStorage.setItem('loginRedirect', 'true');
+    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
     if (error) {
+      localStorage.removeItem('loginRedirect');
       throw error;
     }
   };

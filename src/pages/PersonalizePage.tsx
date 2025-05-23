@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,7 +49,6 @@ const defaultAgents: AgentProfile[] = [
 ];
 
 const PersonalizePage = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [agents, setAgents] = useState<AgentProfile[]>(defaultAgents);
@@ -61,7 +59,7 @@ const PersonalizePage = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      window.location.href = '/login';
       return;
     }
     
@@ -85,7 +83,7 @@ const PersonalizePage = () => {
     };
 
     fetchAgents();
-  }, [user, navigate]);
+  }, [user]);
 
   const handlePersonalizeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +100,7 @@ const PersonalizePage = () => {
     
     if (!user) {
       toast.error('Você precisa estar logado para continuar');
-      navigate('/login');
+      window.location.href = '/login';
       return;
     }
     
@@ -123,8 +121,8 @@ const PersonalizePage = () => {
       
       toast.success('Preferências salvas com sucesso!');
       
-      // Redirecionar para a página de produto
-      navigate('/selected-plan');
+      // Redirecionar para a página de produto via URL
+      window.location.href = '/selected-plan';
       
     } catch (error: any) {
       console.error('Erro ao salvar preferências:', error);
