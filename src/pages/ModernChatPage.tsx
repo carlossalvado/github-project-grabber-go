@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, Plus, Mic, Send } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Plus, Mic, Send, Smile, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -20,6 +21,7 @@ interface ModernMessage {
 
 const ModernChatPage = () => {
   const { user } = useAuth();
+  const { userSubscription } = useSubscription();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
@@ -29,69 +31,11 @@ const ModernChatPage = () => {
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   
-  const [messages, setMessages] = useState<ModernMessage[]>([
-    {
-      id: '1',
-      content: 'Hi, good morning Charlotte... 😊😊',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '2',
-      content: 'It seems we have a lot in common & have a lot of interest in each other 😊',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '3',
-      content: 'Hello, good morning too Andrew 👋',
-      sender: 'contact',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '4',
-      content: 'Haha, yes I\'ve seen your profile and I\'m a perfect match 😁😁',
-      sender: 'contact',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '5',
-      content: 'I want to invite you to dinner tomorrow night at 7 at Starbelly Restaurant 😊',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '6',
-      content: '',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'image',
-      images: [
-        'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&h=150&fit=crop',
-        'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=200&h=150&fit=crop'
-      ]
-    },
-    {
-      id: '7',
-      content: 'What do you think?',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    },
-    {
-      id: '8',
-      content: '',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'audio',
-      audioDuration: '09:41'
-    }
-  ]);
+  // Zerando o histórico - mensagens vazias inicialmente
+  const [messages, setMessages] = useState<ModernMessage[]>([]);
+
+  // Get user plan name
+  const planName = userSubscription?.plan_name || userSubscription?.plan?.name || "Plano Básico";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -127,8 +71,18 @@ const ModernChatPage = () => {
     setIsRecording(!isRecording);
   };
 
+  const handleEmoticonClick = () => {
+    console.log("Emoticon button clicked");
+    // Implementar seletor de emoticons
+  };
+
+  const handleGiftClick = () => {
+    console.log("Gift button clicked");
+    // Implementar seletor de presentes
+  };
+
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col max-w-md mx-auto">
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -157,99 +111,117 @@ const ModernChatPage = () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-gray-700"
-          >
-            <Phone size={20} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-gray-700"
-          >
-            <Video size={20} />
-          </Button>
+        <div className="flex items-center gap-3">
+          {/* Plan info box */}
+          <div className="bg-purple-600 px-3 py-1 rounded-full">
+            <span className="text-xs font-medium text-white">{planName}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-700"
+            >
+              <Phone size={20} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-700"
+            >
+              <Video size={20} />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {/* Today label */}
-          <div className="flex justify-center">
-            <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
-              Today
-            </span>
-          </div>
-
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className="max-w-[80%] space-y-1">
-                {message.type === 'text' && (
-                  <div
-                    className={`px-4 py-3 rounded-2xl ${
-                      message.sender === 'user'
-                        ? 'bg-purple-600 text-white rounded-br-md'
-                        : 'bg-gray-700 text-white rounded-bl-md'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed">{message.content}</p>
-                  </div>
-                )}
-                
-                {message.type === 'image' && message.images && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {message.images.map((img, index) => (
-                      <img
-                        key={index}
-                        src={img}
-                        alt={`Shared image ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg"
-                      />
-                    ))}
-                  </div>
-                )}
-                
-                {message.type === 'audio' && (
-                  <div className="bg-purple-600 px-4 py-3 rounded-2xl rounded-br-md flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                      <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1"></div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
-                        <div className="w-1/3 h-full bg-white rounded-full"></div>
-                      </div>
-                    </div>
-                    <span className="text-xs text-white opacity-90">{message.audioDuration}</span>
-                  </div>
-                )}
-                
-                <div className={`flex items-center gap-1 text-xs text-gray-400 ${
-                  message.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}>
-                  <span>{formatTime(message.timestamp)}</span>
-                  {message.sender === 'user' && (
-                    <div className="flex">
-                      <span className="text-blue-400">✓✓</span>
-                    </div>
-                  )}
-                </div>
+        <div className="space-y-4 max-w-4xl mx-auto">
+          {messages.length === 0 ? (
+            <div className="flex justify-center items-center h-full">
+              <div className="text-center text-gray-400">
+                <p className="text-lg mb-2">Comece uma conversa!</p>
+                <p className="text-sm">Digite uma mensagem para {contactName}</p>
               </div>
             </div>
-          ))}
+          ) : (
+            <>
+              {/* Today label */}
+              <div className="flex justify-center">
+                <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
+                  Hoje
+                </span>
+              </div>
+
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className="max-w-[70%] space-y-1">
+                    {message.type === 'text' && (
+                      <div
+                        className={`px-4 py-3 rounded-2xl ${
+                          message.sender === 'user'
+                            ? 'bg-purple-600 text-white rounded-br-md'
+                            : 'bg-gray-700 text-white rounded-bl-md'
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                      </div>
+                    )}
+                    
+                    {message.type === 'image' && message.images && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {message.images.map((img, index) => (
+                          <img
+                            key={index}
+                            src={img}
+                            alt={`Shared image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {message.type === 'audio' && (
+                      <div className="bg-purple-600 px-4 py-3 rounded-2xl rounded-br-md flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                          <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
+                            <div className="w-1/3 h-full bg-white rounded-full"></div>
+                          </div>
+                        </div>
+                        <span className="text-xs text-white opacity-90">{message.audioDuration}</span>
+                      </div>
+                    )}
+                    
+                    <div className={`flex items-center gap-1 text-xs text-gray-400 ${
+                      message.sender === 'user' ? 'justify-end' : 'justify-start'
+                    }`}>
+                      <span>{formatTime(message.timestamp)}</span>
+                      {message.sender === 'user' && (
+                        <div className="flex">
+                          <span className="text-blue-400">✓✓</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
       {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-w-4xl mx-auto">
           <Button
             variant="ghost"
             size="icon"
@@ -267,6 +239,24 @@ const ModernChatPage = () => {
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
             />
           </div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleEmoticonClick}
+            className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+          >
+            <Smile size={20} />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleGiftClick}
+            className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+          >
+            <Gift size={20} />
+          </Button>
           
           <Button
             variant="ghost"
