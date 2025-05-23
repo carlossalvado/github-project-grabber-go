@@ -1,6 +1,5 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
-  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { userSubscription } = useSubscription();
   const [loading, setLoading] = useState(false);
@@ -21,10 +19,7 @@ const ProfilePage = () => {
   } | null>(null);
   
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    if (!user) return;
     
     const fetchProfile = async () => {
       setLoading(true);
@@ -46,21 +41,16 @@ const ProfilePage = () => {
     };
     
     fetchProfile();
-  }, [user, navigate]);
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      toast.success("Logout realizado com sucesso");
     } catch (err) {
       console.error("Erro ao fazer logout:", err);
       toast.error("Erro ao sair da conta");
     }
-  };
-  
-  const handleChatNavigation = () => {
-    // Navegar diretamente para o chat sem verificações adicionais
-    navigate('/chat');
   };
 
   return (
@@ -134,11 +124,10 @@ const ProfilePage = () => {
           
           <CardFooter className="flex flex-col space-y-3">
             <Button 
-              className="w-full bg-gradient-sweet flex items-center gap-2" 
-              onClick={handleChatNavigation}
+              className="w-full bg-gradient-sweet flex items-center gap-2"
             >
               <MessageCircle size={18} />
-              Ir para o Chat
+              Acessar Chat
             </Button>
             
             <Button 

@@ -1,6 +1,4 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
@@ -73,8 +71,7 @@ const SignupPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
   const { signUp, user } = useAuth();
-  const { plans, selectPlan } = useSubscription();
-  const navigate = useNavigate();
+  const { plans } = useSubscription();
   
   useEffect(() => {
     // Recuperar o plano selecionado do localStorage
@@ -176,32 +173,6 @@ const SignupPage = () => {
       if (error) throw error;
       
       toast.success('Preferências salvas com sucesso!');
-      
-      // Verificar se há um plano selecionado e redirecionar para a página específica do plano
-      if (selectedPlanId) {
-        console.log("Redirecionando para o plano selecionado:", selectedPlanId);
-        
-        // Redirecionar para a página específica do plano
-        switch (selectedPlan?.name) {
-          case 'Text Only':
-            navigate('/plan/free');
-            break;
-          case 'Text & Audio':
-            navigate('/plan/basic');
-            break;
-          case 'Premium':
-            navigate('/plan/premium');
-            break;
-          case 'Trial':
-            navigate('/plan/ultimate');
-            break;
-          default:
-            navigate(`/plan/${selectedPlanId}`);
-        }
-      } else {
-        // Se não há plano selecionado, ir para a página de chat
-        navigate('/chat');
-      }
       
     } catch (error: any) {
       console.error('Erro ao salvar preferências:', error);
@@ -328,11 +299,7 @@ const SignupPage = () => {
             <CardFooter className="flex justify-center">
               <p className="text-sm text-gray-600">
                 Já tem uma conta?{' '}
-                <Button 
-                  variant="link" 
-                  onClick={() => navigate('/login')}
-                  className="p-0"
-                >
+                <Button variant="link" className="p-0">
                   Entrar
                 </Button>
               </p>
@@ -408,7 +375,7 @@ const SignupPage = () => {
                     className="px-8 py-2 bg-gradient-sweet"
                     disabled={loading || !selectedAgentId}
                   >
-                    {loading ? 'Salvando...' : selectedPlanId ? 'Continuar para Escolher Plano' : 'Continuar para o Chat'}
+                    {loading ? 'Salvando...' : 'Salvar Preferências'}
                   </Button>
                 </div>
               </form>

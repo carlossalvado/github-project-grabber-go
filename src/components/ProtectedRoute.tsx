@@ -1,26 +1,14 @@
 
-import React, { useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  redirectTo?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  redirectTo = '/login' 
-}) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
-  const location = useLocation();
   
-  useEffect(() => {
-    console.log("Protected route:", location.pathname);
-    console.log("User authenticated:", !!user);
-    console.log("Auth loading:", loading);
-  }, [user, loading, location]);
-
   // Show loading state while checking auth
   if (loading) {
     return (
@@ -30,14 +18,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Redirect if not authenticated
+  // Show access denied if not authenticated
   if (!user) {
-    console.log("User not authenticated, redirecting to", redirectTo);
-    return <Navigate to={redirectTo} />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-sweetheart-bg">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Acesso Restrito</h1>
+          <p className="text-gray-600 mb-6">Você precisa estar logado para acessar esta página.</p>
+        </div>
+      </div>
+    );
   }
 
   // Render children if authenticated
-  console.log("User authenticated, rendering content");
   return <>{children}</>;
 };
 
