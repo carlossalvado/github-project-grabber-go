@@ -12,6 +12,7 @@ import NavBar from "./components/NavBar";
 // Páginas
 import LandingPage from "./pages/LandingPage";
 import SignupPage from "./pages/SignupPage";
+import PersonalizePage from "./pages/PersonalizePage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import Home from "./pages/Home";
@@ -56,8 +57,15 @@ const App = () => (
               <Route path="/plan/premium" element={<PremiumPlanPage />} />
               <Route path="/plan/ultimate" element={<UltimatePlanPage />} />
               
-              {/* Redirecionar /personalize para /signup - agora é uma experiência integrada */}
-              <Route path="/personalize" element={<Navigate to="/signup" />} />
+              {/* Página de personalização */}
+              <Route 
+                path="/personalize" 
+                element={
+                  <ProtectedRoute>
+                    <PersonalizePage />
+                  </ProtectedRoute>
+                } 
+              />
               
               {/* Redirecionamento da antiga página de planos para a home */}
               <Route path="/plans" element={<Navigate to="/" />} />

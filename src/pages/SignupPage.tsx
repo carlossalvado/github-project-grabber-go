@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,8 @@ const defaultAgents: AgentProfile[] = [
 ];
 
 const SignupPage = () => {
+  const navigate = useNavigate();
+  
   // Dados do usuário
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +74,7 @@ const SignupPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
   const { signUp, user } = useAuth();
-  const { plans } = useSubscription();
+  const { plans, selectPlan } = useSubscription();
   
   useEffect(() => {
     // Recuperar o plano selecionado do localStorage
@@ -127,8 +130,8 @@ const SignupPage = () => {
       localStorage.setItem('userCountry', country);
       toast.success('Cadastro realizado com sucesso!');
       
-      // Avançar para a etapa de personalização
-      setStep(2);
+      // Redirecionar para personalização
+      navigate('/personalize');
     } catch (error: any) {
       console.error('Erro no cadastro:', error);
       toast.error(error.message || 'Erro ao criar conta');
@@ -152,7 +155,7 @@ const SignupPage = () => {
     
     if (!user) {
       toast.error('Você precisa estar logado para continuar');
-      setStep(1); // Voltar para o cadastro
+      navigate('/login');
       return;
     }
     
@@ -173,6 +176,15 @@ const SignupPage = () => {
       if (error) throw error;
       
       toast.success('Preferências salvas com sucesso!');
+      
+      // Processar checkout do Stripe com o plano selecionado
+      if (selectedPlanId) {
+        console.log('Iniciando checkout para o plano:', selectedPlanId);
+        await selectPlan(selectedPlanId);
+      } else {
+        // Se não há plano selecionado, ir para o chat
+        navigate('/chat');
+      }
       
     } catch (error: any) {
       console.error('Erro ao salvar preferências:', error);
@@ -299,7 +311,7 @@ const SignupPage = () => {
             <CardFooter className="flex justify-center">
               <p className="text-sm text-gray-600">
                 Já tem uma conta?{' '}
-                <Button variant="link" className="p-0">
+                <Button variant="link" className="p-0" onClick={() => navigate('/login')}>
                   Entrar
                 </Button>
               </p>
