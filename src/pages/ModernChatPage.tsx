@@ -3,11 +3,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, Plus, Mic, Send, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ModernMessage {
   id: string;
@@ -24,8 +25,11 @@ const ModernChatPage = () => {
   const { userSubscription } = useSubscription();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const isMobile = useIsMobile();
   
   // Contact info (this would come from props or context)
   const contactName = "Charlotte";
@@ -41,10 +45,10 @@ const ModernChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!input.trim()) return;
     
-    const newMessage: ModernMessage = {
+    const userMessage: ModernMessage = {
       id: Date.now().toString(),
       content: input,
       sender: 'user',
@@ -52,8 +56,28 @@ const ModernChatPage = () => {
       type: 'text'
     };
     
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
+    setIsLoading(true);
+
+    // Blur input to hide keyboard on mobile
+    if (isMobile && inputRef.current) {
+      inputRef.current.blur();
+    }
+
+    // Simulate typing delay for contact response
+    setTimeout(() => {
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Olá! Recebi sua mensagem: "${userMessage.content}"`,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+      setIsLoading(false);
+    }, 2000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -64,7 +88,11 @@ const ModernChatPage = () => {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('pt-BR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo'
+    });
   };
 
   const toggleRecording = () => {
@@ -80,6 +108,24 @@ const ModernChatPage = () => {
     console.log("Gift button clicked");
     // Implementar seletor de presentes
   };
+
+  // Mobile loading component
+  const MobileLoadingIndicator = () => (
+    <div className="flex justify-start mb-4">
+      <div className="max-w-[70%] space-y-1">
+        <div className="bg-gray-700 text-white rounded-2xl rounded-bl-md px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            </div>
+            <span className="text-sm text-gray-300">digitando...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full">
@@ -138,7 +184,7 @@ const ModernChatPage = () => {
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4 max-w-4xl mx-auto">
+        <div className="space-y-4">
           {messages.length === 0 ? (
             <div className="flex justify-center items-center h-full">
               <div className="text-center text-gray-400">
@@ -213,6 +259,9 @@ const ModernChatPage = () => {
                   </div>
                 </div>
               ))}
+
+              {/* Loading indicator for mobile */}
+              {isLoading && isMobile && <MobileLoadingIndicator />}
             </>
           )}
           <div ref={messagesEndRef} />
@@ -221,22 +270,16 @@ const ModernChatPage = () => {
 
       {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700">
-        <div className="flex items-center gap-3 max-w-4xl mx-auto">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
-          >
-            <Plus size={20} />
-          </Button>
-          
+        <div className="flex items-center gap-3">
           <div className="flex-1 relative">
             <Input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Send message ..."
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
+              disabled={isLoading}
             />
           </div>
           
@@ -245,6 +288,7 @@ const ModernChatPage = () => {
             size="icon"
             onClick={handleEmoticonClick}
             className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+            disabled={isLoading}
           >
             <Smile size={20} />
           </Button>
@@ -254,6 +298,7 @@ const ModernChatPage = () => {
             size="icon"
             onClick={handleGiftClick}
             className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+            disabled={isLoading}
           >
             <Gift size={20} />
           </Button>
@@ -267,6 +312,7 @@ const ModernChatPage = () => {
                 ? 'text-red-400 hover:bg-red-900' 
                 : 'text-gray-400 hover:bg-gray-700'
             }`}
+            disabled={isLoading}
           >
             <Mic size={20} />
           </Button>
@@ -275,7 +321,7 @@ const ModernChatPage = () => {
             onClick={handleSendMessage}
             size="icon"
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLoading}
           >
             <Send size={18} />
           </Button>
