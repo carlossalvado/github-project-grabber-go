@@ -56,11 +56,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Erro ao buscar assinatura:", subscriptionError);
       }
       
+      // CRITICAL FIX: Log debugging information about profile and subscription data
+      console.log("Dados de perfil encontrados:", profileData);
+      console.log("Dados de assinatura encontrados:", subscriptionData);
+      
       // Salvar dados no cache
       if (profileData || subscriptionData) {
+        // CRITICAL FIX: Determine plan active status correctly
+        // Priority: 1. subscription status=active, 2. profile.plan_active
+        const isActive = 
+          (subscriptionData?.status === 'active') || 
+          (profileData?.plan_active === true);
+        
         const cacheData = {
           plan_name: subscriptionData?.plan_name || profileData?.plan_name || null,
-          plan_active: profileData?.plan_active || (subscriptionData?.status === 'active') || false,
+          plan_active: isActive,
           cached_at: Date.now()
         };
         
@@ -68,13 +78,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("Dados do usuário salvos no cache:", cacheData);
         
         // Se há assinatura ativa, salvar também no cache de assinatura
-        if (subscriptionData?.status === 'active' || profileData?.plan_active) {
+        if (isActive) {
           const subscriptionCache = {
             id: crypto.randomUUID(),
             user_id: userId,
             plan_id: 1, // ID genérico
             plan_name: subscriptionData?.plan_name || profileData?.plan_name,
-            status: subscriptionData?.status || (profileData?.plan_active ? 'active' : 'inactive'),
+            status: subscriptionData?.status || (isActive ? 'active' : 'inactive'),
             start_date: subscriptionData?.start_date || new Date().toISOString(),
             end_date: subscriptionData?.end_date || null,
             cached_at: Date.now()
@@ -83,6 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('sweet-ai-subscription-data', JSON.stringify(subscriptionCache));
           console.log("Dados de assinatura salvos no cache:", subscriptionCache);
         }
+      } else {
+        console.log("Nenhum dado de perfil ou assinatura encontrado para o usuário");
       }
       
     } catch (error) {
@@ -163,6 +175,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       throw error;
     }
+    
+    // CRITICAL FIX: Clear all subscription and profile data from local storage on logout
+    localStorage.removeItem('sweet-ai-user-profile');
+    localStorage.removeItem('sweet-ai-subscription-data');
+    localStorage.removeItem('sweet-ai-selected-plan-details');
+    console.log("Dados de cache limpos após logout");
   };
 
   const value = {

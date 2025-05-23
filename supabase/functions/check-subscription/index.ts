@@ -53,14 +53,22 @@ serve(async (req) => {
     if (customers.data.length === 0) {
       logStep("No Stripe customer found, marking as unsubscribed");
       
-      // Apenas atualizar se ainda não foi definido como inativo anteriormente
+      // Get current profile state before making any changes
       const { data: currentProfile } = await supabaseClient.from("profiles")
-        .select("plan_active")
+        .select("plan_active, plan_name")
         .eq('id', user.id)
         .single();
       
+      logStep("Current profile before update", { 
+        planActive: currentProfile?.plan_active,
+        planName: currentProfile?.plan_name
+      });
+      
+      // Only update if currently active - avoid overwriting manual changes
       if (currentProfile?.plan_active === true) {
-        // Atualizar assinaturas para inativo
+        logStep("Profile is currently active, updating to inactive");
+        
+        // Update subscriptions to inactive
         await supabaseClient.from("subscriptions")
           .update({
             status: "inactive",
@@ -68,7 +76,7 @@ serve(async (req) => {
           })
           .eq('user_id', user.id);
         
-        // Atualizar o perfil para remover plano
+        // Update profile to remove plan
         await supabaseClient.from("profiles")
           .update({ 
             plan_name: null, 
@@ -78,6 +86,8 @@ serve(async (req) => {
           .eq('id', user.id);
 
         logStep("Database updated to reflect no active subscription");
+      } else {
+        logStep("Profile already inactive, skipping update");
       }
 
       return new Response(
@@ -106,14 +116,22 @@ serve(async (req) => {
     if (subscriptions.data.length === 0) {
       logStep("No active subscriptions found for customer");
       
-      // Apenas atualizar se ainda não foi definido como inativo anteriormente
+      // Get current profile state before making any changes
       const { data: currentProfile } = await supabaseClient.from("profiles")
-        .select("plan_active")
+        .select("plan_active, plan_name")
         .eq('id', user.id)
         .single();
       
+      logStep("Current profile before update", { 
+        planActive: currentProfile?.plan_active,
+        planName: currentProfile?.plan_name
+      });
+      
+      // Only update if currently active - avoid overwriting manual changes
       if (currentProfile?.plan_active === true) {
-        // Atualizar assinaturas para inativo
+        logStep("Profile is currently active, updating to inactive");
+        
+        // Update subscriptions to inactive
         await supabaseClient.from("subscriptions")
           .update({
             status: "inactive",
@@ -121,7 +139,7 @@ serve(async (req) => {
           })
           .eq('user_id', user.id);
         
-        // Atualizar o perfil para remover plano
+        // Update profile to remove plan
         await supabaseClient.from("profiles")
           .update({ 
             plan_name: null, 
@@ -131,6 +149,8 @@ serve(async (req) => {
           .eq('id', user.id);
 
         logStep("Database updated to reflect no active subscription");
+      } else {
+        logStep("Profile already inactive, skipping update");
       }
 
       return new Response(
@@ -169,7 +189,7 @@ serve(async (req) => {
     const planName = planData?.name || "Plano Desconhecido";
     logStep("Determined plan ID and name", { priceId, planId, planName });
 
-    // Verificar se o perfil já tem plan_active como TRUE para evitar sobrescrever
+    // Get current profile before making any changes
     const { data: currentProfile } = await supabaseClient.from("profiles")
       .select("plan_active, plan_name")
       .eq('id', user.id)
@@ -180,9 +200,12 @@ serve(async (req) => {
       currentPlanName: currentProfile?.plan_name 
     });
 
-    // Só atualizar se plan_active for FALSE ou se o plan_name for diferente
+    // CRITICAL FIX: Only update if the plan is NOT active or the plan name has changed
+    // This prevents overwriting manual changes while ensuring new subscriptions are set active
     if (currentProfile?.plan_active === false || currentProfile?.plan_name !== planName) {
-      // Atualizar a tabela de assinaturas
+      logStep("Need to update profile - either inactive or plan name changed");
+      
+      // First check for existing subscription record
       try {
         const { data: existingSubscription } = await supabaseClient
           .from("subscriptions")
@@ -191,7 +214,7 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingSubscription) {
-          // Atualizar assinatura existente para ATIVO
+          // Update existing subscription
           await supabaseClient.from("subscriptions")
             .update({
               plan_id: planId,
@@ -202,8 +225,10 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id);
+            
+          logStep("Updated existing subscription record", { planName, status: "active" });
         } else {
-          // Criar nova assinatura ATIVA
+          // Create new subscription
           await supabaseClient.from("subscriptions")
             .insert({
               user_id: user.id,
@@ -211,23 +236,22 @@ serve(async (req) => {
               plan_name: planName,
               status: "active",
               start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
-              end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
-              updated_at: new Date().toISOString()
+              end_date: new Date(activeSubscription.current_period_end * 1000).toISOString()
             });
+            
+          logStep("Created new subscription record", { planName, status: "active" });
         }
-        
-        logStep("Subscriptions table updated with ACTIVE status", { planName, status: "active" });
       } catch (updateError) {
         logStep("Error updating subscriptions table", { error: updateError.message });
         throw updateError;
       }
 
-      // Atualizar a tabela de perfis para ATIVO (apenas se necessário)
+      // CRITICAL FIX: Always set plan_active to TRUE for active subscriptions
       try {
         await supabaseClient.from("profiles")
           .update({
             plan_name: planName, 
-            plan_active: true,  // IMPORTANTE: Definir como TRUE
+            plan_active: true,  // Explicitly set to true
             updated_at: new Date().toISOString()
           })
           .eq('id', user.id);
@@ -238,18 +262,19 @@ serve(async (req) => {
         throw profileError;
       }
     } else {
-      logStep("Profile already has active plan, skipping update to avoid overwriting", { 
+      logStep("Profile already has correct active plan, skipping update", { 
         planName: currentProfile?.plan_name, 
         planActive: currentProfile?.plan_active 
       });
     }
 
+    // Always return active status for consistency
     return new Response(
       JSON.stringify({
         hasActiveSubscription: true,
         planId,
         planName,
-        planActive: true,  // Sempre retornar TRUE quando há assinatura ativa
+        planActive: true,  // Explicitly return true
         subscriptionId: activeSubscription.id,
         periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString(),
         status: "active"

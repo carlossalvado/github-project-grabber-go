@@ -271,8 +271,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
       
       // Se o pagamento foi confirmado (hasActiveSubscription = true)
-      if (data.hasActiveSubscription && data.planName && data.planActive) {
+      if (data.hasActiveSubscription && data.planName) {
         console.log("PAGAMENTO CONFIRMADO! Salvando no cache...");
+        
+        // CRITICAL FIX: Ensure we explictly set plan_active to true in the cache
+        const isActive = data.planActive !== undefined ? data.planActive : true;
         
         // Buscar detalhes do plano dos dados já carregados
         const selectedPlan = plans.find(p => p.name === data.planName);
@@ -294,11 +297,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           setUserSubscription(confirmedSubscription);
           cacheSubscription(confirmedSubscription);
           
-          // Atualizar cache do perfil
+          // Atualizar cache do perfil - CRITICAL FIX: Always set plan_active to true
           cacheUserProfile({
             id: user.id,
             plan_name: data.planName,
-            plan_active: true,
+            plan_active: true, // Explicitly TRUE
             cached_at: Date.now()
           });
           
