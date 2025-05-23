@@ -53,8 +53,7 @@ serve(async (req) => {
     if (customers.data.length === 0) {
       logStep("No Stripe customer found, marking as unsubscribed");
       
-      // Garantir consistência entre as tabelas de assinaturas e perfis
-      // 1. Primeiro, atualize assinaturas para inativo
+      // Atualizar assinaturas para inativo
       await supabaseClient.from("subscriptions")
         .update({
           status: "inactive",
@@ -62,7 +61,7 @@ serve(async (req) => {
         })
         .eq('user_id', user.id);
       
-      // 2. Depois, atualize o perfil para remover plano
+      // Atualizar o perfil para remover plano
       await supabaseClient.from("profiles")
         .update({ 
           plan_name: null, 
@@ -74,7 +73,11 @@ serve(async (req) => {
       logStep("Database updated to reflect no active subscription");
 
       return new Response(
-        JSON.stringify({ hasActiveSubscription: false }),
+        JSON.stringify({ 
+          hasActiveSubscription: false,
+          planName: null,
+          planActive: false
+        }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
@@ -95,8 +98,7 @@ serve(async (req) => {
     if (subscriptions.data.length === 0) {
       logStep("No active subscriptions found for customer");
       
-      // Garantir consistência entre as tabelas de assinaturas e perfis
-      // 1. Primeiro, atualize assinaturas para inativo
+      // Atualizar assinaturas para inativo
       await supabaseClient.from("subscriptions")
         .update({
           status: "inactive",
@@ -104,7 +106,7 @@ serve(async (req) => {
         })
         .eq('user_id', user.id);
       
-      // 2. Depois, atualize o perfil para remover plano
+      // Atualizar o perfil para remover plano
       await supabaseClient.from("profiles")
         .update({ 
           plan_name: null, 
@@ -116,7 +118,11 @@ serve(async (req) => {
       logStep("Database updated to reflect no active subscription");
 
       return new Response(
-        JSON.stringify({ hasActiveSubscription: false }),
+        JSON.stringify({ 
+          hasActiveSubscription: false,
+          planName: null,
+          planActive: false
+        }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
@@ -147,19 +153,39 @@ serve(async (req) => {
     const planName = planData?.name || "Plano Desconhecido";
     logStep("Determined plan ID and name", { priceId, planId, planName });
 
-    // Garantir consistência entre as tabelas de assinaturas e perfis
-    // 1. Primeiro, atualize a tabela de assinaturas
+    // Atualizar a tabela de assinaturas
     try {
-      await supabaseClient.from("subscriptions")
-        .upsert({
-          user_id: user.id,
-          plan_id: planId,
-          plan_name: planName,
-          status: "active",
-          start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
-          end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+      const { data: existingSubscription } = await supabaseClient
+        .from("subscriptions")
+        .select("id")
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingSubscription) {
+        // Atualizar assinatura existente
+        await supabaseClient.from("subscriptions")
+          .update({
+            plan_id: planId,
+            plan_name: planName,
+            status: "active",
+            start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
+            end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Criar nova assinatura
+        await supabaseClient.from("subscriptions")
+          .insert({
+            user_id: user.id,
+            plan_id: planId,
+            plan_name: planName,
+            status: "active",
+            start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
+            end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
       
       logStep("Subscriptions table updated successfully");
     } catch (updateError) {
@@ -167,7 +193,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // 2. Depois, atualize a tabela de perfis
+    // Atualizar a tabela de perfis
     try {
       await supabaseClient.from("profiles")
         .update({
@@ -177,7 +203,7 @@ serve(async (req) => {
         })
         .eq('id', user.id);
       
-      logStep("Profile updated successfully", { planName });
+      logStep("Profile updated successfully", { planName, planActive: true });
     } catch (profileError) {
       logStep("Error updating profile", { error: profileError.message });
       throw profileError;
@@ -188,6 +214,7 @@ serve(async (req) => {
         hasActiveSubscription: true,
         planId,
         planName,
+        planActive: true,
         subscriptionId: activeSubscription.id,
         periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString(),
         status: activeSubscription.status

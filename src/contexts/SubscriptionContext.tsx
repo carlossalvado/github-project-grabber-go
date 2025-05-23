@@ -6,7 +6,7 @@ import { Json } from "@/integrations/supabase/types";
 
 // Local storage key for caching subscription data
 const SUBSCRIPTION_CACHE_KEY = 'sweet-ai-subscription-data';
-const SUBSCRIPTION_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 horas (aumentado para maior persistência)
+const SUBSCRIPTION_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 horas
 // Chave para armazenar detalhes do plano selecionado
 const SELECTED_PLAN_DETAILS_KEY = 'sweet-ai-selected-plan-details';
 // Chave para armazenar dados do perfil do usuário
@@ -72,11 +72,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         premium: featureObj.premium !== undefined ? Boolean(featureObj.premium) : undefined
       };
     }
-    // Default values if structure is unexpected
     return { text: false, audio: false };
   };
 
-  // Save subscription to local storage with timestamp
+  // Salvar dados de assinatura no cache com timestamp
   const cacheSubscription = (subscription: Subscription | null) => {
     if (subscription) {
       const subscriptionWithTimestamp = {
@@ -84,25 +83,17 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         cached_at: Date.now()
       };
       localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify(subscriptionWithTimestamp));
-      console.log("Assinatura salva no cache:", subscription.plan_name);
-    } else {
-      // Não remover do cache se for null, apenas em logout explícito
-      console.log("Não atualizando cache de assinatura com valor nulo");
+      console.log("Assinatura salva no cache:", subscription.plan_name, subscription.status);
     }
   };
 
-  // Get cached subscription, return null if expired
+  // Obter assinatura do cache
   const getCachedSubscription = (): Subscription | null => {
     const cached = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
     if (!cached) return null;
 
     try {
       const subscription = JSON.parse(cached) as Subscription;
-      const cachedAt = subscription.cached_at || 0;
-      if (Date.now() - cachedAt > SUBSCRIPTION_CACHE_EXPIRY) {
-        console.log("Cache de assinatura expirado, mas mantendo para consulta");
-        // Não remover do cache mesmo se expirado
-      }
       return subscription;
     } catch (e) {
       console.error("Erro ao ler cache de assinatura:", e);
@@ -119,9 +110,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       };
       localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(profileWithTimestamp));
       console.log("Perfil do usuário salvo no cache:", profile.plan_name, profile.plan_active);
-    } else {
-      // Não remover do cache se for null, apenas em logout explícito
-      console.log("Não atualizando cache de perfil com valor nulo");
     }
   };
 
@@ -177,7 +165,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         
         if (data) {
           console.log("Plans data received:", data);
-          // Transform the features from Json to the expected structure
           const transformedPlans: Plan[] = data.map(plan => ({
             ...plan,
             features: transformFeatures(plan.features as Json)
@@ -190,7 +177,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         console.error("Error loading plans:", error);
         toast.error("Falha ao carregar os planos de assinatura");
       } finally {
-        // Even if there's an error, we should stop loading
         setLoading(false);
       }
     };
@@ -198,10 +184,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadPlans();
   }, []);
 
-  // Atualizar perfil no Supabase (usado apenas em momentos críticos)
+  // Atualizar perfil no Supabase com dados confirmados de pagamento
   const updateProfileInSupabase = async (userId: string, planName: string | null, planActive: boolean) => {
     try {
-      console.log("Atualizando perfil no Supabase:", planName, planActive);
+      console.log("Atualizando perfil no Supabase após confirmação de pagamento:", planName, planActive);
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -216,7 +202,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return false;
       }
       
-      // Atualizar cache do perfil
+      // Atualizar cache do perfil com dados confirmados
       cacheUserProfile({
         id: userId,
         plan_name: planName,
@@ -224,91 +210,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         cached_at: Date.now()
       });
       
-      console.log("Perfil atualizado no Supabase e no cache:", planName, planActive);
+      console.log("Perfil atualizado no Supabase e cache após confirmação de pagamento:", planName, planActive);
       return true;
     } catch (err) {
       console.error("Erro ao atualizar perfil no Supabase:", err);
       return false;
-    }
-  };
-
-  // Ensure profile data is in sync with subscription data
-  // Agora usado apenas em momentos críticos (pagamento, login)
-  const syncProfileWithSubscription = async (userId: string, subscription: Subscription | null) => {
-    try {
-      if (!subscription) {
-        // Verificar cache do perfil antes de qualquer operação
-        const cachedProfile = getCachedUserProfile();
-        const selectedPlanDetails = getSelectedPlanDetails();
-        
-        if (cachedProfile?.plan_active && cachedProfile?.plan_name) {
-          console.log("Usando dados do perfil em cache:", cachedProfile.plan_name);
-          return; // Não fazer nada se temos dados em cache
-        } else if (selectedPlanDetails?.name) {
-          console.log("Usando plano do localStorage como fallback:", selectedPlanDetails.name);
-          
-          // Atualizar cache do perfil
-          cacheUserProfile({
-            id: userId,
-            plan_name: selectedPlanDetails.name,
-            plan_active: true,
-            cached_at: Date.now()
-          });
-          
-          // Atualizar Supabase apenas se necessário (pagamento, login)
-          await updateProfileInSupabase(userId, selectedPlanDetails.name, true);
-          return;
-        }
-        
-        // Se chegou aqui, não temos dados em cache nem fallback
-        console.log("Sem dados em cache ou fallback, verificando Supabase");
-        
-        // Verificar Supabase como último recurso
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('plan_name, plan_active')
-          .eq('id', userId)
-          .single();
-        
-        if (profileData?.plan_active && profileData?.plan_name) {
-          console.log("Dados encontrados no Supabase, atualizando cache:", profileData.plan_name);
-          
-          // Atualizar cache do perfil
-          cacheUserProfile({
-            id: userId,
-            plan_name: profileData.plan_name,
-            plan_active: profileData.plan_active,
-            cached_at: Date.now()
-          });
-          
-          return;
-        }
-        
-        // Se não encontrou nada, não fazer nada (não limpar)
-        console.log("Nenhum dado encontrado, mantendo estado atual");
-        return;
-      }
-
-      // Se temos uma assinatura, atualizar cache e Supabase
-      console.log("Atualizando perfil com dados de assinatura:", subscription.plan_name);
-      
-      // Atualizar cache do perfil
-      cacheUserProfile({
-        id: userId,
-        plan_name: subscription.plan_name || null,
-        plan_active: subscription.status === 'active',
-        cached_at: Date.now()
-      });
-      
-      // Atualizar Supabase
-      await updateProfileInSupabase(
-        userId, 
-        subscription.plan_name || null, 
-        subscription.status === 'active'
-      );
-      
-    } catch (err) {
-      console.error("Erro ao sincronizar perfil com assinatura:", err);
     }
   };
 
@@ -422,7 +328,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
             });
           }
         } else if (profileData && profileData.plan_active && profileData.plan_name) {
-          // Se não temos dados de assinatura, mas o perfil indica um plano ativo
           console.log("Usando dados do perfil:", profileData.plan_name);
           
           // Atualizar cache do perfil
@@ -459,15 +364,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
             finalSubscription = newSubscription;
             cacheSubscription(newSubscription);
           }
-        } else {
-          // Não há plano ativo nem no perfil nem nas assinaturas
-          console.log("Nenhum plano ativo encontrado");
-          
-          // Verificar se há plano no localStorage como último recurso
-          const selectedPlanDetails = getSelectedPlanDetails();
-          if (selectedPlanDetails) {
-            console.log("Encontrado plano no localStorage:", selectedPlanDetails.name);
-          }
         }
         
         console.log("Final subscription data:", finalSubscription);
@@ -490,7 +386,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadUserSubscription();
   }, [user]);
 
-  // Check subscription status with Stripe - usado apenas após pagamento
+  // Check subscription status with Stripe - usado para confirmar pagamento
   const checkSubscriptionStatus = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para verificar seu status de assinatura");
@@ -498,84 +394,69 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log("Checking subscription status with Stripe...");
+      console.log("Verificando status de assinatura após pagamento...");
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) throw error;
       
-      console.log("Subscription status response:", data);
+      console.log("Resposta de verificação de assinatura:", data);
       
       if (data.error) {
         throw new Error(data.error);
       }
       
-      // Refresh user subscription data from database after Stripe check
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .select('*, plan:plans(*)')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
-      
-      if (subscriptionError) throw subscriptionError;
-      
-      if (subscriptionData) {
-        const subscription = subscriptionData as any;
-        const transformedSubscription = {
-          ...subscription,
-          plan_name: subscription.plan_name || subscription.plan?.name,
-          plan: subscription.plan ? {
-            ...subscription.plan,
-            features: transformFeatures(subscription.plan.features as Json)
-          } : undefined,
-          cached_at: Date.now()
-        };
+      // Se o pagamento foi confirmado (hasActiveSubscription = true)
+      if (data.hasActiveSubscription && data.planName && data.planActive) {
+        console.log("Pagamento confirmado! Salvando dados no Supabase e cache...");
         
-        setUserSubscription(transformedSubscription);
-        cacheSubscription(transformedSubscription);
+        // Atualizar o perfil no Supabase com dados confirmados
+        await updateProfileInSupabase(user.id, data.planName, data.planActive);
         
-        // Atualizar cache do perfil e Supabase
-        await syncProfileWithSubscription(user.id, transformedSubscription);
+        // Buscar dados atualizados da assinatura do banco
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .select('*, plan:plans(*)')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
         
-        // Se tem uma assinatura ativa e está na página home, redirecionar para o chat
-        if (transformedSubscription.status === 'active' && window.location.pathname === '/home') {
-          console.log("User has active subscription, redirecting to chat");
-          setTimeout(() => {
-            window.location.href = '/chat';
-          }, 1500);
+        if (subscriptionError) throw subscriptionError;
+        
+        if (subscriptionData) {
+          const subscription = subscriptionData as any;
+          const transformedSubscription = {
+            ...subscription,
+            plan_name: subscription.plan_name || subscription.plan?.name,
+            plan: subscription.plan ? {
+              ...subscription.plan,
+              features: transformFeatures(subscription.plan.features as Json)
+            } : undefined,
+            cached_at: Date.now()
+          };
+          
+          // Atualizar estado e cache com dados confirmados
+          setUserSubscription(transformedSubscription);
+          cacheSubscription(transformedSubscription);
+          
+          console.log("Dados de assinatura salvos após confirmação de pagamento:", transformedSubscription);
+          
+          toast.success(`Pagamento confirmado! Plano ${data.planName} ativado com sucesso!`);
+          
+          // Redirecionar para o chat se estiver na página home
+          if (window.location.pathname === '/home') {
+            console.log("Redirecionando para o chat após confirmação de pagamento");
+            setTimeout(() => {
+              window.location.href = '/chat';
+            }, 1500);
+          }
         }
       } else {
-        // Se não encontrou assinatura, verificar cache e fallbacks
-        console.log("Nenhuma assinatura encontrada após verificação do Stripe");
-        
-        // Verificar cache do perfil
-        const cachedProfile = getCachedUserProfile();
-        if (cachedProfile?.plan_active && cachedProfile?.plan_name) {
-          console.log("Mantendo dados do perfil em cache:", cachedProfile.plan_name);
-          return;
-        }
-        
-        // Verificar plano selecionado
-        const selectedPlanDetails = getSelectedPlanDetails();
-        if (selectedPlanDetails) {
-          console.log("Usando plano do localStorage como fallback:", selectedPlanDetails.name);
-          
-          // Atualizar cache do perfil
-          cacheUserProfile({
-            id: user.id,
-            plan_name: selectedPlanDetails.name,
-            plan_active: true,
-            cached_at: Date.now()
-          });
-          
-          // Atualizar Supabase
-          await updateProfileInSupabase(user.id, selectedPlanDetails.name, true);
-        }
+        console.log("Nenhuma assinatura ativa encontrada após verificação");
       }
       
       return data;
     } catch (error: any) {
-      console.error("Error checking subscription status:", error);
+      console.error("Erro ao verificar status da assinatura:", error);
       toast.error("Falha ao verificar status da assinatura");
     }
   };
@@ -608,8 +489,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         
         console.log("Checkout session created:", data);
         
-        // Atualizar perfil com informação do plano selecionado (será ativado após pagamento)
-        // Atualizar cache do perfil
+        // Atualizar cache do perfil com informação do plano selecionado (será ativado após pagamento)
         cacheUserProfile({
           id: user.id,
           plan_name: selectedPlan.name,
@@ -625,7 +505,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return;
       }
 
-      // For free plans or plans without Stripe integration, continue with our existing flow
+      // For free plans or plans without Stripe integration
       console.log("Processing non-Stripe plan selection:", selectedPlan);
       
       // Calculate end date for trial plans
@@ -679,7 +559,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       if (error) throw error;
       
       if (data) {
-        // Transform the plan features in the returned subscription
         const subscription = data as any;
         const transformedSubscription: Subscription = {
           ...subscription,
@@ -695,7 +574,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         cacheSubscription(transformedSubscription);
         
         // Atualizar cache do perfil e Supabase
-        await syncProfileWithSubscription(user.id, transformedSubscription);
+        await updateProfileInSupabase(user.id, selectedPlan.name, true);
       }
       
       toast.success(`Você assinou o plano ${selectedPlan.name} com sucesso!`);

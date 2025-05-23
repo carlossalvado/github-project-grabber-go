@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plan } from '@/contexts/SubscriptionContext';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -15,13 +16,39 @@ interface SinglePlanCardProps {
 const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   const [processing, setProcessing] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { checkSubscriptionStatus } = useSubscription();
 
   // Verificar se o pagamento foi confirmado ao carregar o componente
   useEffect(() => {
-    // Verificar no cache do navegador se o plano está ativo
-    const checkPaymentStatus = () => {
+    const checkPaymentStatus = async () => {
+      // Verificar parâmetros de URL para checkout bem-sucedido
+      const urlParams = new URLSearchParams(window.location.search);
+      const checkoutStatus = urlParams.get('checkout');
+      
+      if (checkoutStatus === 'success') {
+        console.log('Parâmetro de checkout=success detectado na URL');
+        setVerifyingPayment(true);
+        
+        try {
+          // Verificar status da assinatura no Stripe e atualizar dados
+          await checkSubscriptionStatus();
+          setPaymentConfirmed(true);
+          toast.success('Pagamento confirmado com sucesso!');
+        } catch (error) {
+          console.error('Erro ao verificar status de pagamento:', error);
+          toast.error('Erro ao confirmar pagamento. Tente novamente.');
+        } finally {
+          setVerifyingPayment(false);
+        }
+        
+        // Limpar parâmetros da URL para evitar processamento duplicado
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+      
       // Verificar se há informações de assinatura no localStorage
       const cachedSubscription = localStorage.getItem('sweet-ai-subscription-data');
       const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
@@ -34,7 +61,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               (subscription.plan_id === plan.id || subscription.plan?.id === plan.id)) {
             console.log('Assinatura ativa encontrada no cache:', subscription);
             setPaymentConfirmed(true);
-            return true;
+            return;
           }
         } catch (error) {
           console.error('Erro ao analisar dados de assinatura do cache:', error);
@@ -48,31 +75,16 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           if (profile.plan_active && profile.plan_name === plan.name) {
             console.log('Plano ativo encontrado no perfil em cache:', profile);
             setPaymentConfirmed(true);
-            return true;
+            return;
           }
         } catch (error) {
           console.error('Erro ao analisar dados de perfil do cache:', error);
         }
       }
-      
-      // Verificar parâmetros de URL para checkout bem-sucedido
-      const urlParams = new URLSearchParams(window.location.search);
-      const checkoutStatus = urlParams.get('checkout');
-      
-      if (checkoutStatus === 'success') {
-        console.log('Parâmetro de checkout=success detectado na URL');
-        // Limpar parâmetros da URL para evitar processamento duplicado
-        window.history.replaceState({}, document.title, window.location.pathname);
-        setPaymentConfirmed(true);
-        return true;
-      }
-      
-      return false;
     };
     
-    const isPaymentConfirmed = checkPaymentStatus();
-    console.log('Status de pagamento confirmado:', isPaymentConfirmed);
-  }, [plan.id, plan.name]);
+    checkPaymentStatus();
+  }, [plan.id, plan.name, checkSubscriptionStatus]);
 
   const handleSelectPlan = async () => {
     setProcessing(true);
@@ -94,6 +106,26 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     navigate('/profile');
   };
 
+  const handleGoToChat = () => {
+    navigate('/chat');
+  };
+
+  if (verifyingPayment) {
+    return (
+      <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <Card className="text-center p-8">
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
+              <h2 className="text-xl font-bold mb-2">Verificando Pagamento...</h2>
+              <p className="text-gray-600">Aguarde enquanto confirmamos seu pagamento.</p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -103,7 +135,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           </h1>
           <p className="text-lg text-gray-700">
             {paymentConfirmed 
-              ? 'Seu pagamento foi processado com sucesso. Você já pode acessar seu perfil.'
+              ? 'Seu pagamento foi processado com sucesso. Você já pode começar a conversar!'
               : 'Confirme os detalhes e continue para finalizar.'}
           </p>
         </div>
@@ -161,13 +193,22 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           </CardContent>
           <CardFooter className="flex flex-col space-y-3">
             {paymentConfirmed ? (
-              // Mostrar apenas o botão para ir ao perfil quando o pagamento for confirmado
-              <Button 
-                className="w-full bg-gradient-sweet" 
-                onClick={handleGoToProfile}
-              >
-                Ir para Meu Perfil
-              </Button>
+              // Mostrar botões para usuários com pagamento confirmado
+              <>
+                <Button 
+                  className="w-full bg-gradient-sweet" 
+                  onClick={handleGoToChat}
+                >
+                  Começar a Conversar
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleGoToProfile}
+                  className="w-full"
+                >
+                  Ver Meu Perfil
+                </Button>
+              </>
             ) : (
               // Mostrar os botões normais quando o pagamento não for confirmado
               <>
