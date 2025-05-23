@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,29 +52,19 @@ const defaultAgents: AgentProfile[] = [
 const PersonalizePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { selectPlan } = useSubscription();
   
   const [agents, setAgents] = useState<AgentProfile[]>(defaultAgents);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [nickName, setNickName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingAgents, setLoadingAgents] = useState(true);
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Se não estiver logado, redirecionar para login
     if (!user) {
       navigate('/login');
       return;
     }
-
-    // Recuperar o plano selecionado do localStorage
-    const planId = localStorage.getItem('selectedPlanId');
-    if (planId) {
-      setSelectedPlanId(parseInt(planId));
-    }
     
-    // Carregar os agentes disponíveis
     const fetchAgents = async () => {
       try {
         const { data, error } = await supabase
@@ -120,7 +109,6 @@ const PersonalizePage = () => {
     setLoading(true);
     
     try {
-      // Salvar a seleção do agente
       const { error } = await supabase
         .from('user_selected_agent')
         .upsert({
@@ -135,14 +123,8 @@ const PersonalizePage = () => {
       
       toast.success('Preferências salvas com sucesso!');
       
-      // Processar checkout do Stripe com o plano selecionado
-      if (selectedPlanId) {
-        console.log('Iniciando checkout para o plano:', selectedPlanId);
-        await selectPlan(selectedPlanId);
-      } else {
-        // Se não há plano selecionado, ir para o chat
-        navigate('/chat');
-      }
+      // Redirecionar para a página de produto
+      navigate('/selected-plan');
       
     } catch (error: any) {
       console.error('Erro ao salvar preferências:', error);
@@ -233,7 +215,7 @@ const PersonalizePage = () => {
                   className="px-8 py-2 bg-gradient-sweet"
                   disabled={loading || !selectedAgentId}
                 >
-                  {loading ? 'Salvando...' : 'Salvar Preferências'}
+                  {loading ? 'Salvando...' : 'Continuar'}
                 </Button>
               </div>
             </form>
