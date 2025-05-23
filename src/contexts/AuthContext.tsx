@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profileData || subscriptionData) {
         const cacheData = {
           plan_name: subscriptionData?.plan_name || profileData?.plan_name || null,
-          plan_active: subscriptionData?.status === 'active' || profileData?.plan_active || false,
+          plan_active: profileData?.plan_active || (subscriptionData?.status === 'active') || false,
           cached_at: Date.now()
         };
         
@@ -68,15 +68,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("Dados do usuário salvos no cache:", cacheData);
         
         // Se há assinatura ativa, salvar também no cache de assinatura
-        if (subscriptionData?.status === 'active') {
+        if (subscriptionData?.status === 'active' || profileData?.plan_active) {
           const subscriptionCache = {
             id: crypto.randomUUID(),
             user_id: userId,
             plan_id: 1, // ID genérico
-            plan_name: subscriptionData.plan_name,
-            status: subscriptionData.status,
-            start_date: subscriptionData.start_date,
-            end_date: subscriptionData.end_date,
+            plan_name: subscriptionData?.plan_name || profileData?.plan_name,
+            status: subscriptionData?.status || (profileData?.plan_active ? 'active' : 'inactive'),
+            start_date: subscriptionData?.start_date || new Date().toISOString(),
+            end_date: subscriptionData?.end_date || null,
             cached_at: Date.now()
           };
           
