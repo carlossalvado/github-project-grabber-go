@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Gift, Sparkles } from 'lucide-react';
+import { Heart, MessageCircle, Gift, Sparkles, Check } from 'lucide-react';
 
 const Home = () => {
   const { user, loading: authLoading } = useAuth();
@@ -14,7 +15,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-slate-900">
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="max-w-4xl w-full text-center">
+        <div className="max-w-6xl w-full text-center">
           {/* Logo and Brand */}
           <div className="mb-12">
             <div className="w-24 h-24 bg-pink-500 rounded-3xl mx-auto mb-6 flex items-center justify-center">
@@ -100,6 +101,83 @@ const Home = () => {
                     </Button>
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Plans Section */}
+          <div className="mb-12">
+            <h2 className="text-4xl font-bold text-white mb-8">Escolha Seu Plano</h2>
+            {subscriptionLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-pulse flex space-x-4">
+                  <div className="rounded-lg bg-slate-700 h-96 w-80"></div>
+                  <div className="rounded-lg bg-slate-700 h-96 w-80"></div>
+                  <div className="rounded-lg bg-slate-700 h-96 w-80"></div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                {plans.map((plan) => (
+                  <Card key={plan.id} className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800 border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
+                    {plan.id === 3 && (
+                      <div className="absolute top-0 right-0 bg-pink-500 text-white px-3 py-1 text-sm font-bold">
+                        Mais Popular
+                      </div>
+                    )}
+                    <CardHeader>
+                      <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
+                      <CardDescription className="text-base text-slate-400">{plan.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold mb-6 text-center text-pink-500">
+                        {plan.price === 0
+                          ? "Grátis"
+                          : `US$${(plan.price / 100).toFixed(2)}`}
+                        {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
+                      </div>
+                      <ul className="space-y-3">
+                        {plan.features.text && (
+                          <li className="flex items-center">
+                            <Check className="w-5 h-5 text-pink-500 mr-2" />
+                            <span className="text-white">Mensagens de Texto Ilimitadas</span>
+                          </li>
+                        )}
+                        {plan.features.audio && (
+                          <li className="flex items-center">
+                            <Check className="w-5 h-5 text-pink-500 mr-2" />
+                            <span className="text-white">Mensagens de Áudio</span>
+                          </li>
+                        )}
+                        {plan.features.premium && (
+                          <li className="flex items-center">
+                            <Check className="w-5 h-5 text-pink-500 mr-2" />
+                            <span className="text-white">Recursos Premium Exclusivos</span>
+                          </li>
+                        )}
+                        {plan.trial_days > 0 && (
+                          <li className="flex items-center">
+                            <Check className="w-5 h-5 text-pink-500 mr-2" />
+                            <span className="text-white">{plan.trial_days} dias de teste grátis</span>
+                          </li>
+                        )}
+                      </ul>
+                    </CardContent>
+                    <CardFooter>
+                      <Button 
+                        className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
+                        onClick={() => {
+                          if (plan.id === 1) navigate('/free-plan');
+                          else if (plan.id === 2) navigate('/basic-plan');
+                          else if (plan.id === 3) navigate('/premium-plan');
+                          else if (plan.id === 4) navigate('/ultimate-plan');
+                        }}
+                      >
+                        {userSubscription?.plan_id === plan.id ? 'Plano Atual' : 'Escolher Plano'}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
               </div>
             )}
           </div>
