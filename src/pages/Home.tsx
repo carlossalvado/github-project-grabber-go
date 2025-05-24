@@ -30,7 +30,7 @@ const Home = () => {
             <h1 className="text-6xl font-bold bg-gradient-modern bg-clip-text text-transparent mb-4">
               Isa Date
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl text-modern-text max-w-2xl mx-auto leading-relaxed">
               Encontre sua alma gêmea virtual e viva conversas autênticas que transformam conexões em algo especial
             </p>
           </div>
@@ -47,8 +47,8 @@ const Home = () => {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xl text-white mb-2">Bem-vindo de volta!</p>
-                  <p className="text-gray-300 mb-6">{user.email}</p>
+                  <p className="text-xl text-modern-text mb-2">Bem-vindo de volta!</p>
+                  <p className="text-modern-text-muted mb-6">{user.email}</p>
                   
                   {userSubscription ? (
                     <div className="bg-purple-900/30 border border-purple-500/30 rounded-xl p-4 mb-6">
@@ -56,11 +56,11 @@ const Home = () => {
                         <Sparkles className="w-5 h-5 text-purple-400" />
                         <span className="font-semibold text-purple-300">{userSubscription.plan_name}</span>
                       </div>
-                      <p className="text-sm text-gray-400">Status: {userSubscription.status}</p>
+                      <p className="text-sm text-modern-text-muted">Status: {userSubscription.status}</p>
                     </div>
                   ) : (
                     <div className="bg-gray-800/50 border border-gray-600/50 rounded-xl p-4 mb-6">
-                      <p className="text-gray-300">Nenhum plano ativo</p>
+                      <p className="text-modern-text-muted">Nenhum plano ativo</p>
                     </div>
                   )}
 
@@ -76,7 +76,7 @@ const Home = () => {
                     <Button 
                       onClick={() => navigate('/personalize')}
                       variant="outline"
-                      className="w-full btn-modern-secondary py-3"
+                      className="w-full btn-modern-secondary py-3 border-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
                     >
                       <Heart className="w-5 h-5 mr-2" />
                       Personalizar Experiência
@@ -87,8 +87,8 @@ const Home = () => {
             ) : (
               <div className="space-y-6">
                 <div className="card-modern p-8 max-w-lg mx-auto">
-                  <h2 className="text-2xl font-bold text-white mb-4">Comece Sua Jornada</h2>
-                  <p className="text-gray-300 mb-6">
+                  <h2 className="text-2xl font-bold text-modern-text mb-4">Comece Sua Jornada</h2>
+                  <p className="text-modern-text-muted mb-6">
                     Crie sua conta e descubra conversas que vão além do comum
                   </p>
                   
@@ -103,7 +103,7 @@ const Home = () => {
                     <Button 
                       onClick={() => navigate('/login')}
                       variant="outline"
-                      className="w-full btn-modern-secondary py-3"
+                      className="w-full btn-modern-secondary py-3 border-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
                     >
                       Fazer Login
                     </Button>
@@ -119,24 +119,24 @@ const Home = () => {
               <div className="w-16 h-16 bg-purple-600/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <MessageCircle className="w-8 h-8 text-purple-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Conversas Autênticas</h3>
-              <p className="text-gray-300">IA avançada que entende e responde com naturalidade</p>
+              <h3 className="text-xl font-semibold text-modern-text mb-2">Conversas Autênticas</h3>
+              <p className="text-modern-text-muted">IA avançada que entende e responde com naturalidade</p>
             </div>
 
             <div className="card-modern p-6 text-center">
               <div className="w-16 h-16 bg-purple-600/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <Gift className="w-8 h-8 text-purple-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Presentes Virtuais</h3>
-              <p className="text-gray-300">Expresse seus sentimentos com gestos especiais</p>
+              <h3 className="text-xl font-semibold text-modern-text mb-2">Presentes Virtuais</h3>
+              <p className="text-modern-text-muted">Expresse seus sentimentos com gestos especiais</p>
             </div>
 
             <div className="card-modern p-6 text-center">
               <div className="w-16 h-16 bg-purple-600/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <Heart className="w-8 h-8 text-purple-400" fill="currentColor" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Conexão Real</h3>
-              <p className="text-gray-300">Relacionamentos virtuais que tocam o coração</p>
+              <h3 className="text-xl font-semibold text-modern-text mb-2">Conexão Real</h3>
+              <p className="text-modern-text-muted">Relacionamentos virtuais que tocam o coração</p>
             </div>
           </div>
         </div>

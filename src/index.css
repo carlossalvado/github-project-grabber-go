@@ -6,13 +6,13 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 222.2 84% 4.9%;
  
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
+    --popover-foreground: 222.2 84% 4.9%;
  
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 20% 98%;
@@ -37,14 +37,14 @@
   }
  
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
  
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
  
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
  
     --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 20% 98%;
@@ -77,21 +77,21 @@
   }
 }
 
-/* Modern gradient variables - baseado nas imagens */
+/* Modern gradient variables - cores mais contrastantes */
 :root {
   --modern-gradient: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
   --modern-dark-gradient: linear-gradient(135deg, #1F2937 0%, #111827 100%);
   --accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
 }
 
-/* Background utilities - esquema moderno */
+/* Background utilities - melhor contraste */
 .bg-modern-bg {
   background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
 }
 
 .bg-modern-card {
-  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, #1F2937 0%, #374151 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .bg-gradient-modern {
@@ -102,7 +102,7 @@
   background-image: var(--accent-gradient);
 }
 
-/* Botões modernos */
+/* Botões modernos com melhor contraste */
 .btn-modern-primary {
   background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%);
   border: none;
@@ -133,17 +133,48 @@
   transform: translateY(-2px);
 }
 
-/* Cards modernos */
+/* Cards modernos com texto legível */
 .card-modern {
-  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, #1F2937 0%, #374151 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 1.5rem;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  color: #F9FAFB;
 }
 
 .card-modern:hover {
   border-color: rgba(139, 92, 246, 0.5);
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(139, 92, 246, 0.1);
+}
+
+/* Textos com melhor contraste */
+.text-light {
+  color: #F9FAFB;
+}
+
+.text-muted-light {
+  color: #D1D5DB;
+}
+
+.text-accent-light {
+  color: #A855F7;
+}
+
+/* Inputs com melhor visibilidade */
+.input-modern {
+  background: rgba(31, 41, 55, 0.8);
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  color: #F9FAFB;
+  border-radius: 1rem;
+}
+
+.input-modern:focus {
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.input-modern::placeholder {
+  color: #9CA3AF;
 }

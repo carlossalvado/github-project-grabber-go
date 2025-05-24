@@ -63,20 +63,26 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Novas cores modernas baseadas nas imagens
+				// Cores modernas com melhor contraste
 				modern: {
 					bg: '#0F172A',
+					'bg-light': '#1E293B',
 					card: '#1F2937',
+					'card-light': '#374151',
 					purple: '#8B5CF6',
 					'purple-light': '#A855F7',
 					'purple-dark': '#7C3AED',
 					accent: '#F59E0B',
-					'accent-red': '#EF4444'
+					'accent-red': '#EF4444',
+					text: '#F9FAFB',
+					'text-muted': '#D1D5DB',
+					'text-accent': '#A855F7'
 				},
 				sweetheart: {
 					pink: '#8B5CF6',
 					purple: '#A855F7',
-					light: '#F3F4F6',
+					light: '#F9FAFB',
+					muted: '#D1D5DB',
 					bg: '#0F172A'
 				}
 			},
