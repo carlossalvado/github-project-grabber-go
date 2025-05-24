@@ -20,7 +20,7 @@ const ProfilePage = () => {
 
   const getCurrentPlan = () => {
     if (!userSubscription) return null;
-    return plans.find(plan => plan.stripe_price_id === userSubscription.stripe_price_id);
+    return userSubscription.plan || plans.find(plan => plan.id === userSubscription.plan_id);
   };
 
   const currentPlan = getCurrentPlan();

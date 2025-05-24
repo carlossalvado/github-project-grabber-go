@@ -13,6 +13,7 @@ const SignupPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      await signUp(email, password, {});
+      await signUp(email, password, fullName);
       toast.success('Conta criada com sucesso! Verifique seu email.');
       navigate('/home');
     } catch (error: any) {
@@ -75,6 +76,22 @@ const SignupPage = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignup} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-white flex items-center gap-2">
+                  <User className="w-4 h-4 text-purple-400" />
+                  Nome Completo
+                </Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Seu nome completo"
+                  required
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-white/50 focus:border-purple-500 focus:ring-purple-500/20"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-white flex items-center gap-2">
                   <Mail className="w-4 h-4 text-purple-400" />
