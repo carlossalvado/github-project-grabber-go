@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ const PersonalizePage = () => {
   const loadAgents = async () => {
     try {
       const { data, error } = await supabase
-        .from('agents')
+        .from('ai_agents')
         .select('*')
         .order('id');
       
@@ -130,7 +129,7 @@ const PersonalizePage = () => {
                   >
                     <div className="text-center">
                       <img 
-                        src={agent.photo_url} 
+                        src={agent.avatar_url} 
                         alt={agent.name}
                         className="w-20 h-20 rounded-full mx-auto mb-2 object-cover"
                       />

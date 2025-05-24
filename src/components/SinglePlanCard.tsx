@@ -214,7 +214,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               <>
                 <Button 
                   className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
-                  onClick={() => handleSelectPlan(plan.id)}
+                  onClick={handleSelectPlan}
                   disabled={processing}
                 >
                   {processing ? "Processando..." : "Confirmar e Continuar"}
