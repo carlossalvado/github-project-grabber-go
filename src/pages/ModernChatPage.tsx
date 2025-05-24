@@ -9,15 +9,22 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
+import EmoticonSelector from '@/components/EmoticonSelector';
+import GiftSelection from '@/components/GiftSelection';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ModernMessage {
   id: string;
   content: string;
   sender: 'user' | 'contact';
   timestamp: Date;
-  type: 'text' | 'image' | 'audio';
+  type: 'text' | 'image' | 'audio' | 'gift';
   images?: string[];
   audioDuration?: string;
+  giftId?: string;
+  giftName?: string;
+  giftEmoji?: string;
 }
 
 const ModernChatPage = () => {
@@ -29,6 +36,8 @@ const ModernChatPage = () => {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
+  const [showGiftSelection, setShowGiftSelection] = useState(false);
   const isMobile = useIsMobile();
   
   // Contact info (this would come from props or context)
@@ -40,6 +49,7 @@ const ModernChatPage = () => {
 
   // Get user plan name
   const planName = userSubscription?.plan_name || userSubscription?.plan?.name || "Plano Básico";
+  const hasPremiumEmoticons = planName !== "Plano Básico" && planName !== "Free";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,13 +110,99 @@ const ModernChatPage = () => {
   };
 
   const handleEmoticonClick = () => {
-    console.log("Emoticon button clicked");
-    // Implementar seletor de emoticons
+    setShowEmoticonSelector(!showEmoticonSelector);
+    setShowGiftSelection(false);
   };
 
   const handleGiftClick = () => {
-    console.log("Gift button clicked");
-    // Implementar seletor de presentes
+    setShowGiftSelection(!showGiftSelection);
+    setShowEmoticonSelector(false);
+  };
+
+  const handleEmoticonSelect = (emoticon: string) => {
+    setInput(prev => prev + emoticon);
+    setShowEmoticonSelector(false);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
+    try {
+      setIsLoading(true);
+      
+      // Create Stripe checkout session for gift payment
+      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+        body: {
+          giftId,
+          giftName,
+          giftPrice,
+          recipientName: contactName
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        const checkoutWindow = window.open(data.url, '_blank');
+        
+        // Listen for the checkout completion (simplified approach)
+        const checkInterval = setInterval(() => {
+          if (checkoutWindow?.closed) {
+            clearInterval(checkInterval);
+            // Check if payment was successful and send gift message
+            handleGiftPaymentSuccess(giftId, giftName);
+          }
+        }, 1000);
+        
+        // Clear interval after 5 minutes to prevent memory leaks
+        setTimeout(() => clearInterval(checkInterval), 300000);
+      }
+      
+      setShowGiftSelection(false);
+    } catch (error: any) {
+      console.error('Error processing gift:', error);
+      toast.error('Erro ao processar presente: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
+    // Get gift emoji mapping
+    const giftEmojis: { [key: string]: string } = {
+      "1": "🌹",
+      "2": "🍫", 
+      "3": "🧸",
+      "4": "💐"
+    };
+
+    const giftMessage: ModernMessage = {
+      id: Date.now().toString(),
+      content: `Enviou um presente: ${giftName}`,
+      sender: 'user',
+      timestamp: new Date(),
+      type: 'gift',
+      giftId,
+      giftName,
+      giftEmoji: giftEmojis[giftId] || '🎁'
+    };
+    
+    setMessages(prev => [...prev, giftMessage]);
+    toast.success(`Presente ${giftName} enviado com sucesso!`);
+
+    // Simulate contact response
+    setTimeout(() => {
+      const responseMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Obrigada pelo presente! ${giftEmojis[giftId] || '🎁'}`,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setMessages(prev => [...prev, responseMessage]);
+    }, 1500);
   };
 
   // Mobile loading component
@@ -124,6 +220,20 @@ const ModernChatPage = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
+    <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-2xl rounded-br-md px-4 py-3 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse"></div>
+      <div className="relative z-10 flex items-center gap-3">
+        <div className="text-3xl animate-bounce">{message.giftEmoji}</div>
+        <div>
+          <p className="text-sm font-medium">{message.content}</p>
+          <p className="text-xs text-pink-100 mt-1">Presente especial</p>
+        </div>
+      </div>
+      <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
     </div>
   );
 
@@ -218,6 +328,10 @@ const ModernChatPage = () => {
                         <p className="text-sm leading-relaxed">{message.content}</p>
                       </div>
                     )}
+
+                    {message.type === 'gift' && (
+                      <AnimatedGiftMessage message={message} />
+                    )}
                     
                     {message.type === 'image' && message.images && (
                       <div className="grid grid-cols-2 gap-2">
@@ -268,6 +382,25 @@ const ModernChatPage = () => {
         </div>
       </ScrollArea>
 
+      {/* Emoticon Selector */}
+      {showEmoticonSelector && (
+        <div className="border-t border-gray-700 bg-gray-800">
+          <EmoticonSelector
+            onSelect={handleEmoticonSelect}
+            onClose={() => setShowEmoticonSelector(false)}
+            hasPremiumEmoticons={hasPremiumEmoticons}
+          />
+        </div>
+      )}
+
+      {/* Gift Selection Modal */}
+      {showGiftSelection && (
+        <GiftSelection
+          onClose={() => setShowGiftSelection(false)}
+          onSelectGift={handleGiftSelect}
+        />
+      )}
+
       {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700">
         <div className="flex items-center gap-3">
@@ -287,7 +420,11 @@ const ModernChatPage = () => {
             variant="ghost"
             size="icon"
             onClick={handleEmoticonClick}
-            className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+            className={`flex-shrink-0 ${
+              showEmoticonSelector 
+                ? 'text-purple-400 bg-gray-700' 
+                : 'text-gray-400 hover:bg-gray-700'
+            }`}
             disabled={isLoading}
           >
             <Smile size={20} />
@@ -297,7 +434,11 @@ const ModernChatPage = () => {
             variant="ghost"
             size="icon"
             onClick={handleGiftClick}
-            className="text-gray-400 hover:bg-gray-700 flex-shrink-0"
+            className={`flex-shrink-0 ${
+              showGiftSelection 
+                ? 'text-purple-400 bg-gray-700' 
+                : 'text-gray-400 hover:bg-gray-700'
+            }`}
             disabled={isLoading}
           >
             <Gift size={20} />
