@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -104,73 +103,79 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
-            <span className="text-2xl">🎁</span>
-            Enviar um Presente
-          </DialogTitle>
-        </DialogHeader>
-        
-        {loadingGifts ? (
-          <div className="py-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-gray-300">Carregando presentes disponíveis...</p>
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col border-t border-gray-700">
+      {/* Header */}
+      <div className="flex justify-between items-center p-6 border-b border-gray-700 flex-shrink-0">
+        <h3 className="text-xl font-semibold text-white">Enviar Presente</h3>
+        <button 
+          onClick={onClose} 
+          className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-full"
+        >
+          <X size={24} />
+        </button>
+      </div>
+      
+      {loadingGifts ? (
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-300 text-lg">Carregando presentes...</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 py-4 max-h-96 overflow-y-auto">
+        </div>
+      ) : (
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {gifts.map((gift) => (
               <div
                 key={gift.id}
-                className={`cursor-pointer border-2 rounded-xl p-4 transition-all duration-200 ${
+                className={`cursor-pointer border-2 rounded-2xl p-4 transition-all duration-200 ${
                   selectedGift === gift.id 
-                    ? 'border-purple-500 bg-gray-700 shadow-lg scale-105' 
-                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-700 hover:shadow-md'
+                    ? 'border-purple-500 bg-purple-900/30 shadow-lg scale-105' 
+                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800 hover:shadow-md'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="aspect-square mb-3 bg-gradient-to-br from-gray-700 to-gray-600 rounded-lg flex items-center justify-center">
-                  <span className="text-4xl animate-pulse">{gift.image_url}</span>
+                <div className="aspect-square mb-3 bg-gradient-to-br from-gray-700 to-gray-600 rounded-xl flex items-center justify-center">
+                  <span className="text-6xl animate-pulse">{gift.image_url}</span>
                 </div>
-                <h3 className="font-semibold text-sm text-white mb-1">{gift.name}</h3>
-                <p className="text-xs text-gray-400 mb-2 line-clamp-2">{gift.description}</p>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-purple-400">
+                <h3 className="font-semibold text-lg text-white mb-2 text-center">{gift.name}</h3>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-purple-400">
                     US$ {(gift.price / 100).toFixed(2)}
                   </div>
                   {selectedGift === gift.id && (
-                    <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    <div className="mt-2 flex justify-center">
+                      <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             ))}
           </div>
-        )}
-        
-        <DialogFooter>
+          
+          {/* Send Button */}
           <Button
             onClick={handleGiftPurchase}
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium py-3 rounded-lg transition-all duration-200"
-            disabled={!selectedGift || loading || loadingGifts}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-2xl transition-all duration-200 text-lg"
+            disabled={!selectedGift || loading}
           >
             {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 Processando...
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span>💳</span>
-                Comprar e Enviar Presente
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💝</span>
+                Enviar Presente
               </div>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </div>
   );
 };
 

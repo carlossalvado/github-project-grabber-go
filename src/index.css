@@ -77,18 +77,73 @@
   }
 }
 
-/* Sweet gradient variables */
+/* Modern gradient variables - baseado nas imagens */
 :root {
-  --sweet-gradient: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  --modern-gradient: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #C084FC 100%);
+  --modern-dark-gradient: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+  --accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
 }
 
-/* Background utilities */
-.bg-sweetheart-bg {
-  background-color: #fef6f9;
-  background-image: radial-gradient(#ff758c20 1px, transparent 1px);
-  background-size: 20px 20px;
+/* Background utilities - esquema moderno */
+.bg-modern-bg {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
 }
 
-.bg-gradient-sweet {
-  background-image: var(--sweet-gradient);
+.bg-modern-card {
+  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.bg-gradient-modern {
+  background-image: var(--modern-gradient);
+}
+
+.bg-gradient-accent {
+  background-image: var(--accent-gradient);
+}
+
+/* Botões modernos */
+.btn-modern-primary {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%);
+  border: none;
+  border-radius: 1rem;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-modern-primary:hover {
+  background: linear-gradient(135deg, #7C3AED 0%, #9333EA 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+}
+
+.btn-modern-secondary {
+  background: transparent;
+  border: 2px solid #8B5CF6;
+  border-radius: 1rem;
+  color: #8B5CF6;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-modern-secondary:hover {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Cards modernos */
+.card-modern {
+  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.1);
 }

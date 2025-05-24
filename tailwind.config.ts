@@ -63,11 +63,21 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				// Novas cores modernas baseadas nas imagens
+				modern: {
+					bg: '#0F172A',
+					card: '#1F2937',
+					purple: '#8B5CF6',
+					'purple-light': '#A855F7',
+					'purple-dark': '#7C3AED',
+					accent: '#F59E0B',
+					'accent-red': '#EF4444'
+				},
 				sweetheart: {
-					pink: '#FF80BF',
-					purple: '#9580FF',
-					light: '#FFEBF5',
-					bg: '#FFF0F7'
+					pink: '#8B5CF6',
+					purple: '#A855F7',
+					light: '#F3F4F6',
+					bg: '#0F172A'
 				}
 			},
 			borderRadius: {
@@ -95,15 +105,22 @@ export default {
 				'pulse-light': {
 					'0%, 100%': { opacity: '0.5' },
 					'50%': { opacity: '0.8' }
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-10px)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'pulse-light': 'pulse-light 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+				'pulse-light': 'pulse-light 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'float': 'float 3s ease-in-out infinite'
 			},
 			backgroundImage: {
-				'gradient-sweet': 'linear-gradient(to right, #FF80BF, #9580FF)'
+				'gradient-modern': 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+				'gradient-dark': 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+				'gradient-accent': 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)'
 			}
 		}
 	},
