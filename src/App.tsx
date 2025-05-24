@@ -16,6 +16,10 @@ import PersonalizePage from "./pages/PersonalizePage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import ModernChatPage from "./pages/ModernChatPage";
+import ChatFreePage from "./pages/ChatFreePage";
+import ChatBasicPage from "./pages/ChatBasicPage";
+import ChatPremiumPage from "./pages/ChatPremiumPage";
+import ChatUltimatePage from "./pages/ChatUltimatePage";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import PlanPage from "./pages/PlanPage";
@@ -104,6 +108,43 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ModernChatPage />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Páginas de chat específicas por plano */}
+              <Route 
+                path="/chat-free" 
+                element={
+                  <ProtectedRoute>
+                    <ChatFreePage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/chat-basic" 
+                element={
+                  <ProtectedRoute>
+                    <ChatBasicPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/chat-premium" 
+                element={
+                  <ProtectedRoute>
+                    <ChatPremiumPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/chat-ultimate" 
+                element={
+                  <ProtectedRoute>
+                    <ChatUltimatePage />
                   </ProtectedRoute>
                 } 
               />

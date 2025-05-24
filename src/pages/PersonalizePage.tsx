@@ -3,15 +3,22 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, ArrowRight, Sparkles, MessageCircle, Gift } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Heart, ArrowRight, Sparkles, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const PersonalizePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedPersonality, setSelectedPersonality] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [nickname, setNickname] = useState('');
   const [userData, setUserData] = useState<any>(null);
+  const [aiAgents, setAiAgents] = useState<any[]>([]);
 
   useEffect(() => {
     // Recuperar dados do usuário e plano do cache
@@ -24,7 +31,30 @@ const PersonalizePage = () => {
         console.error('Erro ao recuperar dados do usuário:', error);
       }
     }
+
+    // Buscar avatares do Supabase
+    fetchAvatars();
   }, []);
+
+  const fetchAvatars = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar avatares:', error);
+        toast.error('Erro ao carregar avatares');
+        return;
+      }
+
+      setAiAgents(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar avatares:', error);
+      toast.error('Erro ao carregar avatares');
+    }
+  };
 
   const personalities = [
     {
@@ -62,11 +92,18 @@ const PersonalizePage = () => {
     );
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    if (!selectedPersonality || !selectedAvatar || !nickname.trim()) {
+      toast.error('Por favor, complete todas as seleções');
+      return;
+    }
+
     // Salvar personalização no cache
     const personalizationData = {
       personality: selectedPersonality,
       interests: selectedInterests,
+      selectedAvatar,
+      nickname: nickname.trim(),
       personalizationCompleted: true
     };
     
@@ -76,6 +113,28 @@ const PersonalizePage = () => {
       ...personalizationData
     };
     localStorage.setItem('userData', JSON.stringify(updatedUserData));
+
+    // Salvar no Supabase se possível
+    if (user && selectedAvatar) {
+      try {
+        const { error } = await supabase
+          .from('user_selected_agent')
+          .upsert({
+            user_id: user.id,
+            agent_id: selectedAvatar,
+            nickname: nickname.trim(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (error) {
+          console.error('Erro ao salvar agente selecionado:', error);
+        }
+      } catch (error) {
+        console.error('Erro ao salvar no Supabase:', error);
+      }
+    }
     
     // Recuperar o plano selecionado e redirecionar para o card único
     const selectedPlanId = localStorage.getItem('selectedPlanId');
@@ -178,7 +237,7 @@ const PersonalizePage = () => {
             Personalize sua Experiência
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Ajude-nos a criar a companheira virtual perfeita para você
+            Ajude-nos a criar a companhia virtual perfeita para você
           </p>
           {userData?.selectedPlan && (
             <div className="mt-4 inline-block px-4 py-2 bg-pink-500/20 rounded-full border border-pink-500/30">
@@ -190,6 +249,63 @@ const PersonalizePage = () => {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-12">
+          {/* Avatar Selection */}
+          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur-sm border-slate-600 shadow-2xl">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <User className="w-6 h-6 text-blue-500" />
+                </div>
+                Escolha sua Companhia
+              </CardTitle>
+              <CardDescription className="text-slate-300">
+                Selecione com quem você gostaria de conversar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {aiAgents.map((agent) => (
+                  <Card
+                    key={agent.id}
+                    className={`cursor-pointer transition-all duration-300 ${
+                      selectedAvatar === agent.id
+                        ? 'bg-pink-500/20 border-pink-500/50 shadow-lg'
+                        : 'bg-slate-700/50 border-slate-600 hover:bg-slate-600/50'
+                    }`}
+                    onClick={() => setSelectedAvatar(agent.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <img
+                        src={agent.avatar_url}
+                        alt={agent.name}
+                        className="w-16 h-16 rounded-full mx-auto mb-2 object-cover"
+                      />
+                      <h3 className="text-sm font-semibold text-white mb-1">
+                        {agent.name}
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        {agent.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="nickname" className="text-white">
+                  Como você gostaria de ser chamado(a)?
+                </Label>
+                <Input
+                  id="nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Digite seu apelido..."
+                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Personality Selection */}
           <Card className="bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur-sm border-slate-600 shadow-2xl">
             <CardHeader>
@@ -253,9 +369,9 @@ const PersonalizePage = () => {
                     disabled={!selectedInterests.includes(interest) && selectedInterests.length >= 5}
                     className={`${
                       selectedInterests.includes(interest)
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white'
-                        : 'border-slate-500 text-slate-300 hover:bg-slate-600'
-                    }`}
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white border-transparent'
+                        : 'border-pink-500/50 text-pink-300 hover:bg-pink-500/20 hover:text-pink-200'
+                    } transition-all duration-300`}
                   >
                     {interest}
                   </Button>
@@ -271,7 +387,7 @@ const PersonalizePage = () => {
           <div className="text-center">
             <Button
               onClick={handleContinue}
-              disabled={!selectedPersonality || selectedInterests.length === 0}
+              disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
             >
               <Sparkles className="w-5 h-5 mr-2" />

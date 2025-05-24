@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -23,6 +24,25 @@ const ProfilePage = () => {
   };
 
   const currentPlan = getCurrentPlan();
+
+  const handleChatRedirect = () => {
+    if (!userSubscription || !userSubscription.plan_name) {
+      navigate('/chat-free');
+      return;
+    }
+
+    const planName = userSubscription.plan_name.toLowerCase();
+    
+    if (planName.includes('basic') || planName.includes('básico')) {
+      navigate('/chat-basic');
+    } else if (planName.includes('premium')) {
+      navigate('/chat-premium');
+    } else if (planName.includes('ultimate')) {
+      navigate('/chat-ultimate');
+    } else {
+      navigate('/modern-chat');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
@@ -257,7 +277,7 @@ const ProfilePage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Button 
-                  onClick={() => navigate('/modern-chat')}
+                  onClick={handleChatRedirect}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
                 >
                   <MessageCircle className="w-5 h-5 mr-2" />
