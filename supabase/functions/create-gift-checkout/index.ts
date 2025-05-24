@@ -33,11 +33,9 @@ serve(async (req) => {
       auth: { persistSession: false }
     });
 
-    const { giftId, giftName, giftPrice, stripePriceId, recipientName } = await req.json();
-    if (!giftId || !giftName || !giftPrice) {
-      throw new Error("Gift ID, name, and price are required");
-    }
-    logStep("Received gift data", { giftId, giftName, giftPrice, stripePriceId, recipientName });
+    const { giftId } = await req.json();
+    if (!giftId) throw new Error("Gift ID is required");
+    logStep("Received gift ID", { giftId });
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -50,9 +48,20 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Get gift details from database
+    const { data: giftData, error: giftError } = await supabaseClient
+      .from('gifts')
+      .select('*')
+      .eq('id', giftId)
+      .single();
+    
+    if (giftError) throw new Error(`Error fetching gift: ${giftError.message}`);
+    if (!giftData) throw new Error("Gift not found");
+    logStep("Gift data retrieved", { giftData });
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
-    // Check if user already exists as a customer in Stripe
+    // Check if user already exists as a customer in Stripe (same as create-checkout)
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string;
     
@@ -60,7 +69,7 @@ serve(async (req) => {
       customerId = customers.data[0].id;
       logStep("Found existing Stripe customer", { customerId });
     } else {
-      // Create new customer in Stripe
+      // Create new customer in Stripe (same as create-checkout)
       const newCustomer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -73,12 +82,12 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     
-    // Create checkout session for one-time payment
+    // Create checkout session for one-time payment (diferente dos planos que usam mode: "subscription")
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
-      line_items: stripePriceId ? [
+      line_items: giftData.stripe_price_id ? [
         {
-          price: stripePriceId, // Use the stripe_price_id from database
+          price: giftData.stripe_price_id, // Use the stripe_price_id from database if available
           quantity: 1,
         }
       ] : [
@@ -86,27 +95,27 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Presente: ${giftName}`,
-              description: `Enviando ${giftName} para ${recipientName || 'sua conversa'}`,
+              name: `Presente: ${giftData.name}`,
+              description: giftData.description,
               metadata: {
                 gift_id: giftId,
-                gift_name: giftName,
-                recipient: recipientName || 'unknown'
+                gift_name: giftData.name
               }
             },
-            unit_amount: giftPrice, // giftPrice is already in cents
+            unit_amount: giftData.price, // giftData.price is already in cents
           },
           quantity: 1,
         }
       ],
-      mode: "payment", // One-time payment, not subscription
-      success_url: `${origin}/modern-chat?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(giftName)}`,
+      mode: "payment", // One-time payment, diferente de "subscription" dos planos
+      success_url: `${origin}/modern-chat?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(giftData.name)}`,
       cancel_url: `${origin}/modern-chat?gift_canceled=true`,
+      allow_promotion_codes: true,
+      billing_address_collection: "auto",
       metadata: {
         user_id: user.id,
         gift_id: giftId,
-        gift_name: giftName,
-        recipient_name: recipientName || 'unknown',
+        gift_name: giftData.name,
         type: 'gift_purchase'
       },
     });

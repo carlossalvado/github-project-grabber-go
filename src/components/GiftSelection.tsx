@@ -54,48 +54,47 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
   }, []);
 
   const handleGiftPurchase = async () => {
-    if (!selectedGift || !user) return;
+    if (!selectedGift || !user) {
+      toast.error('Você precisa estar logado para comprar presentes');
+      return;
+    }
     
     const gift = gifts.find(g => g.id === selectedGift);
-    if (!gift) return;
-    
-    if (!gift.stripe_price_id) {
-      toast.error('Este presente não está disponível para compra no momento');
+    if (!gift) {
+      toast.error('Presente não encontrado');
       return;
     }
     
     setLoading(true);
     
     try {
-      // Criar sessão de checkout do Stripe para compra avulsa
+      console.log("Iniciando compra de presente:", gift.name);
+      
+      // Seguindo o mesmo padrão da seleção de planos
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
-          giftId: gift.id,
-          giftName: gift.name,
-          giftPrice: gift.price,
-          stripePriceId: gift.stripe_price_id,
-          recipientName: 'Charlotte' // Nome do contato na conversa
+          giftId: gift.id
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro na function invoke:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Erro retornado pela função:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("Checkout session criada:", data);
 
       if (data?.url) {
-        // Abrir checkout do Stripe em nova aba
-        const checkoutWindow = window.open(data.url, '_blank');
-        
-        // Simular retorno bem-sucedido após um breve delay
-        // Em produção, você implementaria webhook ou verificação de status
-        setTimeout(() => {
-          if (checkoutWindow?.closed === false) {
-            // Se a janela ainda estiver aberta, assumir sucesso
-            onSelectGift(gift.id, gift.name, gift.price);
-            onClose();
-          }
-        }, 3000);
-        
-        // Fechar modal imediatamente após abrir o checkout
-        onClose();
+        console.log("Redirecionando para:", data.url);
+        // Seguindo o mesmo padrão dos planos - redirect direto
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não recebida");
       }
       
     } catch (error: any) {

@@ -51,14 +51,21 @@ const ModernChatPage = () => {
   const hasPremiumEmoticons = planName !== "Plano Básico" && planName !== "Free";
 
   useEffect(() => {
-    // Check for gift success/cancel parameters
+    // Check for gift success/cancel parameters - seguindo o mesmo padrão dos planos
     const urlParams = new URLSearchParams(window.location.search);
     const giftSuccess = urlParams.get('gift_success');
     const giftId = urlParams.get('gift_id');
     const giftName = urlParams.get('gift_name');
+    const giftCanceled = urlParams.get('gift_canceled');
     
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
+      // Clean URL - seguindo o mesmo padrão dos planos
+      window.history.replaceState({}, document.title, '/modern-chat');
+    }
+    
+    if (giftCanceled === 'true') {
+      toast.error('Compra de presente cancelada');
       // Clean URL
       window.history.replaceState({}, document.title, '/modern-chat');
     }
@@ -144,37 +151,39 @@ const ModernChatPage = () => {
     try {
       setIsLoading(true);
       
-      // Get gift data from database
-      const { data: giftData, error: giftError } = await supabase
-        .from('gifts')
-        .select('stripe_price_id')
-        .eq('id', giftId)
-        .single();
-
-      if (giftError) throw giftError;
-
-      // Create Stripe checkout session for gift payment
+      console.log("Selecionando presente:", { giftId, giftName, giftPrice });
+      
+      // Seguindo o mesmo padrão dos planos de assinatura
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
-          giftId,
-          giftName,
-          giftPrice,
-          stripePriceId: giftData?.stripe_price_id,
-          recipientName: contactName
+          giftId
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro na function invoke:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Erro retornado pela função:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("Checkout session criada:", data);
 
       if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
+        console.log("Redirecionando para:", data.url);
+        // Seguindo o mesmo padrão dos planos - redirect direto
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não recebida");
       }
       
       setShowGiftSelection(false);
     } catch (error: any) {
       console.error('Error processing gift:', error);
-      toast.error('Erro ao processar presente: ' + error.message);
+      toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
     } finally {
       setIsLoading(false);
     }

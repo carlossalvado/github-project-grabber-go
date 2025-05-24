@@ -144,6 +144,35 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     setShowGiftSelection(false);
     
     try {
+      console.log("Iniciando envio de presente:", { giftId, giftName, giftPrice });
+      
+      // Seguindo o mesmo padrão dos planos
+      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+        body: {
+          giftId
+        }
+      });
+
+      if (error) {
+        console.error("Erro na function invoke:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Erro retornado pela função:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("Checkout session criada:", data);
+
+      if (data?.url) {
+        console.log("Redirecionando para:", data.url);
+        // Seguindo o mesmo padrão dos planos - redirect direto
+        window.location.href = data.url;
+        return;
+      }
+      
+      // Se chegou até aqui, vamos processar localmente como fallback
       // Fetch the gift emoji from the database
       const { data: giftData, error: giftError } = await supabase
         .from('gifts')
@@ -183,20 +212,13 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         setIsTyping(false);
       }, 1500);
       
-    } catch (error) {
-      console.error('Erro ao buscar emoji do presente:', error);
-      
-      // Fallback if there's an error
-      const systemMessage: Message = {
-        id: Date.now().toString(),
-        content: `Você enviou um presente: ${giftName}`,
-        sender: 'system',
-        timestamp: new Date(),
-        isGift: true,
-        giftId: giftId
-      };
-      
-      setMessages(prev => [...prev, systemMessage]);
+    } catch (error: any) {
+      console.error('Erro ao processar presente:', error);
+      toast({
+        title: "Erro ao processar presente",
+        description: error.message || 'Tente novamente mais tarde.',
+        variant: "destructive",
+      });
     }
   };
 
