@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Check } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -36,6 +37,35 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
         try {
           // Verificar status da assinatura no Stripe e atualizar dados
           await checkSubscriptionStatus();
+          
+          // Atualizar o perfil do usuário no Supabase com o plano ativo
+          if (user) {
+            const { error } = await supabase
+              .from('profiles')
+              .update({
+                plan_name: plan.name,
+                plan_active: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+            
+            if (error) {
+              console.error('Erro ao atualizar perfil no Supabase:', error);
+            } else {
+              console.log('Perfil atualizado no Supabase com sucesso');
+              
+              // Atualizar cache local com dados atualizados
+              const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+              const updatedUserData = {
+                ...userData,
+                planName: plan.name,
+                planActive: true,
+                paymentConfirmed: true
+              };
+              localStorage.setItem('userData', JSON.stringify(updatedUserData));
+            }
+          }
+          
           setPaymentConfirmed(true);
           toast.success('Pagamento confirmado com sucesso!');
         } catch (error) {
@@ -85,7 +115,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     };
     
     checkPaymentStatus();
-  }, [plan.id, plan.name, checkSubscriptionStatus]);
+  }, [plan.id, plan.name, checkSubscriptionStatus, user]);
 
   const handleSelectPlan = async () => {
     setProcessing(true);
@@ -110,7 +140,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
         
         {/* Background Images */}
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full overflow-hidden opacity-10 animate-pulse">
+        <div className="absolute top-20 right-20 w-16 h-16 md:w-32 md:h-32 rounded-full overflow-hidden opacity-10 animate-pulse">
           <img 
             src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
             alt="AI Avatar" 
@@ -136,22 +166,22 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
       
-      {/* Background Images */}
-      <div className="absolute top-10 left-10 w-40 h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
+      {/* Background Images com tamanhos responsivos */}
+      <div className="absolute top-10 left-10 w-20 h-20 md:w-40 md:h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
         <img 
           src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
           alt="AI Avatar" 
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="absolute bottom-10 right-10 w-36 h-36 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
+      <div className="absolute bottom-10 right-10 w-18 h-18 md:w-36 md:h-36 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
         <img 
           src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
           alt="AI Avatar" 
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="absolute top-1/2 right-20 w-28 h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
+      <div className="absolute top-1/2 right-20 w-14 h-14 md:w-28 md:h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
         <img 
           src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
           alt="AI Avatar" 
