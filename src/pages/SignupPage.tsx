@@ -45,33 +45,33 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-isa-dark flex items-center justify-center">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
       <div className="w-full max-w-md mx-auto p-4">
         {/* Logo and Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-isa rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <Heart className="w-8 h-8 text-isa-white" fill="currentColor" />
+          <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <Heart className="w-8 h-8 text-white" fill="currentColor" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient-isa mb-2">
+          <h1 className="text-3xl font-bold text-pink-500 mb-2">
             Isa Date
           </h1>
-          <p className="text-isa-light">
+          <p className="text-slate-300">
             Crie sua conta gratuitamente
           </p>
         </div>
 
-        <Card className="bg-isa-card border-isa-purple">
+        <Card className="bg-slate-800 border-slate-700">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-isa-white">Criar Conta</CardTitle>
-            <CardDescription className="text-isa-muted">
+            <CardTitle className="text-2xl text-white">Criar Conta</CardTitle>
+            <CardDescription className="text-slate-400">
               Junte-se a milhares de pessoas que já encontraram sua conexão especial
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-isa-white flex items-center gap-2">
-                  <User className="w-4 h-4 text-isa-purple" />
+                <Label htmlFor="fullName" className="text-white flex items-center gap-2">
+                  <User className="w-4 h-4 text-pink-500" />
                   Nome Completo
                 </Label>
                 <Input
@@ -81,13 +81,13 @@ const SignupPage = () => {
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Seu nome completo"
                   required
-                  className="input-isa"
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-pink-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-isa-white flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-isa-purple" />
+                <Label htmlFor="email" className="text-white flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-pink-500" />
                   Email
                 </Label>
                 <Input
@@ -97,13 +97,13 @@ const SignupPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   required
-                  className="input-isa"
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-pink-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-isa-white flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-isa-purple" />
+                <Label htmlFor="password" className="text-white flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-pink-500" />
                   Senha
                 </Label>
                 <Input
@@ -113,13 +113,13 @@ const SignupPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="input-isa"
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-pink-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-isa-white flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-isa-purple" />
+                <Label htmlFor="confirmPassword" className="text-white flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-pink-500" />
                   Confirmar Senha
                 </Label>
                 <Input
@@ -129,14 +129,14 @@ const SignupPage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="input-isa"
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-pink-500"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full btn-isa-primary py-3"
+                className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -154,11 +154,11 @@ const SignupPage = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-isa-muted">
+              <p className="text-slate-400">
                 Já tem uma conta?{' '}
                 <Link 
                   to="/login" 
-                  className="text-isa-purple hover:text-isa-pink font-medium transition-colors"
+                  className="text-pink-500 hover:text-pink-400 font-medium transition-colors"
                 >
                   Fazer login
                 </Link>

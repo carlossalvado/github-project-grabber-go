@@ -40,37 +40,30 @@ const PersonalizePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-slate-900">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+          <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl font-bold text-pink-500 mb-4">
             Personalize Sua Experiência
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-300 max-w-2xl mx-auto">
             Conte-nos mais sobre você para criarmos a companhia virtual perfeita
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Personality Selection */}
-          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+          <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center gap-2">
-                <Heart className="w-6 h-6 text-purple-400" />
+                <Heart className="w-6 h-6 text-pink-500" />
                 Personalidade Ideal
               </CardTitle>
-              <CardDescription className="text-gray-300">
+              <CardDescription className="text-slate-400">
                 Escolha o tipo de personalidade que mais te atrai
               </CardDescription>
             </CardHeader>
@@ -82,14 +75,14 @@ const PersonalizePage = () => {
                     onClick={() => setSelectedPersonality(personality.id)}
                     className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 ${
                       selectedPersonality === personality.id
-                        ? 'border-purple-500 bg-purple-900/30 shadow-lg scale-105'
-                        : 'border-slate-600/50 hover:border-purple-400/50 hover:bg-slate-700/30'
+                        ? 'border-pink-500 bg-pink-500/10'
+                        : 'border-slate-600 hover:border-pink-400/50 hover:bg-slate-700/30'
                     }`}
                   >
                     <div className="text-center">
                       <div className="text-4xl mb-2">{personality.icon}</div>
                       <h3 className="text-lg font-semibold text-white mb-1">{personality.name}</h3>
-                      <p className="text-sm text-gray-400">{personality.description}</p>
+                      <p className="text-sm text-slate-400">{personality.description}</p>
                     </div>
                   </div>
                 ))}
@@ -98,13 +91,13 @@ const PersonalizePage = () => {
           </Card>
 
           {/* Interests Selection */}
-          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+          <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center gap-2">
-                <MessageCircle className="w-6 h-6 text-purple-400" />
+                <MessageCircle className="w-6 h-6 text-pink-500" />
                 Interesses em Comum
               </CardTitle>
-              <CardDescription className="text-gray-300">
+              <CardDescription className="text-slate-400">
                 Selecione seus interesses para conversas mais interessantes (mínimo 3)
               </CardDescription>
             </CardHeader>
@@ -116,8 +109,8 @@ const PersonalizePage = () => {
                     variant={selectedInterests.includes(interest) ? "default" : "secondary"}
                     className={`cursor-pointer px-4 py-2 text-sm transition-all duration-200 ${
                       selectedInterests.includes(interest)
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-                        : 'bg-slate-700/50 text-gray-300 hover:bg-slate-600/50 border-slate-600'
+                        ? 'bg-pink-500 text-white hover:bg-pink-600'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-slate-600'
                     }`}
                     onClick={() => toggleInterest(interest)}
                   >
@@ -126,8 +119,8 @@ const PersonalizePage = () => {
                 ))}
               </div>
               {selectedInterests.length > 0 && (
-                <div className="mt-4 p-3 bg-purple-900/20 rounded-lg">
-                  <p className="text-sm text-purple-300">
+                <div className="mt-4 p-3 bg-slate-700 rounded-lg">
+                  <p className="text-sm text-pink-500">
                     Selecionados: {selectedInterests.join(', ')}
                   </p>
                 </div>
@@ -142,8 +135,8 @@ const PersonalizePage = () => {
               disabled={!selectedPersonality || selectedInterests.length < 3}
               className={`px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-200 ${
                 selectedPersonality && selectedInterests.length >= 3
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transform hover:scale-105 shadow-lg hover:shadow-purple-500/25'
-                  : 'bg-slate-700/50 text-gray-500 cursor-not-allowed'
+                  ? 'bg-pink-500 hover:bg-pink-600 text-white'
+                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -152,7 +145,7 @@ const PersonalizePage = () => {
               </span>
             </Button>
             {(!selectedPersonality || selectedInterests.length < 3) && (
-              <p className="text-sm text-gray-400 mt-2">
+              <p className="text-sm text-slate-400 mt-2">
                 Complete sua personalização para continuar
               </p>
             )}
