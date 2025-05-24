@@ -75,7 +75,7 @@ const LandingPage = () => {
       {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
       
-      {/* Floating Images */}
+      {/* Tripled Floating Images */}
       <div className="absolute top-20 right-20 w-40 h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
         <img 
           src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
@@ -83,6 +83,21 @@ const LandingPage = () => {
           className="w-full h-full object-cover"
         />
       </div>
+      <div className="absolute top-10 right-80 w-28 h-28 rounded-full overflow-hidden opacity-8 animate-pulse delay-500">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-40 right-96 w-32 h-32 rounded-full overflow-hidden opacity-12 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
       <div className="absolute bottom-40 left-20 w-32 h-32 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
         <img 
           src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
@@ -90,6 +105,21 @@ const LandingPage = () => {
           className="w-full h-full object-cover"
         />
       </div>
+      <div className="absolute bottom-10 left-80 w-24 h-24 rounded-full overflow-hidden opacity-12 animate-pulse delay-1500">
+        <img 
+          src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-32 left-96 w-36 h-36 rounded-full overflow-hidden opacity-9 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
       <div className="absolute top-1/3 left-10 w-36 h-36 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
         <img 
           src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
@@ -97,6 +127,21 @@ const LandingPage = () => {
           className="w-full h-full object-cover"
         />
       </div>
+      <div className="absolute top-1/2 right-10 w-20 h-20 rounded-full overflow-hidden opacity-14 animate-pulse delay-2500">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-2/3 left-5 w-28 h-28 rounded-full overflow-hidden opacity-11 animate-pulse delay-3000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
       <div className="absolute bottom-20 right-40 w-28 h-28 rounded-full overflow-hidden opacity-12 animate-pulse delay-3000">
         <img 
           src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
@@ -107,6 +152,13 @@ const LandingPage = () => {
       <div className="absolute top-40 left-1/3 w-24 h-24 rounded-full overflow-hidden opacity-8 animate-pulse delay-4000">
         <img 
           src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-60 right-20 w-30 h-30 rounded-full overflow-hidden opacity-13 animate-pulse delay-4500">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
           alt="AI Avatar" 
           className="w-full h-full object-cover"
         />
