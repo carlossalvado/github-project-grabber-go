@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -88,8 +89,121 @@ const PersonalizePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-slate-900 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
+      
+      {/* Floating Images - Distributed Better */}
+      <div className="absolute top-16 right-16 w-20 h-20 rounded-full overflow-hidden opacity-8 animate-pulse">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-32 right-80 w-16 h-16 rounded-full overflow-hidden opacity-6 animate-pulse delay-500">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-8 right-96 w-18 h-18 rounded-full overflow-hidden opacity-7 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
+      <div className="absolute bottom-20 left-16 w-22 h-22 rounded-full overflow-hidden opacity-9 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-32 left-72 w-16 h-16 rounded-full overflow-hidden opacity-7 animate-pulse delay-1500">
+        <img 
+          src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-8 left-96 w-20 h-20 rounded-full overflow-hidden opacity-8 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
+      <div className="absolute top-1/3 left-8 w-18 h-18 rounded-full overflow-hidden opacity-6 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-1/2 right-8 w-14 h-14 rounded-full overflow-hidden opacity-9 animate-pulse delay-2500">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-2/3 left-4 w-16 h-16 rounded-full overflow-hidden opacity-7 animate-pulse delay-3000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
+      <div className="absolute bottom-40 right-32 w-18 h-18 rounded-full overflow-hidden opacity-8 animate-pulse delay-3000">
+        <img 
+          src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-24 left-1/3 w-14 h-14 rounded-full overflow-hidden opacity-6 animate-pulse delay-4000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-48 right-16 w-16 h-16 rounded-full overflow-hidden opacity-8 animate-pulse delay-4500">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-44 left-1/2 w-12 h-12 rounded-full overflow-hidden opacity-5 animate-pulse delay-5000">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-16 left-1/2 w-14 h-14 rounded-full overflow-hidden opacity-7 animate-pulse delay-5500">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-36 right-1/2 w-16 h-16 rounded-full overflow-hidden opacity-6 animate-pulse delay-6000">
+        <img 
+          src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
