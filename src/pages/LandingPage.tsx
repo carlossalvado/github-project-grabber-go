@@ -71,12 +71,61 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-slate-900 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
+      
+      {/* Floating Images */}
+      <div className="absolute top-20 right-20 w-40 h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-40 left-20 w-32 h-32 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-1/3 left-10 w-36 h-36 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-20 right-40 w-28 h-28 rounded-full overflow-hidden opacity-12 animate-pulse delay-3000">
+        <img 
+          src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-40 left-1/3 w-24 h-24 rounded-full overflow-hidden opacity-8 animate-pulse delay-4000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+
       <div className="relative z-10">
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-20 text-center">
-          <div className="w-24 h-24 bg-pink-500 rounded-3xl mx-auto mb-8 flex items-center justify-center">
-            <Heart className="w-12 h-12 text-white" fill="currentColor" />
+          <div className="flex items-center justify-center mb-8">
+            <div className="w-32 h-32 bg-pink-500/20 rounded-3xl flex items-center justify-center backdrop-blur-sm mr-6">
+              <Heart className="w-16 h-16 text-pink-500" fill="currentColor" />
+            </div>
+            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-pink-500/30">
+              <img 
+                src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+                alt="Isa Date AI" 
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
           
           <h1 className="text-6xl font-bold text-pink-500 mb-6">
@@ -139,7 +188,7 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="bg-slate-800 border-slate-700 text-center">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700 text-center">
               <CardHeader>
                 <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                   <MessageCircle className="w-8 h-8 text-white" />
@@ -153,7 +202,7 @@ const LandingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800 border-slate-700 text-center">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700 text-center">
               <CardHeader>
                 <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                   <Gift className="w-8 h-8 text-white" />
@@ -167,7 +216,7 @@ const LandingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800 border-slate-700 text-center">
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700 text-center">
               <CardHeader>
                 <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                   <Heart className="w-8 h-8 text-white" fill="currentColor" />
@@ -198,7 +247,7 @@ const LandingPage = () => {
             {plans.map((plan) => (
               <Card 
                 key={plan.id} 
-                className={`bg-slate-800 border-slate-700 relative ${
+                className={`bg-slate-800/80 backdrop-blur-sm border-slate-700 relative ${
                   plan.popular ? 'scale-105 border-pink-500/50' : ''
                 }`}
               >
@@ -251,6 +300,15 @@ const LandingPage = () => {
         {/* CTA Section */}
         <section className="container mx-auto px-4 py-20 text-center">
           <div className="max-w-3xl mx-auto">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-pink-500/50">
+                <img 
+                  src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+                  alt="AI Avatar" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
             <h2 className="text-4xl font-bold text-white mb-6">
               Pronto para encontrar sua conexão especial?
             </h2>

@@ -7,6 +7,7 @@ import { Plan } from '@/contexts/SubscriptionContext';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Check } from 'lucide-react';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -102,19 +103,23 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     }
   };
 
-  const handleGoToProfile = () => {
-    navigate('/profile');
-  };
-
-  const handleGoToChat = () => {
-    navigate('/chat');
-  };
-
   if (verifyingPayment) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <Card className="text-center p-8 bg-slate-800 border-slate-700">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
+        
+        {/* Background Images */}
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-full overflow-hidden opacity-10 animate-pulse">
+          <img 
+            src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+            alt="AI Avatar" 
+            className="w-full h-full object-cover"
+          />
+        </div>
+        
+        <div className="max-w-md w-full relative z-10">
+          <Card className="text-center p-8 bg-slate-800/80 backdrop-blur-sm border-slate-700">
             <div className="animate-pulse flex flex-col items-center">
               <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
               <h2 className="text-xl font-bold mb-2 text-white">Verificando Pagamento...</h2>
@@ -127,8 +132,34 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
+      
+      {/* Background Images */}
+      <div className="absolute top-10 left-10 w-40 h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-10 right-10 w-36 h-36 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-1/2 right-20 w-28 h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      <div className="max-w-md w-full relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-pink-500 mb-4">
             {paymentConfirmed ? 'Pagamento Confirmado!' : 'Seu Plano Selecionado'}
@@ -139,7 +170,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               : 'Confirme os detalhes e continue para finalizar.'}
           </p>
         </div>
-        <Card className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800 border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
+        <Card className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800/80 backdrop-blur-sm border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
           {plan.id === 3 && (
             <div className="absolute top-0 right-0 bg-pink-500 text-white px-3 py-1 text-sm font-bold">
               Mais Popular
@@ -153,39 +184,31 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
             <div className="text-4xl font-bold mb-6 text-center text-pink-500">
               {plan.price === 0
                 ? "Grátis"
-                : ` US$${(plan.price / 100).toFixed(2)}`}
+                : `US$${(plan.price / 100).toFixed(2)}`}
               {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
             </div>
             <ul className="space-y-3">
               {plan.features.text && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-5 h-5 text-pink-500 mr-2" />
                   <span className="text-white">Mensagens de Texto Ilimitadas</span>
                 </li>
               )}
               {plan.features.audio && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-5 h-5 text-pink-500 mr-2" />
                   <span className="text-white">Mensagens de Áudio</span>
                 </li>
               )}
               {plan.features.premium && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-5 h-5 text-pink-500 mr-2" />
                   <span className="text-white">Recursos Premium Exclusivos</span>
                 </li>
               )}
               {plan.trial_days > 0 && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-5 h-5 text-pink-500 mr-2" />
                   <span className="text-white">{plan.trial_days} dias de teste grátis</span>
                 </li>
               )}

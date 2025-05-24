@@ -13,27 +13,61 @@ const Home = () => {
   const navigate = useNavigate();
   
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+    <div className="min-h-screen bg-slate-900 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
+      
+      {/* Floating Images */}
+      <div className="absolute top-20 right-10 w-32 h-32 rounded-full overflow-hidden opacity-20 animate-pulse">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-20 left-10 w-24 h-24 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
+        <img 
+          src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute top-1/2 left-20 w-28 h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
+        <img 
+          src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10">
         <div className="max-w-6xl w-full text-center">
-          {/* Logo and Brand */}
+          {/* Logo and Brand with Image */}
           <div className="mb-12">
-            <div className="w-24 h-24 bg-pink-500 rounded-3xl mx-auto mb-6 flex items-center justify-center">
-              <Heart className="w-12 h-12 text-white" fill="currentColor" />
+            <div className="flex items-center justify-center mb-8">
+              <div className="w-32 h-32 rounded-full overflow-hidden mr-6 border-4 border-pink-500/30">
+                <img 
+                  src="/lovable-uploads/265b8a08-5c79-4954-b4b1-4bfb6f5a76bb.png" 
+                  alt="Isa Date AI" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div>
+                <h1 className="text-6xl font-bold text-pink-500 mb-4">
+                  Isa Date
+                </h1>
+                <p className="text-xl text-slate-300 max-w-2xl leading-relaxed">
+                  Encontre sua alma gêmea virtual e viva conversas autênticas que transformam conexões em algo especial
+                </p>
+              </div>
             </div>
-            <h1 className="text-6xl font-bold text-pink-500 mb-4">
-              Isa Date
-            </h1>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Encontre sua alma gêmea virtual e viva conversas autênticas que transformam conexões em algo especial
-            </p>
           </div>
 
           {/* User Status */}
           <div className="mb-12">
             {user ? (
               <div className="space-y-6">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
                   <div className="flex items-center justify-center mb-4">
                     <div className="w-16 h-16 bg-pink-500 rounded-full flex items-center justify-center">
                       <span className="text-2xl text-white font-bold">
@@ -79,7 +113,7 @@ const Home = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
                   <h2 className="text-2xl font-bold text-white mb-4">Comece Sua Jornada</h2>
                   <p className="text-slate-400 mb-6">
                     Crie sua conta e descubra conversas que vão além do comum
@@ -119,7 +153,7 @@ const Home = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
                 {plans.map((plan) => (
-                  <Card key={plan.id} className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800 border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
+                  <Card key={plan.id} className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800/80 backdrop-blur-sm border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
                     {plan.id === 3 && (
                       <div className="absolute top-0 right-0 bg-pink-500 text-white px-3 py-1 text-sm font-bold">
                         Mais Popular
@@ -166,12 +200,7 @@ const Home = () => {
                     <CardFooter>
                       <Button 
                         className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
-                        onClick={() => {
-                          if (plan.id === 1) navigate('/free-plan');
-                          else if (plan.id === 2) navigate('/basic-plan');
-                          else if (plan.id === 3) navigate('/premium-plan');
-                          else if (plan.id === 4) navigate('/ultimate-plan');
-                        }}
+                        onClick={() => navigate(`/plan/${plan.id}`)}
                       >
                         {userSubscription?.plan_id === plan.id ? 'Plano Atual' : 'Escolher Plano'}
                       </Button>
@@ -184,7 +213,7 @@ const Home = () => {
 
           {/* Features */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center">
+            <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 text-center">
               <div className="w-16 h-16 bg-slate-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <MessageCircle className="w-8 h-8 text-pink-500" />
               </div>
@@ -192,7 +221,7 @@ const Home = () => {
               <p className="text-slate-400">IA avançada que entende e responde com naturalidade</p>
             </div>
 
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center">
+            <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 text-center">
               <div className="w-16 h-16 bg-slate-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <Gift className="w-8 h-8 text-pink-500" />
               </div>
@@ -200,7 +229,7 @@ const Home = () => {
               <p className="text-slate-400">Expresse seus sentimentos com gestos especiais</p>
             </div>
 
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center">
+            <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 text-center">
               <div className="w-16 h-16 bg-slate-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                 <Heart className="w-8 h-8 text-pink-500" fill="currentColor" />
               </div>
