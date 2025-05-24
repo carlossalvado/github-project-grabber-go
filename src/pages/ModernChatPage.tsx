@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -50,6 +49,20 @@ const ModernChatPage = () => {
   // Get user plan name
   const planName = userSubscription?.plan_name || userSubscription?.plan?.name || "Plano Básico";
   const hasPremiumEmoticons = planName !== "Plano Básico" && planName !== "Free";
+
+  useEffect(() => {
+    // Check for gift success/cancel parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const giftSuccess = urlParams.get('gift_success');
+    const giftId = urlParams.get('gift_id');
+    const giftName = urlParams.get('gift_name');
+    
+    if (giftSuccess === 'true' && giftId && giftName) {
+      handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
+      // Clean URL
+      window.history.replaceState({}, document.title, '/modern-chat');
+    }
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -131,12 +144,22 @@ const ModernChatPage = () => {
     try {
       setIsLoading(true);
       
+      // Get gift data from database
+      const { data: giftData, error: giftError } = await supabase
+        .from('gifts')
+        .select('stripe_price_id')
+        .eq('id', giftId)
+        .single();
+
+      if (giftError) throw giftError;
+
       // Create Stripe checkout session for gift payment
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
           giftId,
           giftName,
           giftPrice,
+          stripePriceId: giftData?.stripe_price_id,
           recipientName: contactName
         }
       });
@@ -145,19 +168,7 @@ const ModernChatPage = () => {
 
       if (data?.url) {
         // Open Stripe checkout in a new tab
-        const checkoutWindow = window.open(data.url, '_blank');
-        
-        // Listen for the checkout completion (simplified approach)
-        const checkInterval = setInterval(() => {
-          if (checkoutWindow?.closed) {
-            clearInterval(checkInterval);
-            // Check if payment was successful and send gift message
-            handleGiftPaymentSuccess(giftId, giftName);
-          }
-        }, 1000);
-        
-        // Clear interval after 5 minutes to prevent memory leaks
-        setTimeout(() => clearInterval(checkInterval), 300000);
+        window.open(data.url, '_blank');
       }
       
       setShowGiftSelection(false);
@@ -172,10 +183,10 @@ const ModernChatPage = () => {
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
     // Get gift emoji mapping
     const giftEmojis: { [key: string]: string } = {
-      "1": "🌹",
-      "2": "🍫", 
-      "3": "🧸",
-      "4": "💐"
+      "00000000-0000-0000-0000-000000000001": "🌹",
+      "00000000-0000-0000-0000-000000000002": "🍫", 
+      "00000000-0000-0000-0000-000000000003": "🧸",
+      "00000000-0000-0000-0000-000000000004": "💐"
     };
 
     const giftMessage: ModernMessage = {
@@ -196,7 +207,7 @@ const ModernChatPage = () => {
     setTimeout(() => {
       const responseMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
-        content: `Obrigada pelo presente! ${giftEmojis[giftId] || '🎁'}`,
+        content: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
         sender: 'contact',
         timestamp: new Date(),
         type: 'text'
@@ -225,15 +236,25 @@ const ModernChatPage = () => {
 
   const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
     <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-2xl rounded-br-md px-4 py-3 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse"></div>
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse"></div>
+        <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400/80 rounded-full animate-ping"></div>
+        <div className="absolute top-0 right-0 w-6 h-6 bg-yellow-400 rounded-full animate-bounce"></div>
+      </div>
       <div className="relative z-10 flex items-center gap-3">
-        <div className="text-3xl animate-bounce">{message.giftEmoji}</div>
-        <div>
+        <div className="text-4xl animate-bounce" style={{ animationDelay: '0.5s' }}>
+          {message.giftEmoji}
+        </div>
+        <div className="flex-1">
           <p className="text-sm font-medium">{message.content}</p>
-          <p className="text-xs text-pink-100 mt-1">Presente especial</p>
+          <p className="text-xs text-pink-100 mt-1 flex items-center gap-1">
+            <span className="animate-pulse">✨</span>
+            Presente especial
+            <span className="animate-pulse">✨</span>
+          </p>
         </div>
       </div>
-      <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 animate-pulse"></div>
     </div>
   );
 

@@ -43,6 +43,7 @@ export type Database = {
           image_url: string
           name: string
           price: number
+          stripe_price_id: string | null
         }
         Insert: {
           description: string
@@ -50,6 +51,7 @@ export type Database = {
           image_url: string
           name: string
           price: number
+          stripe_price_id?: string | null
         }
         Update: {
           description?: string
@@ -57,6 +59,7 @@ export type Database = {
           image_url?: string
           name?: string
           price?: number
+          stripe_price_id?: string | null
         }
         Relationships: []
       }

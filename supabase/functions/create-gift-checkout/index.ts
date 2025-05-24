@@ -33,11 +33,11 @@ serve(async (req) => {
       auth: { persistSession: false }
     });
 
-    const { giftId, giftName, giftPrice, recipientName } = await req.json();
+    const { giftId, giftName, giftPrice, stripePriceId, recipientName } = await req.json();
     if (!giftId || !giftName || !giftPrice) {
       throw new Error("Gift ID, name, and price are required");
     }
-    logStep("Received gift data", { giftId, giftName, giftPrice, recipientName });
+    logStep("Received gift data", { giftId, giftName, giftPrice, stripePriceId, recipientName });
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -72,9 +72,16 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
+    
+    // Create checkout session for one-time payment
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
-      line_items: [
+      line_items: stripePriceId ? [
+        {
+          price: stripePriceId, // Use the stripe_price_id from database
+          quantity: 1,
+        }
+      ] : [
         {
           price_data: {
             currency: "usd",
@@ -90,9 +97,9 @@ serve(async (req) => {
             unit_amount: giftPrice, // giftPrice is already in cents
           },
           quantity: 1,
-        },
+        }
       ],
-      mode: "payment",
+      mode: "payment", // One-time payment, not subscription
       success_url: `${origin}/modern-chat?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(giftName)}`,
       cancel_url: `${origin}/modern-chat?gift_canceled=true`,
       metadata: {
