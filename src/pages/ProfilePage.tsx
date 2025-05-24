@@ -5,7 +5,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut } from 'lucide-react';
+import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ProfilePage = () => {
