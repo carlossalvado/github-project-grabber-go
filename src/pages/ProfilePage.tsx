@@ -1,162 +1,227 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, MessageCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Crown, Calendar, Settings, LogOut, Heart, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { userSubscription } = useSubscription();
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<{
-    full_name: string | null;
-    plan_name: string | null;
-    plan_active: boolean | null;
-  } | null>(null);
-  
-  useEffect(() => {
-    if (!user) return;
-    
-    // Buscar dados do perfil apenas do cache
-    const getCachedProfile = () => {
-      setLoading(true);
-      try {
-        const cached = localStorage.getItem('sweet-ai-user-profile');
-        if (cached) {
-          const profileData = JSON.parse(cached);
-          setProfile({
-            full_name: user.user_metadata?.full_name || null,
-            plan_name: profileData.plan_name || null,
-            plan_active: profileData.plan_active || false
-          });
-        } else {
-          // Se não há cache, usar dados básicos do usuário
-          setProfile({
-            full_name: user.user_metadata?.full_name || null,
-            plan_name: null,
-            plan_active: false
-          });
-        }
-      } catch (err) {
-        console.error("Erro ao carregar perfil do cache:", err);
-        setProfile({
-          full_name: user.user_metadata?.full_name || null,
-          plan_name: null,
-          plan_active: false
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    getCachedProfile();
-  }, [user, userSubscription]);
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
+    setIsLoading(true);
     try {
-      // Limpar todos os dados do cache antes do logout
-      localStorage.removeItem('sweet-ai-subscription-data');
-      localStorage.removeItem('sweet-ai-user-profile');
-      localStorage.removeItem('sweet-ai-selected-plan-details');
-      
-      console.log("Cache limpo no logout");
-      
       await signOut();
-      toast.success("Logout realizado com sucesso");
-    } catch (err) {
-      console.error("Erro ao fazer logout:", err);
-      toast.error("Erro ao sair da conta");
+      toast.success('Logout realizado com sucesso!');
+      navigate('/');
+    } catch (error) {
+      toast.error('Erro ao fazer logout');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-sweetheart-light/20 flex flex-col items-center p-4 md:p-8">
-      <div className="w-full max-w-lg">
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-sweet text-white rounded-t-lg">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center">
-                <User size={64} className="text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-center text-2xl font-bold">Meu Perfil</CardTitle>
-            <CardDescription className="text-white/90 text-center">
-              Visualize e gerencie suas informações
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-4 pt-6">
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse flex flex-col items-center">
-                  <div className="h-12 w-12 bg-pink-500 rounded-full"></div>
-                  <p className="mt-4 text-gray-600">Carregando seus dados...</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <User className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+            Meu Perfil
+          </h1>
+          <p className="text-lg text-gray-300">
+            Gerencie sua conta e preferências
+          </p>
+        </div>
+
+        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* User Information */}
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <User className="w-6 h-6 text-purple-400" />
+                Informações Pessoais
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                Seus dados da conta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <span className="text-3xl text-white font-bold">
+                    {user?.email?.charAt(0).toUpperCase()}
+                  </span>
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="space-y-2">
+
+              <div className="space-y-2">
+                <Label className="text-white flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-purple-400" />
+                  Email
+                </Label>
+                <Input
+                  value={user?.email || ''}
+                  disabled
+                  className="bg-slate-700/50 border-slate-600/50 text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-purple-400" />
+                  Membro desde
+                </Label>
+                <Input
+                  value={user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : 'N/A'}
+                  disabled
+                  className="bg-slate-700/50 border-slate-600/50 text-white"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Information */}
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <Crown className="w-6 h-6 text-purple-400" />
+                Assinatura
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                Status do seu plano atual
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {userSubscription ? (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-600">Nome:</h3>
-                    <p className="text-lg">{profile?.full_name || 'Não disponível'}</p>
+                    <span className="text-white font-medium">Plano Atual:</span>
+                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                      {userSubscription.plan_name}
+                    </Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-600">Email:</h3>
-                    <p className="text-lg">{user?.email || 'Não disponível'}</p>
+                    <span className="text-white font-medium">Status:</span>
+                    <Badge 
+                      variant={userSubscription.status === 'active' ? 'default' : 'secondary'}
+                      className={userSubscription.status === 'active' 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-gray-600 text-white'
+                      }
+                    >
+                      {userSubscription.status === 'active' ? 'Ativo' : 'Inativo'}
+                    </Badge>
                   </div>
-                  
-                  <div className="border-t border-gray-200 my-4"></div>
-                  
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-600">Plano atual:</h3>
-                    <div className="flex items-center">
-                      <span className={`px-3 py-1 rounded-full text-sm ${
-                        (userSubscription?.status === 'active' || profile?.plan_active) 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {userSubscription?.plan_name || profile?.plan_name || 'Nenhum plano ativo'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {(userSubscription || profile?.plan_active) && (
+
+                  {userSubscription.current_period_end && (
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-600">Status:</h3>
-                      <span className={`px-3 py-1 rounded-full text-sm ${
-                        (userSubscription?.status === 'active' || profile?.plan_active) 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {(userSubscription?.status === 'active' || profile?.plan_active) ? 'Ativo' : 'Inativo'}
+                      <span className="text-white font-medium">Próxima cobrança:</span>
+                      <span className="text-gray-300">
+                        {new Date(userSubscription.current_period_end).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                   )}
+
+                  <div className="pt-4 border-t border-slate-600/50">
+                    <Button
+                      onClick={() => navigate('/')}
+                      variant="outline"
+                      className="w-full border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Alterar Plano
+                    </Button>
+                  </div>
                 </div>
-              </>
-            )}
-          </CardContent>
-          
-          <CardFooter className="flex flex-col space-y-3">
-            <Button 
-              className="w-full bg-gradient-sweet flex items-center gap-2"
-            >
-              <MessageCircle size={18} />
-              Acessar Chat
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="w-full border-pink-300 text-pink-700 hover:bg-pink-50"
-              onClick={handleSignOut}
-            >
-              Sair da conta
-            </Button>
-          </CardFooter>
-        </Card>
+              ) : (
+                <div className="text-center py-6">
+                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">Nenhum plano ativo</p>
+                  <Button
+                    onClick={() => navigate('/')}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                  >
+                    Escolher Plano
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Actions */}
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <Settings className="w-6 h-6 text-purple-400" />
+                Ações da Conta
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                Gerencie sua conta e preferências
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button
+                  onClick={() => navigate('/personalize')}
+                  variant="outline"
+                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                >
+                  <Heart className="w-4 h-4 mr-2" />
+                  Personalizar
+                </Button>
+
+                <Button
+                  onClick={() => navigate('/modern-chat')}
+                  variant="outline"
+                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Conversar
+                </Button>
+
+                <Button
+                  onClick={handleSignOut}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                      Saindo...
+                    </div>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
