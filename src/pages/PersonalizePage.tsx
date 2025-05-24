@@ -1,15 +1,45 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Sparkles, MessageCircle, ArrowRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Heart, Sparkles, MessageCircle, ArrowRight, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const PersonalizePage = () => {
   const navigate = useNavigate();
   const [selectedPersonality, setSelectedPersonality] = useState<string>('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [agentName, setAgentName] = useState<string>('');
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('*')
+        .order('id');
+      
+      if (error) throw error;
+      
+      setAgents(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar agentes:', error);
+      toast.error('Erro ao carregar agentes disponíveis');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const personalities = [
     { id: 'romantic', name: 'Romântica', description: 'Carinhosa e apaixonada', icon: '💕' },
@@ -34,10 +64,29 @@ const PersonalizePage = () => {
   };
 
   const handleContinue = () => {
-    if (selectedPersonality && selectedInterests.length > 0) {
+    if (selectedPersonality && selectedInterests.length > 0 && selectedAgent && agentName.trim()) {
+      // Salvar seleções no localStorage
+      localStorage.setItem('selectedAgent', JSON.stringify(selectedAgent));
+      localStorage.setItem('agentName', agentName);
+      localStorage.setItem('selectedPersonality', selectedPersonality);
+      localStorage.setItem('selectedInterests', JSON.stringify(selectedInterests));
+      
       navigate('/modern-chat');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-3 w-3 bg-pink-500 rounded-full mx-1"></div>
+          <div className="h-3 w-3 bg-pink-500 rounded-full mx-1 mt-1"></div>
+          <div className="h-3 w-3 bg-pink-500 rounded-full mx-1 mt-1"></div>
+          <p className="text-pink-500 mt-4">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -50,12 +99,66 @@ const PersonalizePage = () => {
           <h1 className="text-4xl font-bold text-pink-500 mb-4">
             Personalize Sua Experiência
           </h1>
-          <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+          <p className="text-lg text-white max-w-2xl mx-auto">
             Conte-nos mais sobre você para criarmos a companhia virtual perfeita
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
+          {/* Agent Selection */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <User className="w-6 h-6 text-pink-500" />
+                Escolha Seu Agente
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Selecione a aparência do seu agente virtual
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                {agents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    onClick={() => setSelectedAgent(agent)}
+                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 ${
+                      selectedAgent?.id === agent.id
+                        ? 'border-pink-500 bg-pink-500/10'
+                        : 'border-slate-600 hover:border-pink-400/50 hover:bg-slate-700/30'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <img 
+                        src={agent.photo_url} 
+                        alt={agent.name}
+                        className="w-20 h-20 rounded-full mx-auto mb-2 object-cover"
+                      />
+                      <h3 className="text-lg font-semibold text-white mb-1">{agent.name}</h3>
+                      <p className="text-sm text-slate-400">{agent.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {selectedAgent && (
+                <div className="space-y-4">
+                  <Label htmlFor="agentName" className="text-white">
+                    Como você gostaria de chamar seu agente?
+                  </Label>
+                  <Input
+                    id="agentName"
+                    type="text"
+                    value={agentName}
+                    onChange={(e) => setAgentName(e.target.value)}
+                    placeholder="Digite um nome personalizado"
+                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-pink-500"
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Personality Selection */}
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
@@ -132,9 +235,9 @@ const PersonalizePage = () => {
           <div className="text-center">
             <Button
               onClick={handleContinue}
-              disabled={!selectedPersonality || selectedInterests.length < 3}
+              disabled={!selectedPersonality || selectedInterests.length < 3 || !selectedAgent || !agentName.trim()}
               className={`px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-200 ${
-                selectedPersonality && selectedInterests.length >= 3
+                selectedPersonality && selectedInterests.length >= 3 && selectedAgent && agentName.trim()
                   ? 'bg-pink-500 hover:bg-pink-600 text-white'
                   : 'bg-slate-700 text-slate-500 cursor-not-allowed'
               }`}
@@ -144,7 +247,7 @@ const PersonalizePage = () => {
                 <ArrowRight className="w-5 h-5" />
               </span>
             </Button>
-            {(!selectedPersonality || selectedInterests.length < 3) && (
+            {(!selectedPersonality || selectedInterests.length < 3 || !selectedAgent || !agentName.trim()) && (
               <p className="text-sm text-slate-400 mt-2">
                 Complete sua personalização para continuar
               </p>

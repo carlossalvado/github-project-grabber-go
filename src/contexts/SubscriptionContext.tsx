@@ -1,16 +1,14 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 
-// Local storage key for caching subscription data
+// Local storage keys for caching
 const SUBSCRIPTION_CACHE_KEY = 'sweet-ai-subscription-data';
+const PLANS_CACHE_KEY = 'sweet-ai-plans-data';
 const SUBSCRIPTION_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 horas
-// Chave para armazenar detalhes do plano selecionado
 const SELECTED_PLAN_DETAILS_KEY = 'sweet-ai-selected-plan-details';
-// Chave para armazenar dados do perfil do usuário
 const USER_PROFILE_CACHE_KEY = 'sweet-ai-user-profile';
 
 export type Plan = {
@@ -74,6 +72,37 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       };
     }
     return { text: false, audio: false };
+  };
+
+  // Cache functions
+  const cachePlans = (plansData: Plan[]) => {
+    const cacheData = {
+      plans: plansData,
+      cached_at: Date.now()
+    };
+    localStorage.setItem(PLANS_CACHE_KEY, JSON.stringify(cacheData));
+    console.log("Planos salvos no cache:", plansData.length, "planos");
+  };
+
+  const getCachedPlans = (): Plan[] | null => {
+    const cached = localStorage.getItem(PLANS_CACHE_KEY);
+    if (!cached) return null;
+
+    try {
+      const cacheData = JSON.parse(cached);
+      const isExpired = Date.now() - cacheData.cached_at > SUBSCRIPTION_CACHE_EXPIRY;
+      
+      if (isExpired) {
+        localStorage.removeItem(PLANS_CACHE_KEY);
+        return null;
+      }
+      
+      return cacheData.plans;
+    } catch (e) {
+      console.error("Erro ao ler cache de planos:", e);
+      localStorage.removeItem(PLANS_CACHE_KEY);
+      return null;
+    }
   };
 
   // Salvar dados de assinatura no cache com timestamp
@@ -152,11 +181,22 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  // Load all available plans
+  // Load all available plans with cache
   useEffect(() => {
-    console.log("Loading plans...");
     const loadPlans = async () => {
+      console.log("Loading plans...");
+      
+      // Tentar carregar do cache primeiro
+      const cachedPlans = getCachedPlans();
+      if (cachedPlans) {
+        console.log("Usando planos do cache:", cachedPlans.length, "planos");
+        setPlans(cachedPlans);
+        setLoading(false);
+        return;
+      }
+
       try {
+        console.log("Carregando planos do Supabase...");
         const { data, error } = await supabase
           .from('plans')
           .select('*')
@@ -165,7 +205,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (error) throw error;
         
         if (data) {
-          console.log("Plans data received:", data);
+          console.log("Plans data received from Supabase:", data);
           const transformedPlans: Plan[] = data.map(plan => ({
             ...plan,
             features: transformFeatures(plan.features as Json)
@@ -173,6 +213,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           
           console.log("Transformed plans:", transformedPlans);
           setPlans(transformedPlans);
+          cachePlans(transformedPlans);
         }
       } catch (error: any) {
         console.error("Error loading plans:", error);

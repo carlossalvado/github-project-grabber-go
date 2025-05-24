@@ -112,13 +112,13 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
 
   if (verifyingPayment) {
     return (
-      <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          <Card className="text-center p-8">
+          <Card className="text-center p-8 bg-slate-800 border-slate-700">
             <div className="animate-pulse flex flex-col items-center">
               <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
-              <h2 className="text-xl font-bold mb-2">Verificando Pagamento...</h2>
-              <p className="text-gray-600">Aguarde enquanto confirmamos seu pagamento.</p>
+              <h2 className="text-xl font-bold mb-2 text-white">Verificando Pagamento...</h2>
+              <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento.</p>
             </div>
           </Card>
         </div>
@@ -127,66 +127,66 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-sweet bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl font-bold text-pink-500 mb-4">
             {paymentConfirmed ? 'Pagamento Confirmado!' : 'Seu Plano Selecionado'}
           </h1>
-          <p className="text-lg text-gray-700">
+          <p className="text-lg text-white">
             {paymentConfirmed 
               ? 'Seu pagamento foi processado com sucesso. Você já pode começar a conversar!'
               : 'Confirme os detalhes e continue para finalizar.'}
           </p>
         </div>
-        <Card className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
+        <Card className={`relative overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-slate-800 border-slate-700 ${plan.id === 3 ? 'border-2 border-pink-400' : ''}`}>
           {plan.id === 3 && (
-            <div className="absolute top-0 right-0 bg-gradient-sweet text-white px-3 py-1 text-sm font-bold">
+            <div className="absolute top-0 right-0 bg-pink-500 text-white px-3 py-1 text-sm font-bold">
               Mais Popular
             </div>
           )}
           <CardHeader>
-            <CardTitle className="text-2xl">{plan.name}</CardTitle>
-            <CardDescription className="text-base">{plan.description}</CardDescription>
+            <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
+            <CardDescription className="text-base text-slate-400">{plan.description}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold mb-6 text-center">
+            <div className="text-4xl font-bold mb-6 text-center text-pink-500">
               {plan.price === 0
                 ? "Grátis"
                 : ` US$${(plan.price / 100).toFixed(2)}`}
-              {plan.price > 0 && <span className="text-sm font-normal">/mês</span>}
+              {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
             </div>
             <ul className="space-y-3">
               {plan.features.text && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Mensagens de Texto Ilimitadas
+                  <span className="text-white">Mensagens de Texto Ilimitadas</span>
                 </li>
               )}
               {plan.features.audio && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Mensagens de Áudio
+                  <span className="text-white">Mensagens de Áudio</span>
                 </li>
               )}
               {plan.features.premium && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Recursos Premium Exclusivos
+                  <span className="text-white">Recursos Premium Exclusivos</span>
                 </li>
               )}
               {plan.trial_days > 0 && (
                 <li className="flex items-center">
-                  <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  {plan.trial_days} dias de teste grátis
+                  <span className="text-white">{plan.trial_days} dias de teste grátis</span>
                 </li>
               )}
             </ul>
@@ -196,15 +196,15 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               // Mostrar botões para usuários com pagamento confirmado
               <>
                 <Button 
-                  className="w-full bg-gradient-sweet" 
-                  onClick={handleGoToChat}
+                  className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
+                  onClick={() => navigate('/modern-chat')}
                 >
                   Começar a Conversar
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={handleGoToProfile}
-                  className="w-full"
+                  onClick={() => navigate('/profile')}
+                  className="w-full border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white"
                 >
                   Ver Meu Perfil
                 </Button>
@@ -213,8 +213,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               // Mostrar os botões normais quando o pagamento não for confirmado
               <>
                 <Button 
-                  className="w-full bg-gradient-sweet" 
-                  onClick={handleSelectPlan}
+                  className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
+                  onClick={() => handleSelectPlan(plan.id)}
                   disabled={processing}
                 >
                   {processing ? "Processando..." : "Confirmar e Continuar"}
@@ -223,7 +223,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
                   variant="outline" 
                   onClick={() => navigate('/')}
                   disabled={processing}
-                  className="w-full"
+                  className="w-full border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white"
                 >
                   Voltar para a Página Inicial
                 </Button>
