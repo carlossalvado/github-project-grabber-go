@@ -1,34 +1,29 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Crown, Calendar, Settings, LogOut, Heart, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { userSubscription } = useSubscription();
+  const { userSubscription, plans } = useSubscription();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
-    setIsLoading(true);
-    try {
-      await signOut();
-      toast.success('Logout realizado com sucesso!');
-      navigate('/');
-    } catch (error) {
-      toast.error('Erro ao fazer logout');
-    } finally {
-      setIsLoading(false);
-    }
+    await signOut();
+    navigate('/');
   };
+
+  const getCurrentPlan = () => {
+    if (!userSubscription) return null;
+    return plans.find(plan => plan.stripe_price_id === userSubscription.stripe_price_id);
+  };
+
+  const currentPlan = getCurrentPlan();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
@@ -42,181 +37,128 @@ const ProfilePage = () => {
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <User className="w-10 h-10 text-white" />
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <User className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
             Meu Perfil
           </h1>
-          <p className="text-lg text-gray-300">
-            Gerencie sua conta e preferências
+          <p className="text-lg text-white/80 max-w-2xl mx-auto">
+            Gerencie suas informações e preferências
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* User Information */}
-          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center gap-2">
-                <User className="w-6 h-6 text-purple-400" />
-                Informações Pessoais
+                <Mail className="w-6 h-6 text-purple-400" />
+                Informações da Conta
               </CardTitle>
-              <CardDescription className="text-gray-300">
-                Seus dados da conta
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-center mb-6">
-                <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                   <span className="text-3xl text-white font-bold">
                     {user?.email?.charAt(0).toUpperCase()}
                   </span>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-white flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-purple-400" />
-                  Email
-                </Label>
-                <Input
-                  value={user?.email || ''}
-                  disabled
-                  className="bg-slate-700/50 border-slate-600/50 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-400" />
-                  Membro desde
-                </Label>
-                <Input
-                  value={user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : 'N/A'}
-                  disabled
-                  className="bg-slate-700/50 border-slate-600/50 text-white"
-                />
+              
+              <div className="text-center">
+                <p className="text-xl text-white mb-2">Email</p>
+                <p className="text-purple-300 text-lg">{user?.email}</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Subscription Information */}
-          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm">
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center gap-2">
-                <Crown className="w-6 h-6 text-purple-400" />
-                Assinatura
+                <CreditCard className="w-6 h-6 text-purple-400" />
+                Plano Atual
               </CardTitle>
-              <CardDescription className="text-gray-300">
-                Status do seu plano atual
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               {userSubscription ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">Plano Atual:</span>
-                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                      {userSubscription.plan_name}
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">Status:</span>
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    {currentPlan?.name === 'Ultimate' && <Crown className="w-6 h-6 text-yellow-400" />}
+                    {currentPlan?.name === 'Premium' && <Sparkles className="w-6 h-6 text-purple-400" />}
+                    {currentPlan?.name === 'Basic' && <Heart className="w-6 h-6 text-pink-400" />}
                     <Badge 
-                      variant={userSubscription.status === 'active' ? 'default' : 'secondary'}
-                      className={userSubscription.status === 'active' 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-gray-600 text-white'
-                      }
+                      variant="default" 
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-lg px-4 py-2"
                     >
-                      {userSubscription.status === 'active' ? 'Ativo' : 'Inativo'}
+                      {userSubscription.plan_name || 'Plano Ativo'}
                     </Badge>
                   </div>
-
-                  {userSubscription.current_period_end && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-white font-medium">Próxima cobrança:</span>
-                      <span className="text-gray-300">
-                        {new Date(userSubscription.current_period_end).toLocaleDateString('pt-BR')}
+                  
+                  <div className="bg-purple-900/30 border border-purple-500/30 rounded-xl p-6 text-center">
+                    <p className="text-white mb-2">Status: 
+                      <span className="ml-2 text-green-400 font-semibold">
+                        {userSubscription.status === 'active' ? 'Ativo' : userSubscription.status}
                       </span>
-                    </div>
-                  )}
-
-                  <div className="pt-4 border-t border-slate-600/50">
-                    <Button
-                      onClick={() => navigate('/')}
-                      variant="outline"
-                      className="w-full border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Alterar Plano
-                    </Button>
+                    </p>
+                    
+                    {currentPlan && (
+                      <div className="mt-4">
+                        <p className="text-purple-300 text-lg font-semibold">
+                          R$ {currentPlan.price}/mês
+                        </p>
+                        <p className="text-white/80 text-sm mt-2">
+                          {currentPlan.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400 mb-4">Nenhum plano ativo</p>
-                  <Button
-                    onClick={() => navigate('/')}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                  >
-                    Escolher Plano
-                  </Button>
+                <div className="text-center py-8">
+                  <div className="bg-slate-700/50 border border-slate-600/50 rounded-xl p-6">
+                    <p className="text-white/80 mb-4">Nenhum plano ativo</p>
+                    <Button 
+                      onClick={() => navigate('/')}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-2 px-6 rounded-xl"
+                    >
+                      Escolher Plano
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Actions */}
-          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm lg:col-span-2">
+          <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm shadow-xl">
             <CardHeader>
-              <CardTitle className="text-2xl text-white flex items-center gap-2">
-                <Settings className="w-6 h-6 text-purple-400" />
-                Ações da Conta
-              </CardTitle>
-              <CardDescription className="text-gray-300">
-                Gerencie sua conta e preferências
-              </CardDescription>
+              <CardTitle className="text-2xl text-white">Ações</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  onClick={() => navigate('/modern-chat')}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 rounded-xl"
+                >
+                  Ir para Chat
+                </Button>
+                
+                <Button 
                   onClick={() => navigate('/personalize')}
                   variant="outline"
-                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                  className="flex-1 border-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white py-3 rounded-xl"
                 >
-                  <Heart className="w-4 h-4 mr-2" />
                   Personalizar
                 </Button>
-
-                <Button
-                  onClick={() => navigate('/modern-chat')}
-                  variant="outline"
-                  className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Conversar
-                </Button>
-
-                <Button
+                
+                <Button 
                   onClick={handleSignOut}
-                  disabled={isLoading}
                   variant="outline"
-                  className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                  className="flex-1 border-2 border-red-500 text-red-400 hover:bg-red-500 hover:text-white py-3 rounded-xl"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
-                      Saindo...
-                    </div>
-                  ) : (
-                    <>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sair
-                    </>
-                  )}
+                  Sair
                 </Button>
               </div>
             </CardContent>

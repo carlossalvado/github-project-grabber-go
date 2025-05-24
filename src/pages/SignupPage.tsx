@@ -33,7 +33,7 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      await signUp(email, password);
+      await signUp(email, password, {});
       toast.success('Conta criada com sucesso! Verifique seu email.');
       navigate('/home');
     } catch (error: any) {
@@ -61,7 +61,7 @@ const SignupPage = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
             Isa Date
           </h1>
-          <p className="text-gray-300">
+          <p className="text-white/80">
             Crie sua conta gratuitamente
           </p>
         </div>
@@ -69,7 +69,7 @@ const SignupPage = () => {
         <Card className="bg-slate-800/50 border-purple-500/20 backdrop-blur-sm shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl text-white">Criar Conta</CardTitle>
-            <CardDescription className="text-gray-300">
+            <CardDescription className="text-white/70">
               Junte-se a milhares de pessoas que já encontraram sua conexão especial
             </CardDescription>
           </CardHeader>
@@ -87,7 +87,7 @@ const SignupPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   required
-                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-white/50 focus:border-purple-500 focus:ring-purple-500/20"
                 />
               </div>
 
@@ -103,7 +103,7 @@ const SignupPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-white/50 focus:border-purple-500 focus:ring-purple-500/20"
                 />
               </div>
 
@@ -119,7 +119,7 @@ const SignupPage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-white/50 focus:border-purple-500 focus:ring-purple-500/20"
                 />
               </div>
 
@@ -144,7 +144,7 @@ const SignupPage = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-gray-400">
+              <p className="text-white/70">
                 Já tem uma conta?{' '}
                 <Link 
                   to="/login" 
