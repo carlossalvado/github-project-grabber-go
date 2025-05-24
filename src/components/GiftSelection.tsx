@@ -70,7 +70,6 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
     try {
       console.log("Iniciando compra de presente:", gift.name);
       
-      // Seguindo o mesmo padrão da seleção de planos
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
           giftId: gift.id
@@ -91,7 +90,6 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
 
       if (data?.url) {
         console.log("Redirecionando para:", data.url);
-        // Seguindo o mesmo padrão dos planos - redirect direto
         window.location.href = data.url;
       } else {
         throw new Error("URL de checkout não recebida");
@@ -107,26 +105,18 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-white">
             <span className="text-2xl">🎁</span>
             Enviar um Presente
           </DialogTitle>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClose} 
-            className="absolute right-4 top-4"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </DialogHeader>
         
         {loadingGifts ? (
           <div className="py-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando presentes disponíveis...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-300">Carregando presentes disponíveis...</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 py-4 max-h-96 overflow-y-auto">
@@ -135,22 +125,22 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
                 key={gift.id}
                 className={`cursor-pointer border-2 rounded-xl p-4 transition-all duration-200 ${
                   selectedGift === gift.id 
-                    ? 'border-pink-500 bg-pink-50 shadow-lg scale-105' 
-                    : 'border-gray-200 hover:border-pink-300 hover:shadow-md'
+                    ? 'border-purple-500 bg-gray-700 shadow-lg scale-105' 
+                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-700 hover:shadow-md'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="aspect-square mb-3 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center">
+                <div className="aspect-square mb-3 bg-gradient-to-br from-gray-700 to-gray-600 rounded-lg flex items-center justify-center">
                   <span className="text-4xl animate-pulse">{gift.image_url}</span>
                 </div>
-                <h3 className="font-semibold text-sm text-gray-800 mb-1">{gift.name}</h3>
-                <p className="text-xs text-gray-500 mb-2 line-clamp-2">{gift.description}</p>
+                <h3 className="font-semibold text-sm text-white mb-1">{gift.name}</h3>
+                <p className="text-xs text-gray-400 mb-2 line-clamp-2">{gift.description}</p>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-pink-600">
+                  <div className="text-sm font-bold text-purple-400">
                     US$ {(gift.price / 100).toFixed(2)}
                   </div>
                   {selectedGift === gift.id && (
-                    <div className="w-4 h-4 bg-pink-500 rounded-full flex items-center justify-center">
+                    <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
                       <div className="w-2 h-2 bg-white rounded-full"></div>
                     </div>
                   )}
@@ -163,7 +153,7 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
         <DialogFooter>
           <Button
             onClick={handleGiftPurchase}
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-200"
+            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium py-3 rounded-lg transition-all duration-200"
             disabled={!selectedGift || loading || loadingGifts}
           >
             {loading ? (

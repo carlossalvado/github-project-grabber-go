@@ -29,23 +29,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isUser = message.sender === 'user';
   const isSystem = message.sender === 'system';
   
+  if (isSystem && message.isGift) {
+    return (
+      <div className={cn('flex justify-center my-6', className)}>
+        <div className="relative">
+          {/* Animated gift emoji with effects */}
+          <div className="text-8xl animate-bounce drop-shadow-2xl">
+            {message.giftEmoji || '🎁'}
+          </div>
+          
+          {/* Sparkle effects around the gift */}
+          <div className="absolute -top-2 -left-2 text-2xl animate-pulse text-yellow-400">✨</div>
+          <div className="absolute -top-1 -right-2 text-xl animate-pulse text-pink-400" style={{ animationDelay: '0.5s' }}>💫</div>
+          <div className="absolute -bottom-1 -left-1 text-lg animate-pulse text-purple-400" style={{ animationDelay: '1s' }}>⭐</div>
+          <div className="absolute -bottom-2 -right-1 text-2xl animate-pulse text-blue-400" style={{ animationDelay: '1.5s' }}>✨</div>
+          
+          {/* Floating hearts */}
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 animate-ping text-red-400">❤️</div>
+        </div>
+      </div>
+    );
+  }
+  
   if (isSystem) {
     return (
       <div className={cn('flex justify-center my-4', className)}>
-        {message.isGift ? (
-          <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-lg p-4 max-w-md text-center">
-            <div className="text-pink-600 font-medium">{message.content}</div>
-            <div className="mt-2">
-              <div className="w-16 h-16 mx-auto bg-pink-200 rounded-full flex items-center justify-center">
-                <span role="img" aria-label="gift" className="text-3xl">{message.giftEmoji || '🎁'}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-gray-100 px-4 py-2 rounded text-gray-600 text-sm">
-            {message.content}
-          </div>
-        )}
+        <div className="bg-gray-100 px-4 py-2 rounded text-gray-600 text-sm">
+          {message.content}
+        </div>
       </div>
     );
   }

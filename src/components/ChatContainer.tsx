@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import MessageBubble, { Message } from './MessageBubble';
@@ -146,7 +147,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     try {
       console.log("Iniciando envio de presente:", { giftId, giftName, giftPrice });
       
-      // Seguindo o mesmo padrão dos planos
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
           giftId
@@ -167,7 +167,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
       if (data?.url) {
         console.log("Redirecionando para:", data.url);
-        // Seguindo o mesmo padrão dos planos - redirect direto
         window.location.href = data.url;
         return;
       }
@@ -273,11 +272,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       </ScrollArea>
       
       {showEmoticons && (
-        <EmoticonSelector 
-          onSelect={addEmoticon} 
-          hasPremiumEmoticons={hasPremiumFeatures}
-          onClose={() => setShowEmoticons(false)}
-        />
+        <div className="relative">
+          <EmoticonSelector 
+            onSelect={addEmoticon} 
+            onClose={() => setShowEmoticons(false)}
+          />
+        </div>
       )}
       
       <ChatInput 

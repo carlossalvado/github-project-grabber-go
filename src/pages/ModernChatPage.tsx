@@ -48,10 +48,9 @@ const ModernChatPage = () => {
 
   // Get user plan name
   const planName = userSubscription?.plan_name || userSubscription?.plan?.name || "Plano Básico";
-  const hasPremiumEmoticons = planName !== "Plano Básico" && planName !== "Free";
 
   useEffect(() => {
-    // Check for gift success/cancel parameters - seguindo o mesmo padrão dos planos
+    // Check for gift success/cancel parameters
     const urlParams = new URLSearchParams(window.location.search);
     const giftSuccess = urlParams.get('gift_success');
     const giftId = urlParams.get('gift_id');
@@ -60,7 +59,7 @@ const ModernChatPage = () => {
     
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      // Clean URL - seguindo o mesmo padrão dos planos
+      // Clean URL
       window.history.replaceState({}, document.title, '/modern-chat');
     }
     
@@ -153,7 +152,6 @@ const ModernChatPage = () => {
       
       console.log("Selecionando presente:", { giftId, giftName, giftPrice });
       
-      // Seguindo o mesmo padrão dos planos de assinatura
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
         body: {
           giftId
@@ -174,7 +172,6 @@ const ModernChatPage = () => {
 
       if (data?.url) {
         console.log("Redirecionando para:", data.url);
-        // Seguindo o mesmo padrão dos planos - redirect direto
         window.location.href = data.url;
       } else {
         throw new Error("URL de checkout não recebida");
@@ -244,9 +241,9 @@ const ModernChatPage = () => {
   );
 
   const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
-    <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-2xl rounded-br-md px-4 py-3 relative overflow-hidden">
+    <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-2xl rounded-br-md px-4 py-3 relative overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 animate-pulse"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-purple-700/20 animate-pulse"></div>
         <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400/80 rounded-full animate-ping"></div>
         <div className="absolute top-0 right-0 w-6 h-6 bg-yellow-400 rounded-full animate-bounce"></div>
       </div>
@@ -256,14 +253,14 @@ const ModernChatPage = () => {
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium">{message.content}</p>
-          <p className="text-xs text-pink-100 mt-1 flex items-center gap-1">
+          <p className="text-xs text-purple-100 mt-1 flex items-center gap-1">
             <span className="animate-pulse">✨</span>
             Presente especial
             <span className="animate-pulse">✨</span>
           </p>
         </div>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 animate-pulse"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-purple-400 to-purple-400 animate-pulse"></div>
     </div>
   );
 
@@ -414,11 +411,10 @@ const ModernChatPage = () => {
 
       {/* Emoticon Selector */}
       {showEmoticonSelector && (
-        <div className="border-t border-gray-700 bg-gray-800">
+        <div className="relative">
           <EmoticonSelector
             onSelect={handleEmoticonSelect}
             onClose={() => setShowEmoticonSelector(false)}
-            hasPremiumEmoticons={hasPremiumEmoticons}
           />
         </div>
       )}
