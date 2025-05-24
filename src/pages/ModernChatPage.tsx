@@ -241,33 +241,26 @@ const ModernChatPage = () => {
   );
 
   const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
-    <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-2xl rounded-br-md px-4 py-3 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-purple-700/20 animate-pulse"></div>
-        <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400/80 rounded-full animate-ping"></div>
-        <div className="absolute top-0 right-0 w-6 h-6 bg-yellow-400 rounded-full animate-bounce"></div>
-      </div>
-      <div className="relative z-10 flex items-center gap-3">
-        <div className="text-4xl animate-bounce" style={{ animationDelay: '0.5s' }}>
-          {message.giftEmoji}
+    <div className="flex justify-center my-6">
+      <div className="relative">
+        <div className="text-8xl animate-bounce drop-shadow-2xl">
+          {message.giftEmoji || '🎁'}
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium">{message.content}</p>
-          <p className="text-xs text-purple-100 mt-1 flex items-center gap-1">
-            <span className="animate-pulse">✨</span>
-            Presente especial
-            <span className="animate-pulse">✨</span>
-          </p>
-        </div>
+        
+        <div className="absolute -top-2 -left-2 text-2xl animate-pulse text-yellow-400">✨</div>
+        <div className="absolute -top-1 -right-2 text-xl animate-pulse text-pink-400" style={{ animationDelay: '0.5s' }}>💫</div>
+        <div className="absolute -bottom-1 -left-1 text-lg animate-pulse text-purple-400" style={{ animationDelay: '1s' }}>⭐</div>
+        <div className="absolute -bottom-2 -right-1 text-2xl animate-pulse text-blue-400" style={{ animationDelay: '1.5s' }}>✨</div>
+        
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 animate-ping text-red-400">❤️</div>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-purple-400 to-purple-400 animate-pulse"></div>
     </div>
   );
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full">
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -320,103 +313,103 @@ const ModernChatPage = () => {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.length === 0 ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="text-center text-gray-400">
-                <p className="text-lg mb-2">Comece uma conversa!</p>
-                <p className="text-sm">Digite uma mensagem para {contactName}</p>
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4" style={{ paddingBottom: showEmoticonSelector ? '70vh' : '1rem' }}>
+            {messages.length === 0 ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="text-center text-gray-400">
+                  <p className="text-lg mb-2">Comece uma conversa!</p>
+                  <p className="text-sm">Digite uma mensagem para {contactName}</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              {/* Today label */}
-              <div className="flex justify-center">
-                <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
-                  Hoje
-                </span>
-              </div>
+            ) : (
+              <>
+                {/* Today label */}
+                <div className="flex justify-center">
+                  <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
+                    Hoje
+                  </span>
+                </div>
 
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className="max-w-[70%] space-y-1">
-                    {message.type === 'text' && (
-                      <div
-                        className={`px-4 py-3 rounded-2xl ${
-                          message.sender === 'user'
-                            ? 'bg-purple-600 text-white rounded-br-md'
-                            : 'bg-gray-700 text-white rounded-bl-md'
-                        }`}
-                      >
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      </div>
-                    )}
-
-                    {message.type === 'gift' && (
-                      <AnimatedGiftMessage message={message} />
-                    )}
-                    
-                    {message.type === 'image' && message.images && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {message.images.map((img, index) => (
-                          <img
-                            key={index}
-                            src={img}
-                            alt={`Shared image ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg"
-                          />
-                        ))}
-                      </div>
-                    )}
-                    
-                    {message.type === 'audio' && (
-                      <div className="bg-purple-600 px-4 py-3 rounded-2xl rounded-br-md flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                          <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1"></div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
-                            <div className="w-1/3 h-full bg-white rounded-full"></div>
-                          </div>
-                        </div>
-                        <span className="text-xs text-white opacity-90">{message.audioDuration}</span>
-                      </div>
-                    )}
-                    
-                    <div className={`flex items-center gap-1 text-xs text-gray-400 ${
-                      message.sender === 'user' ? 'justify-end' : 'justify-start'
-                    }`}>
-                      <span>{formatTime(message.timestamp)}</span>
-                      {message.sender === 'user' && (
-                        <div className="flex">
-                          <span className="text-blue-400">✓✓</span>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className="max-w-[70%] space-y-1">
+                      {message.type === 'text' && (
+                        <div
+                          className={`px-4 py-3 rounded-2xl ${
+                            message.sender === 'user'
+                              ? 'bg-purple-600 text-white rounded-br-md'
+                              : 'bg-gray-700 text-white rounded-bl-md'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">{message.content}</p>
                         </div>
                       )}
+
+                      {message.type === 'gift' && (
+                        <AnimatedGiftMessage message={message} />
+                      )}
+                      
+                      {message.type === 'image' && message.images && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {message.images.map((img, index) => (
+                            <img
+                              key={index}
+                              src={img}
+                              alt={`Shared image ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      
+                      {message.type === 'audio' && (
+                        <div className="bg-purple-600 px-4 py-3 rounded-2xl rounded-br-md flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                            <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1"></div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
+                              <div className="w-1/3 h-full bg-white rounded-full"></div>
+                            </div>
+                          </div>
+                          <span className="text-xs text-white opacity-90">{message.audioDuration}</span>
+                        </div>
+                      )}
+                      
+                      <div className={`flex items-center gap-1 text-xs text-gray-400 ${
+                        message.sender === 'user' ? 'justify-end' : 'justify-start'
+                      }`}>
+                        <span>{formatTime(message.timestamp)}</span>
+                        {message.sender === 'user' && (
+                          <div className="flex">
+                            <span className="text-blue-400">✓✓</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {/* Loading indicator for mobile */}
-              {isLoading && isMobile && <MobileLoadingIndicator />}
-            </>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+                {/* Loading indicator for mobile */}
+                {isLoading && isMobile && <MobileLoadingIndicator />}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Emoticon Selector */}
       {showEmoticonSelector && (
-        <div className="relative">
-          <EmoticonSelector
-            onSelect={handleEmoticonSelect}
-            onClose={() => setShowEmoticonSelector(false)}
-          />
-        </div>
+        <EmoticonSelector
+          onSelect={handleEmoticonSelect}
+          onClose={() => setShowEmoticonSelector(false)}
+        />
       )}
 
       {/* Gift Selection Modal */}
@@ -428,7 +421,7 @@ const ModernChatPage = () => {
       )}
 
       {/* Input area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700">
+      <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
             <Input
