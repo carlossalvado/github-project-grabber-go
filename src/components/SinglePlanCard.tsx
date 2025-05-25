@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +26,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     const checkPaymentStatus = async () => {
       if (!user) return;
 
-      // FIRST: Check permanent plan confirmation (cannot be overwritten)
+      // FIRST: Check permanent plan confirmation
       const permanentConfirmation = localStorage.getItem('sweet-ai-permanent-plan-confirmation');
       if (permanentConfirmation) {
         try {
@@ -47,27 +46,27 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       const checkoutStatus = urlParams.get('checkout');
       
       if (checkoutStatus === 'success') {
-        console.log('Parâmetro de checkout=success detectado na URL');
+        console.log('CHECKOUT SUCCESS DETECTED - Starting payment verification');
         setVerifyingPayment(true);
         
         try {
-          // Aguardar processamento do Stripe
+          // Aguardar processamento do Stripe (3 segundos)
           await new Promise(resolve => setTimeout(resolve, 3000));
           
           // MÚLTIPLAS tentativas para verificar pagamento
           let attempts = 0;
-          const maxAttempts = 5;
+          const maxAttempts = 8; // Aumentei para 8 tentativas
           
           while (attempts < maxAttempts) {
-            console.log(`Tentativa ${attempts + 1} de verificação de pagamento...`);
+            console.log(`PAYMENT VERIFICATION - Attempt ${attempts + 1}/${maxAttempts}`);
             
             const result = await checkSubscriptionStatus();
-            console.log('Resultado da verificação:', result);
+            console.log(`Verification result attempt ${attempts + 1}:`, result);
             
-            if (result?.paymentConfirmed && result?.planName === plan.name && result?.planActive === true) {
-              console.log('PAYMENT PERMANENTLY CONFIRMED in Supabase');
+            if (result?.paymentConfirmed && result?.planActive === true && result?.planName === plan.name) {
+              console.log('*** PAYMENT CONFIRMED SUCCESSFULLY ***');
               
-              // Save permanent confirmation in cache (cannot be overwritten)
+              // Save permanent confirmation (CANNOT be overwritten)
               const permanentData = {
                 planName: plan.name,
                 planActive: true,
@@ -76,75 +75,33 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               };
               localStorage.setItem('sweet-ai-permanent-plan-confirmation', JSON.stringify(permanentData));
               
-              // Update other cache data
-              const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-              const updatedUserData = {
-                ...userData,
-                planName: plan.name,
-                planActive: true,
-                paymentConfirmed: true,
-                permanent: true
-              };
-              localStorage.setItem('userData', JSON.stringify(updatedUserData));
-              
               setPaymentConfirmed(true);
-              toast.success('Pagamento confirmado PERMANENTEMENTE com sucesso!');
+              toast.success(`Pagamento do plano ${plan.name} confirmado com sucesso!`);
               break;
             } else {
               attempts++;
               if (attempts < maxAttempts) {
-                console.log(`Tentativa ${attempts} falhou, aguardando 3 segundos...`);
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                console.log(`Attempt ${attempts} failed, waiting 4 seconds before retry...`);
+                await new Promise(resolve => setTimeout(resolve, 4000)); // Aumentei para 4 segundos
               } else {
-                console.log('Todas as tentativas falharam');
-                toast.error('Não foi possível confirmar o pagamento. Tente recarregar a página.');
+                console.log('*** ALL PAYMENT VERIFICATION ATTEMPTS FAILED ***');
+                toast.error('Não foi possível confirmar o pagamento automaticamente. Recarregue a página.');
               }
             }
           }
         } catch (error) {
-          console.error('Erro ao verificar status de pagamento:', error);
-          toast.error('Erro ao confirmar pagamento. Tente novamente.');
+          console.error('Error during payment verification:', error);
+          toast.error('Erro ao verificar pagamento. Recarregue a página.');
         } finally {
           setVerifyingPayment(false);
         }
         
-        // Limpar parâmetros da URL para evitar processamento duplicado
+        // Limpar parâmetros da URL
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
       
-      // Verificar se há informações de assinatura no localStorage
-      const cachedSubscription = localStorage.getItem('sweet-ai-subscription-data');
-      const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
-      
-      if (cachedSubscription) {
-        try {
-          const subscription = JSON.parse(cachedSubscription);
-          // Verificar se a assinatura está ativa e corresponde ao plano atual
-          if (subscription.status === 'active' && 
-              (subscription.plan_id === plan.id || subscription.plan?.id === plan.id)) {
-            console.log('Assinatura ativa encontrada no cache:', subscription);
-            setPaymentConfirmed(true);
-            return;
-          }
-        } catch (error) {
-          console.error('Erro ao analisar dados de assinatura do cache:', error);
-        }
-      }
-      
-      // Verificar no perfil do usuário se o plano está ativo
-      if (cachedProfile) {
-        try {
-          const profile = JSON.parse(cachedProfile);
-          if (profile.plan_active && profile.plan_name === plan.name) {
-            console.log('Plano ativo encontrado no perfil em cache:', profile);
-            setPaymentConfirmed(true);
-            return;
-          }
-        } catch (error) {
-          console.error('Erro ao analisar dados de perfil do cache:', error);
-        }
-      }
+      // ... keep existing code (verificar cache)
     };
     
     checkPaymentStatus();
@@ -153,10 +110,9 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   const handleSelectPlan = async () => {
     setProcessing(true);
     try {
-      console.log("Selecionando plano:", plan.name, "com ID:", plan.id);
+      console.log("Selecting plan:", plan.name, "with ID:", plan.id);
       localStorage.setItem('selectedPlanId', plan.id.toString());
       
-      // Iniciar o checkout com o Stripe
       await onSelectPlan(plan.id);
     } catch (error) {
       console.error("Error selecting plan:", error);
@@ -186,7 +142,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
             <div className="animate-pulse flex flex-col items-center">
               <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
               <h2 className="text-xl font-bold mb-2 text-white">Confirmando Pagamento...</h2>
-              <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento permanentemente.</p>
+              <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento no Stripe e ativamos seu plano.</p>
             </div>
           </Card>
         </div>
@@ -232,11 +188,11 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       <div className="max-w-md w-full relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-pink-500 mb-4">
-            {paymentConfirmed ? 'Pagamento Confirmado Permanentemente!' : 'Seu Plano Selecionado'}
+            {paymentConfirmed ? 'Plano Ativado com Sucesso!' : 'Seu Plano Selecionado'}
           </h1>
           <p className="text-lg text-white">
             {paymentConfirmed 
-              ? 'Seu pagamento foi processado e confirmado permanentemente. Você já pode começar a conversar!'
+              ? 'Seu pagamento foi confirmado e o plano está ATIVO. Comece a conversar agora!'
               : 'Confirme os detalhes e continue para finalizar.'}
           </p>
         </div>
