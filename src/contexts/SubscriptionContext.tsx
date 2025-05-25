@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -51,7 +50,7 @@ type SubscriptionContextType = {
   userSubscription: Subscription | null;
   loading: boolean;
   selectPlan: (planId: number) => Promise<void>;
-  checkSubscriptionStatus: () => Promise<void>;
+  checkSubscriptionStatus: () => Promise<any>;
   openCustomerPortal: () => Promise<void>;
 };
 
@@ -360,7 +359,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const checkSubscriptionStatus = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para verificar seu status de assinatura");
-      return;
+      return null;
     }
 
     // CRITICAL: Check if plan is already permanently confirmed
@@ -368,7 +367,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (permanentConfirmation && permanentConfirmation.planActive === true) {
       console.log("Plan already PERMANENTLY confirmed - skipping Stripe check:", permanentConfirmation);
       toast.success(`Plano ${permanentConfirmation.planName} já está ativo!`);
-      return;
+      return {
+        hasActiveSubscription: true,
+        planName: permanentConfirmation.planName,
+        planActive: true,
+        paymentConfirmed: true,
+        alreadyConfirmed: true
+      };
     }
 
     try {
@@ -429,6 +434,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     } catch (error: any) {
       console.error("Erro ao verificar status da assinatura:", error);
       toast.error("Falha ao verificar status da assinatura");
+      return null;
     }
   };
 
