@@ -68,6 +68,7 @@ serve(async (req) => {
           planName: currentProfile.plan_name,
           planActive: true,
           alreadyConfirmed: true,
+          paymentConfirmed: true,
           message: "Plan already confirmed and cannot be overwritten"
         }),
         {
@@ -89,7 +90,8 @@ serve(async (req) => {
         JSON.stringify({ 
           hasActiveSubscription: false,
           planName: currentProfile?.plan_name || null,
-          planActive: false
+          planActive: false,
+          paymentConfirmed: false
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,7 +117,8 @@ serve(async (req) => {
         JSON.stringify({ 
           hasActiveSubscription: false,
           planName: currentProfile?.plan_name || null,
-          planActive: false
+          planActive: false,
+          paymentConfirmed: false
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,7 +157,7 @@ serve(async (req) => {
       
       try {
         // Update profile with PERMANENT activation - this can NEVER be changed again
-        await supabaseClient.from("profiles")
+        const { error: profileUpdateError } = await supabaseClient.from("profiles")
           .update({
             plan_name: planName, 
             plan_active: true,  // PERMANENT - cannot be overwritten
@@ -162,7 +165,12 @@ serve(async (req) => {
           })
           .eq('id', user.id);
         
-        logStep("PERMANENT plan activation completed", { planName, planActive: true });
+        if (profileUpdateError) {
+          logStep("ERROR updating profile", { error: profileUpdateError.message });
+          throw profileUpdateError;
+        }
+        
+        logStep("PERMANENT plan activation completed in profiles table", { planName, planActive: true });
 
         // Update subscription record
         const { data: existingSubscription } = await supabaseClient
@@ -228,8 +236,7 @@ serve(async (req) => {
       JSON.stringify({ error: errorMessage }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+      status: 500,
+    });
   }
 });

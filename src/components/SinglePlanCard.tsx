@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Check } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -26,6 +25,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   // Verificar se o pagamento foi confirmado ao carregar o componente
   useEffect(() => {
     const checkPaymentStatus = async () => {
+      if (!user) return;
+
       // FIRST: Check permanent plan confirmation (cannot be overwritten)
       const permanentConfirmation = localStorage.getItem('sweet-ai-permanent-plan-confirmation');
       if (permanentConfirmation) {
@@ -50,10 +51,13 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
         setVerifyingPayment(true);
         
         try {
+          // Aguardar um pouco para dar tempo ao Stripe processar
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
           // Verificar status da assinatura no Stripe e atualizar dados
           const result = await checkSubscriptionStatus();
           
-          if (result?.paymentConfirmed && result?.planName === plan.name) {
+          if (result?.paymentConfirmed && result?.planName === plan.name && result?.planActive === true) {
             console.log('PAYMENT PERMANENTLY CONFIRMED in Supabase');
             
             // Save permanent confirmation in cache (cannot be overwritten)
@@ -78,6 +82,10 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
             
             setPaymentConfirmed(true);
             toast.success('Pagamento confirmado PERMANENTEMENTE com sucesso!');
+          } else {
+            console.log('Pagamento ainda não foi processado, tentando novamente...');
+            // Se não confirmou ainda, tentar mais algumas vezes
+            setTimeout(() => checkPaymentStatus(), 3000);
           }
         } catch (error) {
           console.error('Erro ao verificar status de pagamento:', error);
