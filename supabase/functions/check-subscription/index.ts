@@ -116,26 +116,26 @@ serve(async (req) => {
     const planName = planData?.name || "Plano Desconhecido";
     logStep("Determined plan ID and name", { priceId, planId, planName });
 
-    // *** CRÍTICO: FORÇAR ATUALIZAÇÃO DO PLAN_ACTIVE PARA TRUE ***
-    logStep("FORCING PLAN_ACTIVE TO TRUE - Payment confirmed in Stripe");
+    // *** CRÍTICO: FORÇAR ATUALIZAÇÃO OBRIGATÓRIA DO PLAN_ACTIVE PARA TRUE ***
+    logStep("*** PAYMENT CONFIRMED IN STRIPE - FORCING plan_active = TRUE ***");
     
     try {
-      // STEP 1: Force update profiles table with plan_active = TRUE
+      // STEP 1: FORCE UPDATE profiles table with plan_active = TRUE (MANDATORY)
       const { error: profileUpdateError } = await supabaseClient
         .from("profiles")
         .update({
           plan_name: planName,
-          plan_active: true,  // FORÇAR TRUE
+          plan_active: true,  // *** FORÇA TRUE SEMPRE ***
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
       
       if (profileUpdateError) {
-        logStep("ERROR updating profiles table", { error: profileUpdateError });
-        throw profileUpdateError;
+        logStep("*** CRITICAL ERROR updating profiles table ***", { error: profileUpdateError });
+        throw new Error(`Failed to update profiles: ${profileUpdateError.message}`);
       }
       
-      logStep("SUCCESS: profiles table updated with plan_active = TRUE", { 
+      logStep("*** SUCCESS: profiles.plan_active = TRUE CONFIRMED ***", { 
         userId: user.id,
         planName,
         planActive: true
@@ -186,12 +186,12 @@ serve(async (req) => {
       }
       
     } catch (updateError) {
-      logStep("CRITICAL ERROR updating database", { error: updateError.message });
-      // Continue anyway to return success - at least Stripe shows active subscription
+      logStep("*** CRITICAL FAILURE ***", { error: updateError.message });
+      throw updateError; // Re-throw to return error response
     }
 
     // *** SEMPRE RETORNAR SUCCESS QUANDO STRIPE CONFIRMA PAGAMENTO ***
-    logStep("PAYMENT CONFIRMED - Returning success response");
+    logStep("*** PAYMENT FULLY CONFIRMED - plan_active = TRUE guaranteed ***");
     
     return new Response(
       JSON.stringify({
@@ -212,7 +212,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error in check-subscription:", errorMessage);
+    logStep("*** FATAL ERROR in check-subscription ***", { message: errorMessage });
     
     return new Response(
       JSON.stringify({ error: errorMessage }),

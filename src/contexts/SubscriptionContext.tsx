@@ -355,7 +355,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   }, [user, plans]);
 
-  // Check subscription status with Stripe - APENAS PARA CONFIRMAÇÃO DE PAGAMENTO
+  // Check subscription status with Stripe - GARANTIR ATUALIZAÇÃO IMEDIATA
   const checkSubscriptionStatus = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para verificar seu status de assinatura");
@@ -377,20 +377,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log("Verificando status de assinatura APÓS PAGAMENTO...");
+      console.log("*** CHECKING PAYMENT STATUS WITH STRIPE ***");
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error calling check-subscription:", error);
+        throw error;
+      }
       
-      console.log("Resposta de verificação de assinatura:", data);
+      console.log("*** STRIPE RESPONSE ***", data);
       
       if (data.error) {
         throw new Error(data.error);
       }
       
-      // Se o pagamento foi confirmado (hasActiveSubscription = true)
+      // *** SE O PAGAMENTO FOI CONFIRMADO, GARANTIR QUE plan_active = TRUE ***
       if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
-        console.log("PAGAMENTO CONFIRMADO PERMANENTEMENTE! Salvando no cache...");
+        console.log("*** PAYMENT CONFIRMED! Updating local state ***");
         
         // SAVE PERMANENT CONFIRMATION - CANNOT BE OVERWRITTEN
         savePermanentPlanConfirmation(data.planName, true);
@@ -423,16 +426,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
             cached_at: Date.now()
           });
           
-          console.log("Dados de assinatura ATIVA e PERMANENTE salvos:", confirmedSubscription);
-          toast.success(`Pagamento confirmado PERMANENTEMENTE! Plano ${data.planName} ativado com sucesso!`);
+          console.log("*** LOCAL STATE UPDATED - plan_active = TRUE ***", confirmedSubscription);
+          toast.success(`Pagamento confirmado! Plano ${data.planName} ativado com sucesso!`);
         }
       } else {
-        console.log("Nenhuma assinatura ativa encontrada após verificação");
+        console.log("No active subscription found");
       }
       
       return data;
     } catch (error: any) {
-      console.error("Erro ao verificar status da assinatura:", error);
+      console.error("*** ERROR checking subscription status ***", error);
       toast.error("Falha ao verificar status da assinatura");
       return null;
     }

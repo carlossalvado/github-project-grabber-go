@@ -46,25 +46,25 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       const checkoutStatus = urlParams.get('checkout');
       
       if (checkoutStatus === 'success') {
-        console.log('CHECKOUT SUCCESS DETECTED - Starting payment verification');
+        console.log('*** CHECKOUT SUCCESS DETECTED - Starting payment verification ***');
         setVerifyingPayment(true);
         
         try {
           // Aguardar processamento do Stripe (3 segundos)
           await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // MÚLTIPLAS tentativas para verificar pagamento
+          // *** VERIFICAÇÃO IMEDIATA E OBRIGATÓRIA ***
           let attempts = 0;
-          const maxAttempts = 8; // Aumentei para 8 tentativas
+          const maxAttempts = 10; // Aumentei para 10 tentativas
           
           while (attempts < maxAttempts) {
-            console.log(`PAYMENT VERIFICATION - Attempt ${attempts + 1}/${maxAttempts}`);
+            console.log(`*** PAYMENT VERIFICATION - Attempt ${attempts + 1}/${maxAttempts} ***`);
             
             const result = await checkSubscriptionStatus();
             console.log(`Verification result attempt ${attempts + 1}:`, result);
             
             if (result?.paymentConfirmed && result?.planActive === true && result?.planName === plan.name) {
-              console.log('*** PAYMENT CONFIRMED SUCCESSFULLY ***');
+              console.log('*** PAYMENT CONFIRMED SUCCESSFULLY - plan_active = TRUE ***');
               
               // Save permanent confirmation (CANNOT be overwritten)
               const permanentData = {
@@ -76,13 +76,13 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               localStorage.setItem('sweet-ai-permanent-plan-confirmation', JSON.stringify(permanentData));
               
               setPaymentConfirmed(true);
-              toast.success(`Pagamento do plano ${plan.name} confirmado com sucesso!`);
+              toast.success(`Pagamento do plano ${plan.name} confirmado! Plan ativo!`);
               break;
             } else {
               attempts++;
               if (attempts < maxAttempts) {
-                console.log(`Attempt ${attempts} failed, waiting 4 seconds before retry...`);
-                await new Promise(resolve => setTimeout(resolve, 4000)); // Aumentei para 4 segundos
+                console.log(`Attempt ${attempts} failed, waiting 5 seconds before retry...`);
+                await new Promise(resolve => setTimeout(resolve, 5000)); // 5 segundos entre tentativas
               } else {
                 console.log('*** ALL PAYMENT VERIFICATION ATTEMPTS FAILED ***');
                 toast.error('Não foi possível confirmar o pagamento automaticamente. Recarregue a página.');
