@@ -51,41 +51,55 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
         setVerifyingPayment(true);
         
         try {
-          // Aguardar um pouco para dar tempo ao Stripe processar
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Aguardar processamento do Stripe
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Verificar status da assinatura no Stripe e atualizar dados
-          const result = await checkSubscriptionStatus();
+          // MÚLTIPLAS tentativas para verificar pagamento
+          let attempts = 0;
+          const maxAttempts = 5;
           
-          if (result?.paymentConfirmed && result?.planName === plan.name && result?.planActive === true) {
-            console.log('PAYMENT PERMANENTLY CONFIRMED in Supabase');
+          while (attempts < maxAttempts) {
+            console.log(`Tentativa ${attempts + 1} de verificação de pagamento...`);
             
-            // Save permanent confirmation in cache (cannot be overwritten)
-            const permanentData = {
-              planName: plan.name,
-              planActive: true,
-              confirmedAt: Date.now(),
-              permanent: true
-            };
-            localStorage.setItem('sweet-ai-permanent-plan-confirmation', JSON.stringify(permanentData));
+            const result = await checkSubscriptionStatus();
+            console.log('Resultado da verificação:', result);
             
-            // Update other cache data
-            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-            const updatedUserData = {
-              ...userData,
-              planName: plan.name,
-              planActive: true,
-              paymentConfirmed: true,
-              permanent: true
-            };
-            localStorage.setItem('userData', JSON.stringify(updatedUserData));
-            
-            setPaymentConfirmed(true);
-            toast.success('Pagamento confirmado PERMANENTEMENTE com sucesso!');
-          } else {
-            console.log('Pagamento ainda não foi processado, tentando novamente...');
-            // Se não confirmou ainda, tentar mais algumas vezes
-            setTimeout(() => checkPaymentStatus(), 3000);
+            if (result?.paymentConfirmed && result?.planName === plan.name && result?.planActive === true) {
+              console.log('PAYMENT PERMANENTLY CONFIRMED in Supabase');
+              
+              // Save permanent confirmation in cache (cannot be overwritten)
+              const permanentData = {
+                planName: plan.name,
+                planActive: true,
+                confirmedAt: Date.now(),
+                permanent: true
+              };
+              localStorage.setItem('sweet-ai-permanent-plan-confirmation', JSON.stringify(permanentData));
+              
+              // Update other cache data
+              const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+              const updatedUserData = {
+                ...userData,
+                planName: plan.name,
+                planActive: true,
+                paymentConfirmed: true,
+                permanent: true
+              };
+              localStorage.setItem('userData', JSON.stringify(updatedUserData));
+              
+              setPaymentConfirmed(true);
+              toast.success('Pagamento confirmado PERMANENTEMENTE com sucesso!');
+              break;
+            } else {
+              attempts++;
+              if (attempts < maxAttempts) {
+                console.log(`Tentativa ${attempts} falhou, aguardando 3 segundos...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+              } else {
+                console.log('Todas as tentativas falharam');
+                toast.error('Não foi possível confirmar o pagamento. Tente recarregar a página.');
+              }
+            }
           }
         } catch (error) {
           console.error('Erro ao verificar status de pagamento:', error);
