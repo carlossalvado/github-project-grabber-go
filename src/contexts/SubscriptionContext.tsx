@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -10,6 +11,7 @@ const PLANS_CACHE_KEY = 'sweet-ai-plans-data';
 const SUBSCRIPTION_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 horas
 const SELECTED_PLAN_DETAILS_KEY = 'sweet-ai-selected-plan-details';
 const USER_PROFILE_CACHE_KEY = 'sweet-ai-user-profile';
+const PERMANENT_PLAN_CONFIRMATION_KEY = 'sweet-ai-permanent-plan-confirmation';
 
 export type Plan = {
   id: number;
@@ -105,6 +107,54 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  // PERMANENT plan confirmation cache - CANNOT be overwritten once set
+  const savePermanentPlanConfirmation = (planName: string, planActive: boolean) => {
+    // Check if already exists - if so, DO NOT overwrite
+    const existing = localStorage.getItem(PERMANENT_PLAN_CONFIRMATION_KEY);
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing);
+        if (parsed.planActive === true) {
+          console.log("PERMANENT plan confirmation already exists - NOT overwriting:", parsed);
+          return; // DO NOT overwrite existing confirmed plan
+        }
+      } catch (e) {
+        console.error("Error parsing permanent plan confirmation:", e);
+      }
+    }
+
+    // Only save if plan is being activated (true)
+    if (planActive === true) {
+      const permanentData = {
+        planName,
+        planActive: true,
+        confirmedAt: Date.now(),
+        permanent: true // Flag to indicate this cannot be changed
+      };
+      localStorage.setItem(PERMANENT_PLAN_CONFIRMATION_KEY, JSON.stringify(permanentData));
+      console.log("PERMANENT plan confirmation saved (CANNOT be overwritten):", permanentData);
+    }
+  };
+
+  // Get permanent plan confirmation (read-only)
+  const getPermanentPlanConfirmation = () => {
+    const cached = localStorage.getItem(PERMANENT_PLAN_CONFIRMATION_KEY);
+    if (!cached) return null;
+
+    try {
+      const confirmation = JSON.parse(cached);
+      // Only return if it's a confirmed active plan
+      if (confirmation.planActive === true && confirmation.permanent === true) {
+        console.log("Retrieved PERMANENT plan confirmation:", confirmation);
+        return confirmation;
+      }
+      return null;
+    } catch (e) {
+      console.error("Error reading permanent plan confirmation:", e);
+      return null;
+    }
+  };
+
   // Salvar dados de assinatura no cache com timestamp
   const cacheSubscription = (subscription: Subscription | null) => {
     if (subscription) {
@@ -168,19 +218,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     console.log("Detalhes do plano selecionado salvos no cache:", plan.name);
   };
 
-  // Obter detalhes do plano selecionado do localStorage
-  const getSelectedPlanDetails = () => {
-    const cached = localStorage.getItem(SELECTED_PLAN_DETAILS_KEY);
-    if (!cached) return null;
-
-    try {
-      return JSON.parse(cached);
-    } catch (e) {
-      console.error("Erro ao ler cache de detalhes do plano:", e);
-      return null;
-    }
-  };
-
   // Load all available plans with cache
   useEffect(() => {
     const loadPlans = async () => {
@@ -226,7 +263,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadPlans();
   }, []);
 
-  // Load user subscription - APENAS DO CACHE, NÃO DO SUPABASE
+  // Load user subscription - PRIORIDADE PARA CONFIRMAÇÃO PERMANENTE
   useEffect(() => {
     const loadUserSubscription = async () => {
       if (!user) {
@@ -236,9 +273,36 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       try {
-        console.log("Carregando assinatura do usuário APENAS DO CACHE para:", user.id);
+        console.log("Carregando assinatura do usuário para:", user.id);
         
-        // Verificar APENAS cache - não consultar Supabase
+        // FIRST: Check permanent plan confirmation (highest priority)
+        const permanentConfirmation = getPermanentPlanConfirmation();
+        if (permanentConfirmation && permanentConfirmation.planActive === true) {
+          console.log("PERMANENT plan confirmation found - using this data:", permanentConfirmation);
+          
+          // Buscar detalhes do plano dos dados já carregados
+          const planData = plans.find(p => p.name === permanentConfirmation.planName);
+            
+          if (planData) {
+            const confirmedSubscription: Subscription = {
+              id: crypto.randomUUID(),
+              user_id: user.id,
+              plan_id: planData.id,
+              plan_name: permanentConfirmation.planName,
+              status: 'active',
+              start_date: new Date(permanentConfirmation.confirmedAt).toISOString(),
+              end_date: null,
+              plan: planData,
+              cached_at: Date.now()
+            };
+            
+            setUserSubscription(confirmedSubscription);
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Verificar cache normal se não há confirmação permanente
         const cachedSubscription = getCachedSubscription();
         const cachedProfile = getCachedUserProfile();
         
@@ -275,7 +339,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           }
         }
         
-        // Se não há dados em cache, deixar vazio (não consultar Supabase)
+        // Se não há dados em cache, deixar vazio
         console.log("Nenhum dado de assinatura encontrado no cache");
         setUserSubscription(null);
         
@@ -299,6 +363,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       return;
     }
 
+    // CRITICAL: Check if plan is already permanently confirmed
+    const permanentConfirmation = getPermanentPlanConfirmation();
+    if (permanentConfirmation && permanentConfirmation.planActive === true) {
+      console.log("Plan already PERMANENTLY confirmed - skipping Stripe check:", permanentConfirmation);
+      toast.success(`Plano ${permanentConfirmation.planName} já está ativo!`);
+      return;
+    }
+
     try {
       console.log("Verificando status de assinatura APÓS PAGAMENTO...");
       const { data, error } = await supabase.functions.invoke('check-subscription');
@@ -312,11 +384,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
       
       // Se o pagamento foi confirmado (hasActiveSubscription = true)
-      if (data.hasActiveSubscription && data.planName) {
-        console.log("PAGAMENTO CONFIRMADO! Salvando no cache...");
+      if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
+        console.log("PAGAMENTO CONFIRMADO PERMANENTEMENTE! Salvando no cache...");
         
-        // CRITICAL FIX: Ensure we explictly set plan_active to true in the cache
-        const isActive = data.planActive !== undefined ? data.planActive : true;
+        // SAVE PERMANENT CONFIRMATION - CANNOT BE OVERWRITTEN
+        savePermanentPlanConfirmation(data.planName, true);
         
         // Buscar detalhes do plano dos dados já carregados
         const selectedPlan = plans.find(p => p.name === data.planName);
@@ -338,16 +410,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           setUserSubscription(confirmedSubscription);
           cacheSubscription(confirmedSubscription);
           
-          // Atualizar cache do perfil - CRITICAL FIX: Always set plan_active to true
+          // Atualizar cache do perfil
           cacheUserProfile({
             id: user.id,
             plan_name: data.planName,
-            plan_active: true, // Explicitly TRUE
+            plan_active: true,
             cached_at: Date.now()
           });
           
-          console.log("Dados de assinatura ATIVA salvos no cache após confirmação:", confirmedSubscription);
-          toast.success(`Pagamento confirmado! Plano ${data.planName} ativado com sucesso!`);
+          console.log("Dados de assinatura ATIVA e PERMANENTE salvos:", confirmedSubscription);
+          toast.success(`Pagamento confirmado PERMANENTEMENTE! Plano ${data.planName} ativado com sucesso!`);
         }
       } else {
         console.log("Nenhuma assinatura ativa encontrada após verificação");
@@ -401,10 +473,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return;
       }
 
-      // For free plans or plans without Stripe integration
+      // Para planos gratuitos, ativar diretamente no cache
       console.log("Processing non-Stripe plan selection:", selectedPlan);
       
-      // Para planos gratuitos, ativar diretamente no cache
       const freeSubscription: Subscription = {
         id: crypto.randomUUID(),
         user_id: user.id,
@@ -419,6 +490,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       setUserSubscription(freeSubscription);
       cacheSubscription(freeSubscription);
+      
+      // Para planos gratuitos, também salvar confirmação permanente
+      savePermanentPlanConfirmation(selectedPlan.name, true);
       
       // Atualizar cache do perfil
       cacheUserProfile({

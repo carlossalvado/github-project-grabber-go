@@ -26,6 +26,21 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   // Verificar se o pagamento foi confirmado ao carregar o componente
   useEffect(() => {
     const checkPaymentStatus = async () => {
+      // FIRST: Check permanent plan confirmation (cannot be overwritten)
+      const permanentConfirmation = localStorage.getItem('sweet-ai-permanent-plan-confirmation');
+      if (permanentConfirmation) {
+        try {
+          const confirmation = JSON.parse(permanentConfirmation);
+          if (confirmation.planActive === true && confirmation.permanent === true && confirmation.planName === plan.name) {
+            console.log('PERMANENT plan confirmation found:', confirmation);
+            setPaymentConfirmed(true);
+            return;
+          }
+        } catch (error) {
+          console.error('Erro ao analisar confirmação permanente:', error);
+        }
+      }
+
       // Verificar parâmetros de URL para checkout bem-sucedido
       const urlParams = new URLSearchParams(window.location.search);
       const checkoutStatus = urlParams.get('checkout');
@@ -36,38 +51,34 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
         
         try {
           // Verificar status da assinatura no Stripe e atualizar dados
-          await checkSubscriptionStatus();
+          const result = await checkSubscriptionStatus();
           
-          // Atualizar o perfil do usuário no Supabase com o plano ativo
-          if (user) {
-            const { error } = await supabase
-              .from('profiles')
-              .update({
-                plan_name: plan.name,
-                plan_active: true,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', user.id);
+          if (result?.paymentConfirmed && result?.planName === plan.name) {
+            console.log('PAYMENT PERMANENTLY CONFIRMED in Supabase');
             
-            if (error) {
-              console.error('Erro ao atualizar perfil no Supabase:', error);
-            } else {
-              console.log('Perfil atualizado no Supabase com sucesso');
-              
-              // Atualizar cache local com dados atualizados
-              const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-              const updatedUserData = {
-                ...userData,
-                planName: plan.name,
-                planActive: true,
-                paymentConfirmed: true
-              };
-              localStorage.setItem('userData', JSON.stringify(updatedUserData));
-            }
+            // Save permanent confirmation in cache (cannot be overwritten)
+            const permanentData = {
+              planName: plan.name,
+              planActive: true,
+              confirmedAt: Date.now(),
+              permanent: true
+            };
+            localStorage.setItem('sweet-ai-permanent-plan-confirmation', JSON.stringify(permanentData));
+            
+            // Update other cache data
+            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+            const updatedUserData = {
+              ...userData,
+              planName: plan.name,
+              planActive: true,
+              paymentConfirmed: true,
+              permanent: true
+            };
+            localStorage.setItem('userData', JSON.stringify(updatedUserData));
+            
+            setPaymentConfirmed(true);
+            toast.success('Pagamento confirmado PERMANENTEMENTE com sucesso!');
           }
-          
-          setPaymentConfirmed(true);
-          toast.success('Pagamento confirmado com sucesso!');
         } catch (error) {
           console.error('Erro ao verificar status de pagamento:', error);
           toast.error('Erro ao confirmar pagamento. Tente novamente.');
@@ -152,8 +163,8 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           <Card className="text-center p-8 bg-slate-800/80 backdrop-blur-sm border-slate-700">
             <div className="animate-pulse flex flex-col items-center">
               <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
-              <h2 className="text-xl font-bold mb-2 text-white">Verificando Pagamento...</h2>
-              <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento.</p>
+              <h2 className="text-xl font-bold mb-2 text-white">Confirmando Pagamento...</h2>
+              <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento permanentemente.</p>
             </div>
           </Card>
         </div>
@@ -166,7 +177,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
       
-      {/* Background Images com tamanhos responsivos */}
+      {/* Background Images com tamanhos responsivos - distribuídas pelos 4 quadrantes */}
       <div className="absolute top-10 left-10 w-20 h-20 md:w-40 md:h-40 rounded-full overflow-hidden opacity-10 animate-pulse">
         <img 
           src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
@@ -174,16 +185,23 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="absolute bottom-10 right-10 w-18 h-18 md:w-36 md:h-36 rounded-full overflow-hidden opacity-15 animate-pulse delay-1000">
+      <div className="absolute top-10 right-10 w-18 h-18 md:w-36 md:h-36 rounded-full overflow-hidden opacity-15 animate-pulse delay-500">
         <img 
           src="/lovable-uploads/d66c0f2d-654b-4446-b20b-2c9759be49f3.png" 
           alt="AI Avatar" 
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="absolute top-1/2 right-20 w-14 h-14 md:w-28 md:h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-2000">
+      <div className="absolute bottom-10 left-10 w-14 h-14 md:w-28 md:h-28 rounded-full overflow-hidden opacity-10 animate-pulse delay-1000">
         <img 
           src="/lovable-uploads/10016974-820c-4484-8c72-c1047262ea3f.png" 
+          alt="AI Avatar" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="absolute bottom-10 right-10 w-16 h-16 md:w-32 md:h-32 rounded-full overflow-hidden opacity-12 animate-pulse delay-1500">
+        <img 
+          src="/lovable-uploads/fcaaca87-0b2e-46a9-9679-25e095ad9400.png" 
           alt="AI Avatar" 
           className="w-full h-full object-cover"
         />
@@ -192,11 +210,11 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       <div className="max-w-md w-full relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-pink-500 mb-4">
-            {paymentConfirmed ? 'Pagamento Confirmado!' : 'Seu Plano Selecionado'}
+            {paymentConfirmed ? 'Pagamento Confirmado Permanentemente!' : 'Seu Plano Selecionado'}
           </h1>
           <p className="text-lg text-white">
             {paymentConfirmed 
-              ? 'Seu pagamento foi processado com sucesso. Você já pode começar a conversar!'
+              ? 'Seu pagamento foi processado e confirmado permanentemente. Você já pode começar a conversar!'
               : 'Confirme os detalhes e continue para finalizar.'}
           </p>
         </div>
@@ -246,7 +264,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
           </CardContent>
           <CardFooter className="flex flex-col space-y-3">
             {paymentConfirmed ? (
-              // Mostrar botões para usuários com pagamento confirmado
+              // Mostrar botões para usuários com pagamento confirmado PERMANENTEMENTE
               <>
                 <Button 
                   className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
@@ -261,6 +279,9 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
                 >
                   Ver Meu Perfil
                 </Button>
+                <div className="text-center">
+                  <span className="text-xs text-green-400 font-semibold">✅ Plano Ativado Permanentemente</span>
+                </div>
               </>
             ) : (
               // Mostrar os botões normais quando o pagamento não for confirmado

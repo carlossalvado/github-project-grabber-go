@@ -22,7 +22,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Use the secret directly
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_51RMxX0KSV6QLg5fRHS75xPgwbtveXgQCq6rIIfp9BXKUSbiRWhrFv9tep68eFEGgtnXs8M4TEH4EDbLWdL0OYP0P00EEXnPOGe";
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
@@ -45,55 +44,51 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // FIRST: Check if user already has plan_active = true to prevent overwrites
+    const { data: currentProfile } = await supabaseClient.from("profiles")
+      .select("plan_active, plan_name")
+      .eq('id', user.id)
+      .single();
+    
+    logStep("Current profile status", { 
+      currentPlanActive: currentProfile?.plan_active, 
+      currentPlanName: currentProfile?.plan_name 
+    });
+
+    // CRITICAL: If plan is already active (true), DO NOT overwrite it
+    if (currentProfile?.plan_active === true) {
+      logStep("Plan already confirmed and active - skipping all Stripe checks to prevent overwrites", {
+        planName: currentProfile.plan_name,
+        planActive: true
+      });
+
+      return new Response(
+        JSON.stringify({
+          hasActiveSubscription: true,
+          planName: currentProfile.plan_name,
+          planActive: true,
+          alreadyConfirmed: true,
+          message: "Plan already confirmed and cannot be overwritten"
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
     // Check if user exists as a customer in Stripe
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found, marking as unsubscribed");
+      logStep("No Stripe customer found");
       
-      // Get current profile state before making any changes
-      const { data: currentProfile } = await supabaseClient.from("profiles")
-        .select("plan_active, plan_name")
-        .eq('id', user.id)
-        .single();
-      
-      logStep("Current profile before update", { 
-        planActive: currentProfile?.plan_active,
-        planName: currentProfile?.plan_name
-      });
-      
-      // Only update if currently active - avoid overwriting manual changes
-      if (currentProfile?.plan_active === true) {
-        logStep("Profile is currently active, updating to inactive");
-        
-        // Update subscriptions to inactive
-        await supabaseClient.from("subscriptions")
-          .update({
-            status: "inactive",
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
-        
-        // Update profile to remove plan
-        await supabaseClient.from("profiles")
-          .update({ 
-            plan_name: null, 
-            plan_active: false,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
-
-        logStep("Database updated to reflect no active subscription");
-      } else {
-        logStep("Profile already inactive, skipping update");
-      }
-
       return new Response(
         JSON.stringify({ 
           hasActiveSubscription: false,
-          planName: null,
+          planName: currentProfile?.plan_name || null,
           planActive: false
         }),
         {
@@ -116,47 +111,10 @@ serve(async (req) => {
     if (subscriptions.data.length === 0) {
       logStep("No active subscriptions found for customer");
       
-      // Get current profile state before making any changes
-      const { data: currentProfile } = await supabaseClient.from("profiles")
-        .select("plan_active, plan_name")
-        .eq('id', user.id)
-        .single();
-      
-      logStep("Current profile before update", { 
-        planActive: currentProfile?.plan_active,
-        planName: currentProfile?.plan_name
-      });
-      
-      // Only update if currently active - avoid overwriting manual changes
-      if (currentProfile?.plan_active === true) {
-        logStep("Profile is currently active, updating to inactive");
-        
-        // Update subscriptions to inactive
-        await supabaseClient.from("subscriptions")
-          .update({
-            status: "inactive",
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
-        
-        // Update profile to remove plan
-        await supabaseClient.from("profiles")
-          .update({ 
-            plan_name: null, 
-            plan_active: false,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
-
-        logStep("Database updated to reflect no active subscription");
-      } else {
-        logStep("Profile already inactive, skipping update");
-      }
-
       return new Response(
         JSON.stringify({ 
           hasActiveSubscription: false,
-          planName: null,
+          planName: currentProfile?.plan_name || null,
           planActive: false
         }),
         {
@@ -189,24 +147,24 @@ serve(async (req) => {
     const planName = planData?.name || "Plano Desconhecido";
     logStep("Determined plan ID and name", { priceId, planId, planName });
 
-    // Get current profile before making any changes
-    const { data: currentProfile } = await supabaseClient.from("profiles")
-      .select("plan_active, plan_name")
-      .eq('id', user.id)
-      .single();
-
-    logStep("Current profile status", { 
-      currentPlanActive: currentProfile?.plan_active, 
-      currentPlanName: currentProfile?.plan_name 
-    });
-
-    // CRITICAL FIX: Only update if the plan is NOT active or the plan name has changed
-    // This prevents overwriting manual changes while ensuring new subscriptions are set active
-    if (currentProfile?.plan_active === false || currentProfile?.plan_name !== planName) {
-      logStep("Need to update profile - either inactive or plan name changed");
+    // CRITICAL: Only update if plan is NOT already active
+    // This is a ONE-TIME ONLY operation after payment confirmation
+    if (currentProfile?.plan_active !== true) {
+      logStep("PAYMENT CONFIRMED - Setting plan as active (ONE TIME ONLY)", { planName });
       
-      // First check for existing subscription record
       try {
+        // Update profile with PERMANENT activation - this can NEVER be changed again
+        await supabaseClient.from("profiles")
+          .update({
+            plan_name: planName, 
+            plan_active: true,  // PERMANENT - cannot be overwritten
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        logStep("PERMANENT plan activation completed", { planName, planActive: true });
+
+        // Update subscription record
         const { data: existingSubscription } = await supabaseClient
           .from("subscriptions")
           .select("id")
@@ -214,7 +172,6 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingSubscription) {
-          // Update existing subscription
           await supabaseClient.from("subscriptions")
             .update({
               plan_id: planId,
@@ -226,9 +183,8 @@ serve(async (req) => {
             })
             .eq('user_id', user.id);
             
-          logStep("Updated existing subscription record", { planName, status: "active" });
+          logStep("Updated existing subscription record");
         } else {
-          // Create new subscription
           await supabaseClient.from("subscriptions")
             .insert({
               user_id: user.id,
@@ -239,45 +195,24 @@ serve(async (req) => {
               end_date: new Date(activeSubscription.current_period_end * 1000).toISOString()
             });
             
-          logStep("Created new subscription record", { planName, status: "active" });
+          logStep("Created new subscription record");
         }
       } catch (updateError) {
-        logStep("Error updating subscriptions table", { error: updateError.message });
+        logStep("Error updating profile/subscription", { error: updateError.message });
         throw updateError;
       }
-
-      // CRITICAL FIX: Always set plan_active to TRUE for active subscriptions
-      try {
-        await supabaseClient.from("profiles")
-          .update({
-            plan_name: planName, 
-            plan_active: true,  // Explicitly set to true
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
-        
-        logStep("Profile updated with ACTIVE plan status", { planName, planActive: true });
-      } catch (profileError) {
-        logStep("Error updating profile", { error: profileError.message });
-        throw profileError;
-      }
-    } else {
-      logStep("Profile already has correct active plan, skipping update", { 
-        planName: currentProfile?.plan_name, 
-        planActive: currentProfile?.plan_active 
-      });
     }
 
-    // Always return active status for consistency
     return new Response(
       JSON.stringify({
         hasActiveSubscription: true,
         planId,
         planName,
-        planActive: true,  // Explicitly return true
+        planActive: true,
         subscriptionId: activeSubscription.id,
         periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString(),
-        status: "active"
+        status: "active",
+        paymentConfirmed: true
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
