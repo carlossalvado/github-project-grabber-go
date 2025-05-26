@@ -1,52 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 
 export const useSupabaseSync = () => {
   const { user } = useAuth();
-
-  // Buscar dados do Supabase (apenas leitura)
-  const fetchUserDataFromSupabase = async () => {
-    if (!user) return null;
-
-    try {
-      console.log('Buscando dados do usuário no Supabase...');
-
-      // Buscar perfil
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('Erro ao buscar perfil:', profileError);
-        return null;
-      }
-
-      // Buscar agente selecionado
-      const { data: agentData, error: agentError } = await supabase
-        .from('user_selected_agent')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (agentError) {
-        console.error('Erro ao buscar agente:', agentError);
-      }
-
-      console.log('Dados buscados do Supabase:', { profileData, agentData });
-
-      return {
-        profile: profileData,
-        agent: agentData
-      };
-    } catch (error) {
-      console.error('Erro geral ao buscar dados:', error);
-      return null;
-    }
-  };
 
   // Salvar dados no Supabase
   const saveToSupabase = async (type: 'profile' | 'agent' | 'plan', data: any) => {
@@ -62,6 +19,8 @@ export const useSupabaseSync = () => {
             .upsert({
               id: user.id,
               full_name: data.full_name,
+              plan_name: data.plan_name || null,
+              plan_active: data.plan_active || false,
               updated_at: new Date().toISOString()
             });
 
@@ -113,7 +72,6 @@ export const useSupabaseSync = () => {
   };
 
   return {
-    fetchUserDataFromSupabase,
     saveToSupabase
   };
 };

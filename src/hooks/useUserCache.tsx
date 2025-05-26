@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 
 // Chaves do cache
 const USER_PROFILE_CACHE_KEY = 'sweet-ai-user-profile';
@@ -12,6 +11,8 @@ type UserProfile = {
   id: string;
   full_name: string | null;
   email: string;
+  plan_name?: string | null;
+  plan_active?: boolean;
   cached_at: number;
 };
 
@@ -28,17 +29,14 @@ type UserPlan = {
 };
 
 export const useUserCache = () => {
-  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [agent, setAgent] = useState<UserAgent | null>(null);
   const [plan, setPlan] = useState<UserPlan | null>(null);
 
   // Carregar dados do cache ao inicializar
   useEffect(() => {
-    if (user) {
-      loadFromCache();
-    }
-  }, [user]);
+    loadFromCache();
+  }, []);
 
   // Função para carregar todos os dados do cache
   const loadFromCache = () => {
