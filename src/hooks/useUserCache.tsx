@@ -71,7 +71,7 @@ export const useUserCache = () => {
     };
     localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(dataWithTimestamp));
     setProfile(dataWithTimestamp);
-    console.log('Perfil salvo no cache:', dataWithTimestamp);
+    console.log('✅ Perfil salvo no cache:', dataWithTimestamp);
   };
 
   // Salvar agente no cache
@@ -82,7 +82,7 @@ export const useUserCache = () => {
     };
     localStorage.setItem(USER_AGENT_CACHE_KEY, JSON.stringify(dataWithTimestamp));
     setAgent(dataWithTimestamp);
-    console.log('Agente salvo no cache:', dataWithTimestamp);
+    console.log('✅ Agente salvo no cache:', dataWithTimestamp);
   };
 
   // Salvar plano no cache
@@ -93,7 +93,20 @@ export const useUserCache = () => {
     };
     localStorage.setItem(USER_PLAN_CACHE_KEY, JSON.stringify(dataWithTimestamp));
     setPlan(dataWithTimestamp);
-    console.log('Plano salvo no cache:', dataWithTimestamp);
+    console.log('✅ Plano salvo no cache:', dataWithTimestamp);
+    
+    // Também atualizar o perfil com os dados do plano
+    if (profile) {
+      const updatedProfile = {
+        ...profile,
+        plan_name: planData.plan_name,
+        plan_active: planData.plan_active,
+        cached_at: Date.now()
+      };
+      localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(updatedProfile));
+      setProfile(updatedProfile);
+      console.log('✅ Perfil atualizado com plano no cache:', updatedProfile);
+    }
   };
 
   // Limpar todo o cache
@@ -104,7 +117,7 @@ export const useUserCache = () => {
     setProfile(null);
     setAgent(null);
     setPlan(null);
-    console.log('Cache limpo');
+    console.log('🗑️ Cache limpo');
   };
 
   return {

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +26,7 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   // Verificar se o plano já está ativo no cache
   useEffect(() => {
     if (userPlan && userPlan.plan_active && userPlan.plan_name === plan.name) {
-      console.log('Plano já está ativo no cache:', userPlan);
+      console.log('✅ Plano já está ativo no cache:', userPlan);
       setPaymentConfirmed(true);
     }
   }, [userPlan, plan.name]);
@@ -41,39 +40,37 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
       const checkoutStatus = urlParams.get('checkout');
       
       if (checkoutStatus === 'success') {
-        console.log('Checkout success detectado, verificando pagamento...');
+        console.log('🎉 Checkout success detectado, verificando pagamento...');
         setVerifyingPayment(true);
         
         try {
-          // Aguardar processamento do Stripe
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // Aguardar um pouco para processamento do Stripe
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
-          // Verificar status com retry
-          let attempts = 0;
-          const maxAttempts = 5;
+          console.log('🔍 Verificando status do pagamento...');
+          const result = await checkSubscriptionStatus();
           
-          while (attempts < maxAttempts) {
-            console.log(`Tentativa ${attempts + 1} de verificação...`);
+          if (result?.paymentConfirmed && result?.planActive === true) {
+            console.log('✅ PAGAMENTO CONFIRMADO!');
+            setPaymentConfirmed(true);
+            toast.success('🎉 Pagamento confirmado com sucesso!');
+          } else {
+            console.log('⚠️ Pagamento ainda não confirmado, tentando novamente...');
+            // Uma segunda tentativa após mais tempo
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            const secondAttempt = await checkSubscriptionStatus();
             
-            const result = await checkSubscriptionStatus();
-            
-            if (result?.paymentConfirmed && result?.planActive === true) {
-              console.log('Pagamento confirmado com sucesso!');
+            if (secondAttempt?.paymentConfirmed && secondAttempt?.planActive === true) {
+              console.log('✅ PAGAMENTO CONFIRMADO na segunda tentativa!');
               setPaymentConfirmed(true);
-              break;
+              toast.success('🎉 Pagamento confirmado com sucesso!');
+            } else {
+              console.log('❌ Não foi possível confirmar o pagamento');
+              toast.error('Não foi possível confirmar o pagamento. Recarregue a página.');
             }
-            
-            attempts++;
-            if (attempts < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-          }
-          
-          if (attempts === maxAttempts) {
-            toast.error('Não foi possível confirmar o pagamento. Recarregue a página.');
           }
         } catch (error) {
-          console.error('Erro na verificação:', error);
+          console.error('❌ Erro na verificação:', error);
           toast.error('Erro ao verificar pagamento.');
         } finally {
           setVerifyingPayment(false);
@@ -90,11 +87,11 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   const handleSelectPlan = async () => {
     setProcessing(true);
     try {
-      console.log("Selecionando plano:", plan.name);
+      console.log("🎯 Selecionando plano:", plan.name);
       localStorage.setItem('selectedPlanId', plan.id.toString());
       await onSelectPlan(plan.id);
     } catch (error) {
-      console.error("Erro ao selecionar plano:", error);
+      console.error("❌ Erro ao selecionar plano:", error);
       toast.error("Erro ao selecionar o plano");
     } finally {
       setProcessing(false);

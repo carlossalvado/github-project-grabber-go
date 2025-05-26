@@ -125,7 +125,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log("Verificando status no Stripe...");
+      console.log("🔍 Verificando status no Stripe...");
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {
@@ -133,7 +133,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         throw error;
       }
       
-      console.log("Resposta do Stripe:", data);
+      console.log("📧 Resposta do Stripe:", data);
       
       if (data.error) {
         throw new Error(data.error);
@@ -141,26 +141,31 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       // Se pagamento confirmado, salvar no cache e Supabase
       if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
-        console.log("Pagamento confirmado! Salvando dados...");
+        console.log("💳 PAGAMENTO CONFIRMADO! Salvando dados...");
         
-        // Salvar no cache
-        savePlan({
+        const planData = {
           plan_name: data.planName,
           plan_active: true
-        });
+        };
         
-        // Salvar no Supabase
-        await saveToSupabase('plan', {
-          plan_name: data.planName,
-          plan_active: true
-        });
+        // Salvar no cache PRIMEIRO
+        savePlan(planData);
+        console.log("✅ Dados salvos no cache");
         
-        toast.success(`Pagamento confirmado! Plano ${data.planName} ativado!`);
+        // Depois salvar no Supabase
+        const supabaseSuccess = await saveToSupabase('plan', planData);
+        if (supabaseSuccess) {
+          console.log("✅ Dados salvos no Supabase");
+          toast.success(`🎉 Pagamento confirmado! Plano ${data.planName} ativado!`);
+        } else {
+          console.error("❌ Erro ao salvar no Supabase");
+          toast.error("Erro ao salvar no banco de dados");
+        }
       }
       
       return data;
     } catch (error: any) {
-      console.error("Erro ao verificar status:", error);
+      console.error("❌ Erro ao verificar status:", error);
       toast.error("Falha ao verificar status da assinatura");
       return null;
     }
@@ -180,7 +185,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       // Se tem Stripe price ID, criar checkout session
       if (selectedPlan.stripe_price_id) {
-        console.log("Criando checkout Stripe para:", selectedPlan);
+        console.log("💳 Criando checkout Stripe para:", selectedPlan);
         const { data, error } = await supabase.functions.invoke('create-checkout', {
           body: { planId: selectedPlan.id }
         });
@@ -188,27 +193,26 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (error) throw error;
         if (data.error) throw new Error(data.error);
         
-        console.log("Redirecionando para checkout:", data.url);
+        console.log("🔗 Redirecionando para checkout:", data.url);
         window.location.href = data.url;
         return;
       }
 
       // Para planos gratuitos, ativar diretamente
-      console.log("Ativando plano gratuito:", selectedPlan);
+      console.log("🆓 Ativando plano gratuito:", selectedPlan);
       
-      // Salvar no cache
-      savePlan({
+      const planData = {
         plan_name: selectedPlan.name,
         plan_active: true
-      });
+      };
       
-      // Salvar no Supabase
-      await saveToSupabase('plan', {
-        plan_name: selectedPlan.name,
-        plan_active: true
-      });
+      // Salvar no cache PRIMEIRO
+      savePlan(planData);
       
-      toast.success(`Plano ${selectedPlan.name} ativado com sucesso!`);
+      // Depois salvar no Supabase
+      await saveToSupabase('plan', planData);
+      
+      toast.success(`✅ Plano ${selectedPlan.name} ativado com sucesso!`);
     } catch (error: any) {
       console.error("Error selecting plan:", error);
       toast.error(error.message || "Falha ao selecionar o plano");
