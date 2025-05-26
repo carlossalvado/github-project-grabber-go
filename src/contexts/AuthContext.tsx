@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
-import { toast } from 'sonner';
+import { useUserCache } from '@/hooks/useUserCache';
+import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 
 interface AuthContextType {
   user: User | null;
@@ -28,101 +29,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Função para carregar dados do usuário do Supabase e salvar no cache
-  const loadUserDataToCache = async (userId: string) => {
-    try {
-      console.log("Carregando dados do usuário do Supabase para o cache:", userId);
-      
-      // Buscar dados do perfil do usuário
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('plan_name, plan_active')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (profileError) {
-        console.error("Erro ao buscar perfil:", profileError);
-      }
-      
-      // Buscar dados da assinatura
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .select('plan_name, status, start_date, end_date')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-      
-      if (subscriptionError) {
-        console.error("Erro ao buscar assinatura:", subscriptionError);
-      }
-      
-      // CRITICAL FIX: Log debugging information about profile and subscription data
-      console.log("Dados de perfil encontrados:", profileData);
-      console.log("Dados de assinatura encontrados:", subscriptionData);
-      
-      // Salvar dados no cache
-      if (profileData || subscriptionData) {
-        // CRITICAL FIX: Determine plan active status correctly
-        // Priority: 1. subscription status=active, 2. profile.plan_active
-        const isActive = 
-          (subscriptionData?.status === 'active') || 
-          (profileData?.plan_active === true);
-        
-        const cacheData = {
-          plan_name: subscriptionData?.plan_name || profileData?.plan_name || null,
-          plan_active: isActive,
-          cached_at: Date.now()
-        };
-        
-        localStorage.setItem('sweet-ai-user-profile', JSON.stringify(cacheData));
-        console.log("Dados do usuário salvos no cache:", cacheData);
-        
-        // Se há assinatura ativa, salvar também no cache de assinatura
-        if (isActive) {
-          const subscriptionCache = {
-            id: crypto.randomUUID(),
-            user_id: userId,
-            plan_id: 1, // ID genérico
-            plan_name: subscriptionData?.plan_name || profileData?.plan_name,
-            status: subscriptionData?.status || (isActive ? 'active' : 'inactive'),
-            start_date: subscriptionData?.start_date || new Date().toISOString(),
-            end_date: subscriptionData?.end_date || null,
-            cached_at: Date.now()
-          };
-          
-          localStorage.setItem('sweet-ai-subscription-data', JSON.stringify(subscriptionCache));
-          console.log("Dados de assinatura salvos no cache:", subscriptionCache);
-        }
-      } else {
-        console.log("Nenhum dado de perfil ou assinatura encontrado para o usuário");
-      }
-      
-    } catch (error) {
-      console.error("Erro ao carregar dados para o cache:", error);
-    }
-  };
-
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Quando o usuário faz login, carregar dados do Supabase para o cache
         if (event === 'SIGNED_IN' && session?.user) {
+          // Aguardar um pouco para garantir que os hooks estejam prontos
           setTimeout(async () => {
-            await loadUserDataToCache(session.user.id);
-            
-            // Verificar se o login foi feito através da página de login (não durante cadastro)
-            const isFromLoginPage = localStorage.getItem('loginRedirect');
-            if (isFromLoginPage === 'true') {
-              localStorage.removeItem('loginRedirect');
-              console.log("Redirecionando para o perfil após login da página de login");
-              window.location.href = '/profile';
-            }
+            await handleUserLogin(session.user);
           }, 100);
+        } else if (event === 'SIGNED_OUT') {
+          handleUserLogout();
         }
         
         setLoading(false);
@@ -139,23 +60,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleUserLogin = async (user: User) => {
+    const { fetchUserDataFromSupabase } = useSupabaseSync();
+    const { saveProfile, saveAgent, clearCache } = useUserCache();
+
+    try {
+      console.log('Usuário logado, buscando dados do Supabase...');
+      
+      // Buscar dados do Supabase
+      const supabaseData = await fetchUserDataFromSupabase();
+      
+      if (supabaseData?.profile) {
+        // Salvar perfil no cache
+        saveProfile({
+          id: user.id,
+          full_name: supabaseData.profile.full_name,
+          email: user.email || ''
+        });
+        
+        // Se há agente selecionado, salvar no cache também
+        if (supabaseData.agent) {
+          saveAgent({
+            agent_id: supabaseData.agent.agent_id,
+            nickname: supabaseData.agent.nickname
+          });
+        }
+      } else {
+        console.log('Nenhum perfil encontrado no Supabase');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados após login:', error);
+    }
+  };
+
+  const handleUserLogout = () => {
+    const { clearCache } = useUserCache();
+    clearCache();
+    console.log('Usuário deslogado, cache limpo');
+  };
+
   const signIn = async (email: string, password: string) => {
-    // Marcar que o login está sendo feito através da página de login
-    localStorage.setItem('loginRedirect', 'true');
-    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
     if (error) {
-      localStorage.removeItem('loginRedirect');
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -168,6 +124,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       throw error;
     }
+
+    // Após registro bem-sucedido, salvar no cache e Supabase
+    if (data.user) {
+      const { saveToSupabase } = useSupabaseSync();
+      const { saveProfile } = useUserCache();
+
+      // Salvar no cache
+      saveProfile({
+        id: data.user.id,
+        full_name: fullName,
+        email: email
+      });
+
+      // Salvar no Supabase
+      await saveToSupabase('profile', { full_name: fullName });
+    }
   };
 
   const signOut = async () => {
@@ -175,12 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       throw error;
     }
-    
-    // CRITICAL FIX: Clear all subscription and profile data from local storage on logout
-    localStorage.removeItem('sweet-ai-user-profile');
-    localStorage.removeItem('sweet-ai-subscription-data');
-    localStorage.removeItem('sweet-ai-selected-plan-details');
-    console.log("Dados de cache limpos após logout");
   };
 
   const value = {

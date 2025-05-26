@@ -1,16 +1,11 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { useUserCache } from "@/hooks/useUserCache";
+import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
-
-// Local storage keys for caching
-const SUBSCRIPTION_CACHE_KEY = 'sweet-ai-subscription-data';
-const PLANS_CACHE_KEY = 'sweet-ai-plans-data';
-const SUBSCRIPTION_CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 horas
-const SELECTED_PLAN_DETAILS_KEY = 'sweet-ai-selected-plan-details';
-const USER_PROFILE_CACHE_KEY = 'sweet-ai-user-profile';
-const PERMANENT_PLAN_CONFIRMATION_KEY = 'sweet-ai-permanent-plan-confirmation';
 
 export type Plan = {
   id: number;
@@ -35,14 +30,6 @@ export type Subscription = {
   start_date: string;
   end_date: string | null;
   plan?: Plan;
-  cached_at?: number;
-};
-
-type UserProfile = {
-  id: string;
-  plan_name: string | null;
-  plan_active: boolean;
-  cached_at: number;
 };
 
 type SubscriptionContextType = {
@@ -61,6 +48,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const [userSubscription, setUserSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { plan, savePlan } = useUserCache();
+  const { saveToSupabase } = useSupabaseSync();
 
   // Helper function to transform features
   const transformFeatures = (features: Json): { text: boolean; audio: boolean; premium?: boolean } => {
@@ -75,162 +64,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     return { text: false, audio: false };
   };
 
-  // Cache functions
-  const cachePlans = (plansData: Plan[]) => {
-    const cacheData = {
-      plans: plansData,
-      cached_at: Date.now()
-    };
-    localStorage.setItem(PLANS_CACHE_KEY, JSON.stringify(cacheData));
-    console.log("Planos salvos no cache:", plansData.length, "planos");
-  };
-
-  const getCachedPlans = (): Plan[] | null => {
-    const cached = localStorage.getItem(PLANS_CACHE_KEY);
-    if (!cached) return null;
-
-    try {
-      const cacheData = JSON.parse(cached);
-      const isExpired = Date.now() - cacheData.cached_at > SUBSCRIPTION_CACHE_EXPIRY;
-      
-      if (isExpired) {
-        localStorage.removeItem(PLANS_CACHE_KEY);
-        return null;
-      }
-      
-      return cacheData.plans;
-    } catch (e) {
-      console.error("Erro ao ler cache de planos:", e);
-      localStorage.removeItem(PLANS_CACHE_KEY);
-      return null;
-    }
-  };
-
-  // PERMANENT plan confirmation cache - CANNOT be overwritten once set
-  const savePermanentPlanConfirmation = (planName: string, planActive: boolean) => {
-    // Check if already exists - if so, DO NOT overwrite
-    const existing = localStorage.getItem(PERMANENT_PLAN_CONFIRMATION_KEY);
-    if (existing) {
-      try {
-        const parsed = JSON.parse(existing);
-        if (parsed.planActive === true) {
-          console.log("PERMANENT plan confirmation already exists - NOT overwriting:", parsed);
-          return; // DO NOT overwrite existing confirmed plan
-        }
-      } catch (e) {
-        console.error("Error parsing permanent plan confirmation:", e);
-      }
-    }
-
-    // Only save if plan is being activated (true)
-    if (planActive === true) {
-      const permanentData = {
-        planName,
-        planActive: true,
-        confirmedAt: Date.now(),
-        permanent: true // Flag to indicate this cannot be changed
-      };
-      localStorage.setItem(PERMANENT_PLAN_CONFIRMATION_KEY, JSON.stringify(permanentData));
-      console.log("PERMANENT plan confirmation saved (CANNOT be overwritten):", permanentData);
-    }
-  };
-
-  // Get permanent plan confirmation (read-only)
-  const getPermanentPlanConfirmation = () => {
-    const cached = localStorage.getItem(PERMANENT_PLAN_CONFIRMATION_KEY);
-    if (!cached) return null;
-
-    try {
-      const confirmation = JSON.parse(cached);
-      // Only return if it's a confirmed active plan
-      if (confirmation.planActive === true && confirmation.permanent === true) {
-        console.log("Retrieved PERMANENT plan confirmation:", confirmation);
-        return confirmation;
-      }
-      return null;
-    } catch (e) {
-      console.error("Error reading permanent plan confirmation:", e);
-      return null;
-    }
-  };
-
-  // Salvar dados de assinatura no cache com timestamp
-  const cacheSubscription = (subscription: Subscription | null) => {
-    if (subscription) {
-      const subscriptionWithTimestamp = {
-        ...subscription,
-        cached_at: Date.now()
-      };
-      localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify(subscriptionWithTimestamp));
-      console.log("Assinatura salva no cache:", subscription.plan_name, subscription.status);
-    }
-  };
-
-  // Obter assinatura do cache
-  const getCachedSubscription = (): Subscription | null => {
-    const cached = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
-    if (!cached) return null;
-
-    try {
-      const subscription = JSON.parse(cached) as Subscription;
-      return subscription;
-    } catch (e) {
-      console.error("Erro ao ler cache de assinatura:", e);
-      return null;
-    }
-  };
-
-  // Salvar perfil do usuário no cache
-  const cacheUserProfile = (profile: UserProfile | null) => {
-    if (profile) {
-      const profileWithTimestamp = {
-        ...profile,
-        cached_at: Date.now()
-      };
-      localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(profileWithTimestamp));
-      console.log("Perfil do usuário salvo no cache:", profile.plan_name, profile.plan_active);
-    }
-  };
-
-  // Obter perfil do usuário do cache
-  const getCachedUserProfile = (): UserProfile | null => {
-    const cached = localStorage.getItem(USER_PROFILE_CACHE_KEY);
-    if (!cached) return null;
-
-    try {
-      const profile = JSON.parse(cached) as UserProfile;
-      return profile;
-    } catch (e) {
-      console.error("Erro ao ler cache de perfil:", e);
-      return null;
-    }
-  };
-
-  // Salvar detalhes do plano selecionado no localStorage
-  const saveSelectedPlanDetails = (plan: Plan) => {
-    localStorage.setItem(SELECTED_PLAN_DETAILS_KEY, JSON.stringify({
-      id: plan.id,
-      name: plan.name,
-      features: plan.features,
-      timestamp: Date.now()
-    }));
-    console.log("Detalhes do plano selecionado salvos no cache:", plan.name);
-  };
-
-  // Load all available plans with cache
+  // Load all available plans
   useEffect(() => {
     const loadPlans = async () => {
-      console.log("Loading plans...");
-      
-      // Tentar carregar do cache primeiro
-      const cachedPlans = getCachedPlans();
-      if (cachedPlans) {
-        console.log("Usando planos do cache:", cachedPlans.length, "planos");
-        setPlans(cachedPlans);
-        setLoading(false);
-        return;
-      }
-
       try {
         console.log("Carregando planos do Supabase...");
         const { data, error } = await supabase
@@ -241,15 +77,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (error) throw error;
         
         if (data) {
-          console.log("Plans data received from Supabase:", data);
           const transformedPlans: Plan[] = data.map(plan => ({
             ...plan,
             features: transformFeatures(plan.features as Json)
           }));
           
-          console.log("Transformed plans:", transformedPlans);
           setPlans(transformedPlans);
-          cachePlans(transformedPlans);
+          console.log("Planos carregados:", transformedPlans);
         }
       } catch (error: any) {
         console.error("Error loading plans:", error);
@@ -262,122 +96,36 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loadPlans();
   }, []);
 
-  // Load user subscription - PRIORIDADE PARA CONFIRMAÇÃO PERMANENTE
+  // Criar subscription baseada no cache do plano
   useEffect(() => {
-    const loadUserSubscription = async () => {
-      if (!user) {
-        setUserSubscription(null);
-        setLoading(false);
-        return;
+    if (plan && plans.length > 0) {
+      const planData = plans.find(p => p.name === plan.plan_name);
+      if (planData && plan.plan_active) {
+        const subscription: Subscription = {
+          id: crypto.randomUUID(),
+          user_id: user?.id || '',
+          plan_id: planData.id,
+          plan_name: plan.plan_name,
+          status: 'active',
+          start_date: new Date().toISOString(),
+          end_date: null,
+          plan: planData
+        };
+        setUserSubscription(subscription);
+        console.log("Subscription criada do cache:", subscription);
       }
-
-      try {
-        console.log("Carregando assinatura do usuário para:", user.id);
-        
-        // FIRST: Check permanent plan confirmation (highest priority)
-        const permanentConfirmation = getPermanentPlanConfirmation();
-        if (permanentConfirmation && permanentConfirmation.planActive === true) {
-          console.log("PERMANENT plan confirmation found - using this data:", permanentConfirmation);
-          
-          // Buscar detalhes do plano dos dados já carregados
-          const planData = plans.find(p => p.name === permanentConfirmation.planName);
-            
-          if (planData) {
-            const confirmedSubscription: Subscription = {
-              id: crypto.randomUUID(),
-              user_id: user.id,
-              plan_id: planData.id,
-              plan_name: permanentConfirmation.planName,
-              status: 'active',
-              start_date: new Date(permanentConfirmation.confirmedAt).toISOString(),
-              end_date: null,
-              plan: planData,
-              cached_at: Date.now()
-            };
-            
-            setUserSubscription(confirmedSubscription);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        // Verificar cache normal se não há confirmação permanente
-        const cachedSubscription = getCachedSubscription();
-        const cachedProfile = getCachedUserProfile();
-        
-        if (cachedSubscription) {
-          console.log("Usando assinatura em cache:", cachedSubscription.plan_name);
-          setUserSubscription(cachedSubscription);
-          setLoading(false);
-          return;
-        }
-        
-        if (cachedProfile?.plan_active && cachedProfile?.plan_name) {
-          console.log("Usando perfil em cache:", cachedProfile.plan_name);
-          
-          // Buscar detalhes do plano dos dados já carregados
-          const planData = plans.find(p => p.name === cachedProfile.plan_name);
-            
-          if (planData) {
-            const newSubscription: Subscription = {
-              id: crypto.randomUUID(),
-              user_id: user.id,
-              plan_id: planData.id,
-              plan_name: cachedProfile.plan_name,
-              status: cachedProfile.plan_active ? 'active' : 'inactive',
-              start_date: new Date().toISOString(),
-              end_date: null,
-              plan: planData,
-              cached_at: Date.now()
-            };
-            
-            setUserSubscription(newSubscription);
-            cacheSubscription(newSubscription);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        // Se não há dados em cache, deixar vazio
-        console.log("Nenhum dado de assinatura encontrado no cache");
-        setUserSubscription(null);
-        
-      } catch (error: any) {
-        console.error("Error loading subscription from cache:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Aguardar os planos serem carregados antes de carregar a assinatura
-    if (plans.length > 0) {
-      loadUserSubscription();
     }
-  }, [user, plans]);
+  }, [plan, plans, user]);
 
-  // Check subscription status with Stripe - GARANTIR ATUALIZAÇÃO IMEDIATA
+  // Check subscription status with Stripe
   const checkSubscriptionStatus = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para verificar seu status de assinatura");
       return null;
     }
 
-    // CRITICAL: Check if plan is already permanently confirmed
-    const permanentConfirmation = getPermanentPlanConfirmation();
-    if (permanentConfirmation && permanentConfirmation.planActive === true) {
-      console.log("Plan already PERMANENTLY confirmed - skipping Stripe check:", permanentConfirmation);
-      toast.success(`Plano ${permanentConfirmation.planName} já está ativo!`);
-      return {
-        hasActiveSubscription: true,
-        planName: permanentConfirmation.planName,
-        planActive: true,
-        paymentConfirmed: true,
-        alreadyConfirmed: true
-      };
-    }
-
     try {
-      console.log("*** CHECKING PAYMENT STATUS WITH STRIPE ***");
+      console.log("Verificando status no Stripe...");
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {
@@ -385,57 +133,34 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         throw error;
       }
       
-      console.log("*** STRIPE RESPONSE ***", data);
+      console.log("Resposta do Stripe:", data);
       
       if (data.error) {
         throw new Error(data.error);
       }
       
-      // *** SE O PAGAMENTO FOI CONFIRMADO, GARANTIR QUE plan_active = TRUE ***
+      // Se pagamento confirmado, salvar no cache e Supabase
       if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
-        console.log("*** PAYMENT CONFIRMED! Updating local state ***");
+        console.log("Pagamento confirmado! Salvando dados...");
         
-        // SAVE PERMANENT CONFIRMATION - CANNOT BE OVERWRITTEN
-        savePermanentPlanConfirmation(data.planName, true);
+        // Salvar no cache
+        savePlan({
+          plan_name: data.planName,
+          plan_active: true
+        });
         
-        // Buscar detalhes do plano dos dados já carregados
-        const selectedPlan = plans.find(p => p.name === data.planName);
+        // Salvar no Supabase
+        await saveToSupabase('plan', {
+          plan_name: data.planName,
+          plan_active: true
+        });
         
-        if (selectedPlan) {
-          const confirmedSubscription: Subscription = {
-            id: crypto.randomUUID(),
-            user_id: user.id,
-            plan_id: selectedPlan.id,
-            plan_name: data.planName,
-            status: 'active',
-            start_date: new Date().toISOString(),
-            end_date: data.periodEnd || null,
-            plan: selectedPlan,
-            cached_at: Date.now()
-          };
-          
-          // Atualizar estado e cache
-          setUserSubscription(confirmedSubscription);
-          cacheSubscription(confirmedSubscription);
-          
-          // Atualizar cache do perfil
-          cacheUserProfile({
-            id: user.id,
-            plan_name: data.planName,
-            plan_active: true,
-            cached_at: Date.now()
-          });
-          
-          console.log("*** LOCAL STATE UPDATED - plan_active = TRUE ***", confirmedSubscription);
-          toast.success(`Pagamento confirmado! Plano ${data.planName} ativado com sucesso!`);
-        }
-      } else {
-        console.log("No active subscription found");
+        toast.success(`Pagamento confirmado! Plano ${data.planName} ativado!`);
       }
       
       return data;
     } catch (error: any) {
-      console.error("*** ERROR checking subscription status ***", error);
+      console.error("Erro ao verificar status:", error);
       toast.error("Falha ao verificar status da assinatura");
       return null;
     }
@@ -448,18 +173,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      // Find the selected plan
       const selectedPlan = plans.find(plan => plan.id === planId);
       if (!selectedPlan) {
         throw new Error("Plano não encontrado");
       }
 
-      // Salvar detalhes do plano no localStorage para uso como fallback
-      saveSelectedPlanDetails(selectedPlan);
-
-      // If plan has a Stripe price ID, create a checkout session
+      // Se tem Stripe price ID, criar checkout session
       if (selectedPlan.stripe_price_id) {
-        console.log("Creating Stripe checkout for plan:", selectedPlan);
+        console.log("Criando checkout Stripe para:", selectedPlan);
         const { data, error } = await supabase.functions.invoke('create-checkout', {
           body: { planId: selectedPlan.id }
         });
@@ -467,51 +188,27 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (error) throw error;
         if (data.error) throw new Error(data.error);
         
-        console.log("Checkout session created:", data);
-        
-        // Atualizar cache com informação do plano selecionado (será ativado após pagamento)
-        cacheUserProfile({
-          id: user.id,
-          plan_name: selectedPlan.name,
-          plan_active: false, // Será ativado após pagamento
-          cached_at: Date.now()
-        });
-        
-        // Redirect to Stripe Checkout
+        console.log("Redirecionando para checkout:", data.url);
         window.location.href = data.url;
         return;
       }
 
-      // Para planos gratuitos, ativar diretamente no cache
-      console.log("Processing non-Stripe plan selection:", selectedPlan);
+      // Para planos gratuitos, ativar diretamente
+      console.log("Ativando plano gratuito:", selectedPlan);
       
-      const freeSubscription: Subscription = {
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        plan_id: selectedPlan.id,
+      // Salvar no cache
+      savePlan({
         plan_name: selectedPlan.name,
-        status: 'active',
-        start_date: new Date().toISOString(),
-        end_date: selectedPlan.trial_days > 0 ? new Date(Date.now() + selectedPlan.trial_days * 24 * 60 * 60 * 1000).toISOString() : null,
-        plan: selectedPlan,
-        cached_at: Date.now()
-      };
-      
-      setUserSubscription(freeSubscription);
-      cacheSubscription(freeSubscription);
-      
-      // Para planos gratuitos, também salvar confirmação permanente
-      savePermanentPlanConfirmation(selectedPlan.name, true);
-      
-      // Atualizar cache do perfil
-      cacheUserProfile({
-        id: user.id,
-        plan_name: selectedPlan.name,
-        plan_active: true,
-        cached_at: Date.now()
+        plan_active: true
       });
       
-      toast.success(`Você assinou o plano ${selectedPlan.name} com sucesso!`);
+      // Salvar no Supabase
+      await saveToSupabase('plan', {
+        plan_name: selectedPlan.name,
+        plan_active: true
+      });
+      
+      toast.success(`Plano ${selectedPlan.name} ativado com sucesso!`);
     } catch (error: any) {
       console.error("Error selecting plan:", error);
       toast.error(error.message || "Falha ao selecionar o plano");
@@ -524,19 +221,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       return;
     }
     try {
-      console.log("Opening Stripe customer portal...");
+      console.log("Abrindo portal do cliente...");
       const { data, error } = await supabase.functions.invoke('customer-portal');
       
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       
-      console.log("Customer portal session created:", data);
-      
-      // Redirect to Stripe Customer Portal
       window.location.href = data.url;
     } catch (error: any) {
       console.error("Error opening customer portal:", error);
-      toast.error("Falha ao abrir o portal de gerenciamento de assinatura");
+      toast.error("Falha ao abrir o portal de gerenciamento");
     }
   };
 
