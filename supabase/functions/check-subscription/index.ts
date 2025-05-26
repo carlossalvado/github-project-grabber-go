@@ -8,7 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for enhanced debugging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -20,9 +19,10 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logStep("*** FUNCTION STARTED - CHECKING PAYMENT STATUS ***");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_51RMxX0KSV6QLg5fRHS75xPgwbtveXgQCq6rIIfp9BXKUSbiRWhrFv9tep68eFEGgtnXs8M4TEH4EDbLWdL0OYP0P00EEXnPOGe";
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_51RMxX0KSV6QLg5fRHS75xPgwbtveXgQCq6rIIfp9BXKUSbiRWhrFv9tep68eFEGgtnXs8M4TEH4EDbLW
+dL0OYP0P00EEXnPOGe";
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
 
@@ -50,7 +50,7 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
+      logStep("No Stripe customer found - User has no payment history");
       
       return new Response(
         JSON.stringify({ 
@@ -69,15 +69,73 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions
+    // Verificar todas as assinaturas do cliente, inclusive as mais recentes
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "active",
+      limit: 10, // Aumentado para pegar mais assinaturas recentes
       expand: ["data.default_payment_method"],
     });
 
     if (subscriptions.data.length === 0) {
       logStep("No active subscriptions found for customer");
+      
+      // Vamos verificar os checkouts também - isso é crítico para confirmações recentes
+      const checkoutSessions = await stripe.checkout.sessions.list({
+        customer: customerId, 
+        limit: 5
+      });
+      
+      // Se tiver checkouts recentes completados, podemos usar isso como confirmação
+      const completedCheckout = checkoutSessions.data.find(
+        session => session.status === 'complete' && 
+                  session.payment_status === 'paid' &&
+                  session.mode === 'subscription'
+      );
+      
+      if (completedCheckout) {
+        logStep("Found completed checkout session", { 
+          sessionId: completedCheckout.id,
+          status: completedCheckout.status,
+          paymentStatus: completedCheckout.payment_status
+        });
+        
+        // Vamos tentar encontrar a assinatura associada
+        if (completedCheckout.subscription) {
+          const subscriptionId = 
+            typeof completedCheckout.subscription === 'string' 
+              ? completedCheckout.subscription 
+              : completedCheckout.subscription.id;
+              
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          
+          if (subscription.status === 'active') {
+            logStep("Found active subscription from checkout", { subscriptionId });
+            
+            // Continuar o processamento com esta assinatura
+            await processActiveSubscription(
+              supabaseClient,
+              stripe, 
+              user, 
+              subscription
+            );
+            
+            return new Response(
+              JSON.stringify({
+                hasActiveSubscription: true,
+                planName: subscription.metadata.plan_name || "Plano Stripe",
+                planActive: true,
+                paymentConfirmed: true,
+                subscriptionId: subscription.id
+              }),
+              {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              }
+            );
+          }
+        }
+      }
       
       return new Response(
         JSON.stringify({ 
@@ -101,104 +159,21 @@ serve(async (req) => {
       periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString()
     });
 
-    // Get the price ID to determine the plan
-    const priceId = activeSubscription.items.data[0]?.price.id;
-    if (!priceId) throw new Error("No price ID found for subscription");
-    
-    // Find the corresponding plan in our database
-    const { data: planData } = await supabaseClient
-      .from('plans')
-      .select('*')
-      .eq('stripe_price_id', priceId)
-      .maybeSingle();
-    
-    const planId = planData?.id;
-    const planName = planData?.name || "Plano Desconhecido";
-    logStep("Determined plan ID and name", { priceId, planId, planName });
+    await processActiveSubscription(
+      supabaseClient,
+      stripe,
+      user,
+      activeSubscription
+    );
 
-    // *** CRÍTICO: FORÇAR ATUALIZAÇÃO OBRIGATÓRIA DO PLAN_ACTIVE PARA TRUE ***
-    logStep("*** PAYMENT CONFIRMED IN STRIPE - FORCING plan_active = TRUE ***");
-    
-    try {
-      // STEP 1: FORCE UPDATE profiles table with plan_active = TRUE (MANDATORY)
-      const { error: profileUpdateError } = await supabaseClient
-        .from("profiles")
-        .update({
-          plan_name: planName,
-          plan_active: true,  // *** FORÇA TRUE SEMPRE ***
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-      
-      if (profileUpdateError) {
-        logStep("*** CRITICAL ERROR updating profiles table ***", { error: profileUpdateError });
-        throw new Error(`Failed to update profiles: ${profileUpdateError.message}`);
-      }
-      
-      logStep("*** SUCCESS: profiles.plan_active = TRUE CONFIRMED ***", { 
-        userId: user.id,
-        planName,
-        planActive: true
-      });
-
-      // STEP 2: Update subscriptions table
-      const { data: existingSubscription } = await supabaseClient
-        .from("subscriptions")
-        .select("id")
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (existingSubscription) {
-        const { error: subUpdateError } = await supabaseClient
-          .from("subscriptions")
-          .update({
-            plan_id: planId,
-            plan_name: planName,
-            status: "active",
-            start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
-            end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
-          
-        if (subUpdateError) {
-          logStep("ERROR updating subscriptions table", { error: subUpdateError });
-        } else {
-          logStep("SUCCESS: subscriptions table updated");
-        }
-      } else {
-        const { error: subInsertError } = await supabaseClient
-          .from("subscriptions")
-          .insert({
-            user_id: user.id,
-            plan_id: planId,
-            plan_name: planName,
-            status: "active",
-            start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
-            end_date: new Date(activeSubscription.current_period_end * 1000).toISOString()
-          });
-          
-        if (subInsertError) {
-          logStep("ERROR inserting into subscriptions table", { error: subInsertError });
-        } else {
-          logStep("SUCCESS: new subscription record created");
-        }
-      }
-      
-    } catch (updateError) {
-      logStep("*** CRITICAL FAILURE ***", { error: updateError.message });
-      throw updateError; // Re-throw to return error response
-    }
-
-    // *** SEMPRE RETORNAR SUCCESS QUANDO STRIPE CONFIRMA PAGAMENTO ***
+    // Retornar sucesso
     logStep("*** PAYMENT FULLY CONFIRMED - plan_active = TRUE guaranteed ***");
     
     return new Response(
       JSON.stringify({
         hasActiveSubscription: true,
-        planId,
-        planName,
-        planActive: true,  // SEMPRE TRUE quando Stripe confirma
+        planName: activeSubscription.metadata.plan_name || "Plano Pago",
+        planActive: true,
         subscriptionId: activeSubscription.id,
         periodEnd: new Date(activeSubscription.current_period_end * 1000).toISOString(),
         status: "active",
@@ -223,3 +198,111 @@ serve(async (req) => {
     );
   }
 });
+
+// Função auxiliar para processar assinaturas ativas
+async function processActiveSubscription(
+  supabaseClient: any,
+  stripe: Stripe,
+  user: any,
+  activeSubscription: any
+) {
+  // Get the price ID to determine the plan
+  const priceId = activeSubscription.items.data[0]?.price.id;
+  if (!priceId) throw new Error("No price ID found for subscription");
+  
+  // Find the corresponding plan in our database
+  const { data: planData } = await supabaseClient
+    .from('plans')
+    .select('*')
+    .eq('stripe_price_id', priceId)
+    .maybeSingle();
+  
+  const planId = planData?.id || 0;
+  const planName = planData?.name || activeSubscription.metadata.plan_name || "Plano Desconhecido";
+  logStep("Determined plan ID and name", { priceId, planId, planName });
+
+  // ATUALIZAÇÕES CRÍTICAS EM TODOS OS LUGARES
+  try {
+    // 1. ATUALIZAR PROFILES com plan_active = TRUE (OBRIGATÓRIO)
+    const { error: profileUpdateError } = await supabaseClient
+      .from("profiles")
+      .update({
+        plan_name: planName,
+        plan_active: true,  // FORÇA TRUE SEMPRE
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+    
+    if (profileUpdateError) {
+      logStep("*** CRITICAL ERROR updating profiles table ***", { error: profileUpdateError });
+      throw new Error(`Failed to update profiles: ${profileUpdateError.message}`);
+    }
+    
+    logStep("*** SUCCESS: profiles.plan_active = TRUE CONFIRMED ***", { 
+      userId: user.id,
+      planName,
+      planActive: true
+    });
+
+    // 2. ATUALIZAR subscriptions ou CRIAR NOVO se não existir
+    const { data: existingSubscription } = await supabaseClient
+      .from("subscriptions")
+      .select("id")
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingSubscription) {
+      const { error: subUpdateError } = await supabaseClient
+        .from("subscriptions")
+        .update({
+          plan_id: planId,
+          plan_name: planName,
+          status: "active",
+          start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
+          end_date: new Date(activeSubscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+        
+      if (subUpdateError) {
+        logStep("ERROR updating subscriptions table", { error: subUpdateError });
+      } else {
+        logStep("SUCCESS: subscriptions table updated");
+      }
+    } else {
+      const { error: subInsertError } = await supabaseClient
+        .from("subscriptions")
+        .insert({
+          user_id: user.id,
+          plan_id: planId,
+          plan_name: planName,
+          status: "active",
+          start_date: new Date(activeSubscription.current_period_start * 1000).toISOString(),
+          end_date: new Date(activeSubscription.current_period_end * 1000).toISOString()
+        });
+        
+      if (subInsertError) {
+        logStep("ERROR inserting into subscriptions table", { error: subInsertError });
+      } else {
+        logStep("SUCCESS: new subscription record created");
+      }
+    }
+    
+    // 3. ATUALIZAR metadados da assinatura no Stripe para ajudar em futuras verificações
+    await stripe.subscriptions.update(
+      activeSubscription.id,
+      {
+        metadata: {
+          user_id: user.id,
+          plan_id: planId.toString(),
+          plan_name: planName
+        }
+      }
+    );
+    logStep("SUCCESS: subscription metadata updated in Stripe");
+    
+  } catch (updateError) {
+    logStep("*** CRITICAL FAILURE ***", { error: updateError.message });
+    throw updateError; // Re-throw to return error response
+  }
+}

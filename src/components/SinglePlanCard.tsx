@@ -17,10 +17,9 @@ interface SinglePlanCardProps {
 const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
   const [processing, setProcessing] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { checkSubscriptionStatus } = useSubscription();
+  const { verifyPaymentSuccess } = useSubscription();
   const { plan: userPlan } = useUserCache();
 
   // Verificar se o plano já está ativo no cache
@@ -31,58 +30,33 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     }
   }, [userPlan, plan.name]);
 
-  // Verificar pagamento após checkout
+  // Verificar parâmetros de URL para confirmação de pagamento
   useEffect(() => {
-    const checkPaymentStatus = async () => {
+    const checkoutSuccess = async () => {
       if (!user) return;
-
+      
       const urlParams = new URLSearchParams(window.location.search);
       const checkoutStatus = urlParams.get('checkout');
       
       if (checkoutStatus === 'success') {
-        console.log('🎉 Checkout success detectado, verificando pagamento...');
-        setVerifyingPayment(true);
+        console.log('🎉 Checkout success detectado na URL');
+        setProcessing(true);
         
         try {
-          // Aguardar um pouco para processamento do Stripe
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          console.log('🔍 Verificando status do pagamento...');
-          const result = await checkSubscriptionStatus();
-          
-          if (result?.paymentConfirmed && result?.planActive === true) {
-            console.log('✅ PAGAMENTO CONFIRMADO!');
+          const success = await verifyPaymentSuccess();
+          if (success) {
             setPaymentConfirmed(true);
-            toast.success('🎉 Pagamento confirmado com sucesso!');
-          } else {
-            console.log('⚠️ Pagamento ainda não confirmado, tentando novamente...');
-            // Uma segunda tentativa após mais tempo
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            const secondAttempt = await checkSubscriptionStatus();
-            
-            if (secondAttempt?.paymentConfirmed && secondAttempt?.planActive === true) {
-              console.log('✅ PAGAMENTO CONFIRMADO na segunda tentativa!');
-              setPaymentConfirmed(true);
-              toast.success('🎉 Pagamento confirmado com sucesso!');
-            } else {
-              console.log('❌ Não foi possível confirmar o pagamento');
-              toast.error('Não foi possível confirmar o pagamento. Recarregue a página.');
-            }
           }
-        } catch (error) {
-          console.error('❌ Erro na verificação:', error);
-          toast.error('Erro ao verificar pagamento.');
         } finally {
-          setVerifyingPayment(false);
+          setProcessing(false);
+          // Limpar URL
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
-        
-        // Limpar URL
-        window.history.replaceState({}, document.title, window.location.pathname);
       }
     };
     
-    checkPaymentStatus();
-  }, [plan.name, checkSubscriptionStatus, user]);
+    checkoutSuccess();
+  }, [user, verifyPaymentSuccess]);
 
   const handleSelectPlan = async () => {
     setProcessing(true);
@@ -98,13 +72,13 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
     }
   };
 
-  if (verifyingPayment) {
+  if (processing) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <Card className="text-center p-8 bg-slate-800/80 backdrop-blur-sm border-slate-700">
           <div className="animate-pulse flex flex-col items-center">
             <div className="h-12 w-12 bg-pink-500 rounded-full mb-4"></div>
-            <h2 className="text-xl font-bold mb-2 text-white">Confirmando Pagamento...</h2>
+            <h2 className="text-xl font-bold mb-2 text-white">Processando Pagamento...</h2>
             <p className="text-slate-400">Aguarde enquanto confirmamos seu pagamento.</p>
           </div>
         </Card>

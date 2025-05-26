@@ -6,6 +6,7 @@ import { useUserCache } from "@/hooks/useUserCache";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
+import { useNavigate } from "react-router-dom";
 
 export type Plan = {
   id: number;
@@ -39,6 +40,7 @@ type SubscriptionContextType = {
   selectPlan: (planId: number) => Promise<void>;
   checkSubscriptionStatus: () => Promise<any>;
   openCustomerPortal: () => Promise<void>;
+  verifyPaymentSuccess: (redirectUrl?: string) => Promise<boolean>;
 };
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -50,6 +52,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const { user } = useAuth();
   const { plan, savePlan } = useUserCache();
   const { saveToSupabase } = useSupabaseSync();
+  const navigate = useNavigate();
 
   // Helper function to transform features
   const transformFeatures = (features: Json): { text: boolean; audio: boolean; premium?: boolean } => {
@@ -98,12 +101,14 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
   // Criar subscription baseada no cache do plano
   useEffect(() => {
-    if (plan && plans.length > 0) {
+    if (plan && plans.length > 0 && user) {
+      console.log("Verificando plano no cache:", plan);
+      
       const planData = plans.find(p => p.name === plan.plan_name);
       if (planData && plan.plan_active) {
         const subscription: Subscription = {
           id: crypto.randomUUID(),
-          user_id: user?.id || '',
+          user_id: user.id,
           plan_id: planData.id,
           plan_name: plan.plan_name,
           status: 'active',
@@ -116,6 +121,85 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
     }
   }, [plan, plans, user]);
+
+  // Verificar URL em busca de parâmetros de checkout
+  useEffect(() => {
+    const checkUrlForPaymentSuccess = async () => {
+      if (!user) return;
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const checkoutStatus = urlParams.get('checkout');
+      const sessionId = urlParams.get('session_id');
+      
+      if (checkoutStatus === 'success') {
+        console.log('🎉 Checkout success detectado, verificando pagamento...');
+        await verifyPaymentSuccess();
+        
+        // Limpar URL independentemente do resultado
+        navigate(window.location.pathname, { replace: true });
+      }
+    };
+    
+    checkUrlForPaymentSuccess();
+  }, [user, navigate]);
+
+  // Nova função para verificar o sucesso do pagamento
+  const verifyPaymentSuccess = async (redirectUrl?: string): Promise<boolean> => {
+    if (!user) {
+      toast.error("Você precisa estar logado para verificar seu pagamento");
+      return false;
+    }
+
+    try {
+      console.log("🔍 Verificando status do pagamento...");
+      toast.loading("Verificando seu pagamento...");
+      
+      // Primeira tentativa
+      const result = await checkSubscriptionStatus();
+      
+      if (result?.paymentConfirmed && result?.planActive === true) {
+        console.log('✅ PAGAMENTO CONFIRMADO!');
+        toast.dismiss();
+        toast.success('🎉 Pagamento confirmado com sucesso!');
+        
+        if (redirectUrl) {
+          navigate(redirectUrl);
+        }
+        
+        return true;
+      } 
+      
+      // Segunda tentativa após aguardar um pouco
+      console.log('⚠️ Pagamento ainda não confirmado, tentando novamente...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const secondResult = await checkSubscriptionStatus();
+      
+      if (secondResult?.paymentConfirmed && secondResult?.planActive === true) {
+        console.log('✅ PAGAMENTO CONFIRMADO na segunda tentativa!');
+        toast.dismiss();
+        toast.success('🎉 Pagamento confirmado com sucesso!');
+        
+        if (redirectUrl) {
+          navigate(redirectUrl);
+        }
+        
+        return true;
+      }
+      
+      // Se chegou aqui, não conseguiu confirmar
+      console.error('❌ Não foi possível confirmar o pagamento após múltiplas tentativas');
+      toast.dismiss();
+      toast.error('Não conseguimos confirmar seu pagamento. Recarregue a página ou tente novamente.');
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Erro na verificação:', error);
+      toast.dismiss();
+      toast.error('Erro ao verificar pagamento.');
+      return false;
+    }
+  };
 
   // Check subscription status with Stripe
   const checkSubscriptionStatus = async () => {
@@ -156,17 +240,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         const supabaseSuccess = await saveToSupabase('plan', planData);
         if (supabaseSuccess) {
           console.log("✅ Dados salvos no Supabase");
-          toast.success(`🎉 Pagamento confirmado! Plano ${data.planName} ativado!`);
         } else {
           console.error("❌ Erro ao salvar no Supabase");
-          toast.error("Erro ao salvar no banco de dados");
+          // Mesmo com erro no Supabase, não falhar o fluxo pois temos o cache
         }
       }
       
       return data;
     } catch (error: any) {
       console.error("❌ Erro ao verificar status:", error);
-      toast.error("Falha ao verificar status da assinatura");
       return null;
     }
   };
@@ -244,7 +326,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       userSubscription, 
       loading, 
       selectPlan, 
-      checkSubscriptionStatus, 
+      checkSubscriptionStatus,
+      verifyPaymentSuccess,
       openCustomerPortal 
     }}>
       {children}
