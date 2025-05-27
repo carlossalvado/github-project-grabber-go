@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -6,16 +5,15 @@ import { useUserCache } from '@/hooks/useUserCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle, RefreshCw } from 'lucide-react';
+import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { userSubscription, plans, checkSubscriptionStatus } = useSubscription();
+  const { userSubscription, plans } = useSubscription();
   const { plan, profile, hasPlanActive, getPlanName, loadFromCache } = useUserCache();
   const navigate = useNavigate();
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Escutar eventos de atualização do plano
   useEffect(() => {
@@ -36,21 +34,6 @@ const ProfilePage = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
-  };
-
-  const handleRefreshPlan = async () => {
-    setIsRefreshing(true);
-    try {
-      console.log('🔄 Atualizando status do plano...');
-      await checkSubscriptionStatus();
-      loadFromCache(); // Recarregar do cache após atualização
-      toast.success('Status do plano atualizado!');
-    } catch (error) {
-      console.error('Erro ao atualizar plano:', error);
-      toast.error('Erro ao atualizar status do plano');
-    } finally {
-      setIsRefreshing(false);
-    }
   };
 
   const getCurrentPlan = () => {
@@ -212,15 +195,6 @@ const ProfilePage = () => {
                     <CreditCard className="w-6 h-6 text-pink-500" />
                   </div>
                   Plano Atual
-                  <Button
-                    onClick={handleRefreshPlan}
-                    disabled={isRefreshing}
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto text-slate-400 hover:text-white"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
