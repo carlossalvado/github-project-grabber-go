@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -11,25 +12,73 @@ import { toast } from 'sonner';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { userSubscription, plans } = useSubscription();
+  const { userSubscription, plans, checkSubscriptionStatus } = useSubscription();
   const { plan, profile, hasPlanActive, getPlanName, loadFromCache } = useUserCache();
   const navigate = useNavigate();
+  const [planData, setPlanData] = useState<any>(null);
 
   // Escutar eventos de atualização do plano
   useEffect(() => {
     const handlePlanUpdate = (event: any) => {
       console.log('📢 Evento de atualização do plano recebido:', event.detail);
       toast.success('Plano atualizado com sucesso!');
+      // Forçar recarregamento dos dados
+      loadPlanData();
     };
 
     window.addEventListener('planUpdated', handlePlanUpdate);
     return () => window.removeEventListener('planUpdated', handlePlanUpdate);
   }, []);
 
-  // Recarregar cache ao montar o componente
-  useEffect(() => {
+  // Função para carregar dados do plano (cache primeiro, depois Supabase)
+  const loadPlanData = async () => {
+    console.log('🔍 Carregando dados do plano...');
+    
+    // Primeiro tentar do cache
     loadFromCache();
-  }, [loadFromCache]);
+    
+    // Se não tiver dados no cache ou se plan_active for false, verificar no Supabase
+    if (!plan?.plan_active) {
+      console.log('📡 Verificando status no Supabase...');
+      try {
+        const result = await checkSubscriptionStatus();
+        if (result?.hasActiveSubscription && result?.planName) {
+          console.log('✅ Plano ativo encontrado no Supabase:', result);
+          setPlanData({
+            plan_name: result.planName,
+            plan_active: true,
+            from_supabase: true
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar Supabase:', error);
+      }
+    }
+  };
+
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    if (user) {
+      loadPlanData();
+    }
+  }, [user]);
+
+  // Verificar se há parâmetros de URL que indicam sucesso do pagamento
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const checkoutStatus = urlParams.get('checkout');
+    
+    if (checkoutStatus === 'success' && user) {
+      console.log('🎉 Checkout success detectado, verificando dados...');
+      // Aguardar um pouco e recarregar dados
+      setTimeout(() => {
+        loadPlanData();
+      }, 2000);
+      
+      // Limpar URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,7 +86,12 @@ const ProfilePage = () => {
   };
 
   const getCurrentPlan = () => {
-    // Priorizar dados do cache
+    // Priorizar dados mais recentes
+    if (planData?.plan_active) {
+      return plans.find(p => p.name === planData.plan_name);
+    }
+    
+    // Usar dados do cache
     const cachedPlanName = getPlanName();
     if (cachedPlanName && hasPlanActive()) {
       return plans.find(p => p.name === cachedPlanName);
@@ -49,16 +103,16 @@ const ProfilePage = () => {
   };
 
   const currentPlan = getCurrentPlan();
-  const planActive = hasPlanActive();
-  const planName = getPlanName() || userSubscription?.plan_name;
+  const isActivePlan = planData?.plan_active || hasPlanActive();
+  const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
 
   const handleChatRedirect = () => {
-    if (!planActive || !planName) {
+    if (!isActivePlan || !activePlanName) {
       navigate('/chat-free');
       return;
     }
 
-    const lowerPlanName = planName.toLowerCase();
+    const lowerPlanName = activePlanName.toLowerCase();
     
     if (lowerPlanName.includes('basic') || lowerPlanName.includes('básico')) {
       navigate('/chat-basic');
@@ -198,7 +252,7 @@ const ProfilePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {planActive && planName ? (
+                {isActivePlan && activePlanName ? (
                   <div className="space-y-6">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-3 mb-4">
@@ -209,7 +263,7 @@ const ProfilePage = () => {
                           variant="default" 
                           className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xl px-6 py-2 font-bold shadow-lg"
                         >
-                          {planName}
+                          {activePlanName}
                         </Badge>
                       </div>
                     </div>
@@ -232,7 +286,15 @@ const ProfilePage = () => {
                       )}
 
                       {/* Debug info */}
-                      {plan && (
+                      {planData?.from_supabase && (
+                        <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
+                          <p className="text-xs text-slate-400">
+                            Dados carregados do Supabase
+                          </p>
+                        </div>
+                      )}
+                      
+                      {plan && !planData?.from_supabase && (
                         <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
                           <p className="text-xs text-slate-400">
                             Cache: {new Date(plan.cached_at).toLocaleString()}

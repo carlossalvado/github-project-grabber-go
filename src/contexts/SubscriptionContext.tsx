@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -129,7 +128,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       const urlParams = new URLSearchParams(window.location.search);
       const checkoutStatus = urlParams.get('checkout');
-      const sessionId = urlParams.get('session_id');
       
       if (checkoutStatus === 'success') {
         console.log('🎉 Checkout success detectado, verificando pagamento...');
@@ -164,6 +162,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         const planData = updatePlanAfterPayment(result.planName, true);
         console.log('💾 Dados salvos no cache após pagamento:', planData);
         
+        // CRIAR SUBSCRIPTION LOCAL
+        const planDetails = plans.find(p => p.name === result.planName);
+        if (planDetails) {
+          const subscription: Subscription = {
+            id: crypto.randomUUID(),
+            user_id: user.id,
+            plan_id: planDetails.id,
+            plan_name: result.planName,
+            status: 'active',
+            start_date: new Date().toISOString(),
+            end_date: null,
+            plan: planDetails
+          };
+          setUserSubscription(subscription);
+          console.log('💾 Subscription local criada:', subscription);
+        }
+        
         toast.dismiss();
         toast.success('🎉 Pagamento confirmado com sucesso!');
         
@@ -186,6 +201,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         // SALVAR NO CACHE IMEDIATAMENTE
         const planData = updatePlanAfterPayment(secondResult.planName, true);
         console.log('💾 Dados salvos no cache após pagamento (2ª tentativa):', planData);
+        
+        // CRIAR SUBSCRIPTION LOCAL
+        const planDetails = plans.find(p => p.name === secondResult.planName);
+        if (planDetails) {
+          const subscription: Subscription = {
+            id: crypto.randomUUID(),
+            user_id: user.id,
+            plan_id: planDetails.id,
+            plan_name: secondResult.planName,
+            status: 'active',
+            start_date: new Date().toISOString(),
+            end_date: null,
+            plan: planDetails
+          };
+          setUserSubscription(subscription);
+          console.log('💾 Subscription local criada (2ª tentativa):', subscription);
+        }
         
         toast.dismiss();
         toast.success('🎉 Pagamento confirmado com sucesso!');
@@ -231,30 +263,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       if (data.error) {
         throw new Error(data.error);
-      }
-      
-      // Se pagamento confirmado, salvar no cache e Supabase
-      if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
-        console.log("💳 PAGAMENTO CONFIRMADO! Salvando dados...");
-        
-        // SALVAR NO CACHE PRIMEIRO E IMEDIATAMENTE
-        const planData = updatePlanAfterPayment(data.planName, true);
-        console.log("✅ Dados salvos no cache PRIMEIRO:", planData);
-        
-        // Depois salvar no Supabase (não crítico se falhar)
-        try {
-          const supabaseSuccess = await saveToSupabase('plan', {
-            plan_name: data.planName,
-            plan_active: true
-          });
-          if (supabaseSuccess) {
-            console.log("✅ Dados salvos no Supabase também");
-          } else {
-            console.warn("⚠️ Erro ao salvar no Supabase, mas cache está ok");
-          }
-        } catch (error) {
-          console.warn("⚠️ Erro no Supabase, mas cache está funcionando:", error);
-        }
       }
       
       return data;
