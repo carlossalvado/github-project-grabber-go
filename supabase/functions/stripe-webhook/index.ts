@@ -47,17 +47,22 @@ serve(async (req) => {
     // Get the raw body
     const body = await req.text();
     
-    // Verify the webhook signature
+        // Verificar a assinatura do webhook
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-      logStep("Webhook signature verified", { eventType: event.type });
+      event = await stripe.webhooks.constructEventAsync(
+        body,          // O corpo da requisição como texto
+        signature!,    // O cabeçalho Stripe-Signature
+        webhookSecret, // Seu STRIPE_WEBHOOK_SECRET
+        undefined,     // Tolerância de tempo (opcional)
+        Stripe.createSubtleCryptoProvider() // Provedor de criptografia para Deno
+      );
+      logStep("Assinatura do webhook verificada", { eventId: event.id, eventType: event.type });
     } catch (err) {
-      logStep("Webhook signature verification failed", { error: err.message });
-      return new Response(`Webhook signature verification failed: ${err.message}`, {
-        status: 400,
-      });
+      logStep("Erro na verificação da assinatura", { error: err.message });
+      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
+
 
     // Handle the event
     switch (event.type) {
