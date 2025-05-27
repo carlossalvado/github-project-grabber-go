@@ -50,7 +50,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const [userSubscription, setUserSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const { plan, savePlan } = useUserCache();
+  const { plan, savePlan, updatePlanAfterPayment } = useUserCache();
   const { saveToSupabase } = useSupabaseSync();
   const navigate = useNavigate();
 
@@ -159,6 +159,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       if (result?.paymentConfirmed && result?.planActive === true) {
         console.log('✅ PAGAMENTO CONFIRMADO!');
+        
+        // SALVAR NO CACHE IMEDIATAMENTE
+        const planData = updatePlanAfterPayment(result.planName, true);
+        console.log('💾 Dados salvos no cache após pagamento:', planData);
+        
         toast.dismiss();
         toast.success('🎉 Pagamento confirmado com sucesso!');
         
@@ -177,6 +182,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       if (secondResult?.paymentConfirmed && secondResult?.planActive === true) {
         console.log('✅ PAGAMENTO CONFIRMADO na segunda tentativa!');
+        
+        // SALVAR NO CACHE IMEDIATAMENTE
+        const planData = updatePlanAfterPayment(secondResult.planName, true);
+        console.log('💾 Dados salvos no cache após pagamento (2ª tentativa):', planData);
+        
         toast.dismiss();
         toast.success('🎉 Pagamento confirmado com sucesso!');
         
@@ -227,22 +237,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       if (data.hasActiveSubscription && data.planName && data.paymentConfirmed) {
         console.log("💳 PAGAMENTO CONFIRMADO! Salvando dados...");
         
-        const planData = {
-          plan_name: data.planName,
-          plan_active: true
-        };
+        // SALVAR NO CACHE PRIMEIRO E IMEDIATAMENTE
+        const planData = updatePlanAfterPayment(data.planName, true);
+        console.log("✅ Dados salvos no cache PRIMEIRO:", planData);
         
-        // Salvar no cache PRIMEIRO
-        savePlan(planData);
-        console.log("✅ Dados salvos no cache");
-        
-        // Depois salvar no Supabase
-        const supabaseSuccess = await saveToSupabase('plan', planData);
-        if (supabaseSuccess) {
-          console.log("✅ Dados salvos no Supabase");
-        } else {
-          console.error("❌ Erro ao salvar no Supabase");
-          // Mesmo com erro no Supabase, não falhar o fluxo pois temos o cache
+        // Depois salvar no Supabase (não crítico se falhar)
+        try {
+          const supabaseSuccess = await saveToSupabase('plan', {
+            plan_name: data.planName,
+            plan_active: true
+          });
+          if (supabaseSuccess) {
+            console.log("✅ Dados salvos no Supabase também");
+          } else {
+            console.warn("⚠️ Erro ao salvar no Supabase, mas cache está ok");
+          }
+        } catch (error) {
+          console.warn("⚠️ Erro no Supabase, mas cache está funcionando:", error);
         }
       }
       

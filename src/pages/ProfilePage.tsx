@@ -1,43 +1,87 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useUserCache } from '@/hooks/useUserCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle } from 'lucide-react';
+import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { userSubscription, plans } = useSubscription();
+  const { userSubscription, plans, checkSubscriptionStatus } = useSubscription();
+  const { plan, profile, hasPlanActive, getPlanName, loadFromCache } = useUserCache();
   const navigate = useNavigate();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Escutar eventos de atualização do plano
+  useEffect(() => {
+    const handlePlanUpdate = (event: any) => {
+      console.log('📢 Evento de atualização do plano recebido:', event.detail);
+      toast.success('Plano atualizado com sucesso!');
+    };
+
+    window.addEventListener('planUpdated', handlePlanUpdate);
+    return () => window.removeEventListener('planUpdated', handlePlanUpdate);
+  }, []);
+
+  // Recarregar cache ao montar o componente
+  useEffect(() => {
+    loadFromCache();
+  }, [loadFromCache]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
+  const handleRefreshPlan = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 Atualizando status do plano...');
+      await checkSubscriptionStatus();
+      loadFromCache(); // Recarregar do cache após atualização
+      toast.success('Status do plano atualizado!');
+    } catch (error) {
+      console.error('Erro ao atualizar plano:', error);
+      toast.error('Erro ao atualizar status do plano');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const getCurrentPlan = () => {
+    // Priorizar dados do cache
+    const cachedPlanName = getPlanName();
+    if (cachedPlanName && hasPlanActive()) {
+      return plans.find(p => p.name === cachedPlanName);
+    }
+    
+    // Fallback para subscription
     if (!userSubscription) return null;
     return userSubscription.plan || plans.find(plan => plan.id === userSubscription.plan_id);
   };
 
   const currentPlan = getCurrentPlan();
+  const planActive = hasPlanActive();
+  const planName = getPlanName() || userSubscription?.plan_name;
 
   const handleChatRedirect = () => {
-    if (!userSubscription || !userSubscription.plan_name) {
+    if (!planActive || !planName) {
       navigate('/chat-free');
       return;
     }
 
-    const planName = userSubscription.plan_name.toLowerCase();
+    const lowerPlanName = planName.toLowerCase();
     
-    if (planName.includes('basic') || planName.includes('básico')) {
+    if (lowerPlanName.includes('basic') || lowerPlanName.includes('básico')) {
       navigate('/chat-basic');
-    } else if (planName.includes('premium')) {
+    } else if (lowerPlanName.includes('premium')) {
       navigate('/chat-premium');
-    } else if (planName.includes('ultimate')) {
+    } else if (lowerPlanName.includes('ultimate')) {
       navigate('/chat-ultimate');
     } else {
       navigate('/modern-chat');
@@ -168,10 +212,19 @@ const ProfilePage = () => {
                     <CreditCard className="w-6 h-6 text-pink-500" />
                   </div>
                   Plano Atual
+                  <Button
+                    onClick={handleRefreshPlan}
+                    disabled={isRefreshing}
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto text-slate-400 hover:text-white"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {userSubscription ? (
+                {planActive && planName ? (
                   <div className="space-y-6">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-3 mb-4">
@@ -182,7 +235,7 @@ const ProfilePage = () => {
                           variant="default" 
                           className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xl px-6 py-2 font-bold shadow-lg"
                         >
-                          {userSubscription.plan_name || 'Plano Ativo'}
+                          {planName}
                         </Badge>
                       </div>
                     </div>
@@ -190,9 +243,7 @@ const ProfilePage = () => {
                     <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 border border-slate-500 rounded-2xl p-6 text-center">
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-green-400 font-semibold text-lg">
-                          {userSubscription.status === 'active' ? 'Ativo' : userSubscription.status}
-                        </span>
+                        <span className="text-green-400 font-semibold text-lg">Ativo</span>
                       </div>
                       
                       {currentPlan && (
@@ -202,6 +253,15 @@ const ProfilePage = () => {
                           </p>
                           <p className="text-slate-300 text-sm leading-relaxed">
                             {currentPlan.description}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Debug info */}
+                      {plan && (
+                        <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
+                          <p className="text-xs text-slate-400">
+                            Cache: {new Date(plan.cached_at).toLocaleString()}
                           </p>
                         </div>
                       )}

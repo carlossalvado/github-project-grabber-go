@@ -44,19 +44,25 @@ export const useUserCache = () => {
       // Carregar perfil
       const cachedProfile = localStorage.getItem(USER_PROFILE_CACHE_KEY);
       if (cachedProfile) {
-        setProfile(JSON.parse(cachedProfile));
+        const profileData = JSON.parse(cachedProfile);
+        setProfile(profileData);
+        console.log('✅ Perfil carregado do cache:', profileData);
       }
 
       // Carregar agente
       const cachedAgent = localStorage.getItem(USER_AGENT_CACHE_KEY);
       if (cachedAgent) {
-        setAgent(JSON.parse(cachedAgent));
+        const agentData = JSON.parse(cachedAgent);
+        setAgent(agentData);
+        console.log('✅ Agente carregado do cache:', agentData);
       }
 
       // Carregar plano
       const cachedPlan = localStorage.getItem(USER_PLAN_CACHE_KEY);
       if (cachedPlan) {
-        setPlan(JSON.parse(cachedPlan));
+        const planData = JSON.parse(cachedPlan);
+        setPlan(planData);
+        console.log('✅ Plano carregado do cache:', planData);
       }
     } catch (error) {
       console.error('Erro ao carregar cache:', error);
@@ -109,6 +115,25 @@ export const useUserCache = () => {
     }
   };
 
+  // Função específica para atualizar dados do plano após pagamento
+  const updatePlanAfterPayment = (planName: string, planActive: boolean) => {
+    console.log('🎉 Atualizando plano após pagamento confirmado:', { planName, planActive });
+    
+    const planData = {
+      plan_name: planName,
+      plan_active: planActive
+    };
+    
+    savePlan(planData);
+    
+    // Forçar atualização do estado para re-renderizar componentes
+    window.dispatchEvent(new CustomEvent('planUpdated', { 
+      detail: { planName, planActive } 
+    }));
+    
+    return planData;
+  };
+
   // Limpar todo o cache
   const clearCache = () => {
     localStorage.removeItem(USER_PROFILE_CACHE_KEY);
@@ -120,6 +145,16 @@ export const useUserCache = () => {
     console.log('🗑️ Cache limpo');
   };
 
+  // Verificar se o plano está ativo
+  const hasPlanActive = () => {
+    return plan?.plan_active === true;
+  };
+
+  // Obter nome do plano
+  const getPlanName = () => {
+    return plan?.plan_name || null;
+  };
+
   return {
     profile,
     agent,
@@ -127,7 +162,10 @@ export const useUserCache = () => {
     saveProfile,
     saveAgent,
     savePlan,
+    updatePlanAfterPayment,
     clearCache,
-    loadFromCache
+    loadFromCache,
+    hasPlanActive,
+    getPlanName
   };
 };
