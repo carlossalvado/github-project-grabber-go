@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -38,6 +37,7 @@ const ChatTextOnlyPage = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -111,6 +111,17 @@ const ChatTextOnlyPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup audio references on unmount
+  useEffect(() => {
+    return () => {
+      audioRefs.current.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+      audioRefs.current.clear();
+    };
+  }, []);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -122,10 +133,17 @@ const ChatTextOnlyPage = () => {
         } 
       });
       
-      const mediaRecorder = new MediaRecorder(stream, {
+      // Use webm format with opus codec for better compatibility
+      const options = {
         mimeType: 'audio/webm;codecs=opus'
-      });
+      };
       
+      // Fallback if webm is not supported
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options.mimeType = 'audio/mp4';
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       
@@ -163,83 +181,188 @@ const ChatTextOnlyPage = () => {
     toast.info('Processando áudio...');
     
     try {
-      // Criar blob do áudio gravado
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      // Create audio blob from recorded chunks
+      const audioBlob = new Blob(audioChunksRef.current, { 
+        type: 'audio/webm' 
+      });
       
-      // Preparar FormData para envio
+      console.log('📤 Enviando áudio para processamento:', {
+        size: audioBlob.size,
+        type: audioBlob.type
+      });
+      
+      // Prepare FormData for sending
       const formData = new FormData();
       formData.append('data', audioBlob, 'audio.webm');
       
-      // Enviar para o webhook do n8n
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        body: formData
-      });
+      // Send to n8n webhook with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
-      if (!response.ok) {
-        throw new Error(`Erro na resposta: ${response.status}`);
+      try {
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Erro na resposta do servidor: ${response.status} - ${response.statusText}`);
+        }
+        
+        console.log('📥 Resposta recebida do webhook:', {
+          status: response.status,
+          contentType: response.headers.get('content-type')
+        });
+        
+        // Check if response is audio
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('audio')) {
+          throw new Error('Resposta não contém áudio válido');
+        }
+        
+        // Get audio response as blob
+        const responseAudioBlob = await response.blob();
+        console.log('🎵 Blob de áudio recebido:', {
+          size: responseAudioBlob.size,
+          type: responseAudioBlob.type
+        });
+        
+        if (responseAudioBlob.size === 0) {
+          throw new Error('Arquivo de áudio vazio recebido');
+        }
+        
+        // Create object URLs for both user and contact messages
+        const userAudioUrl = URL.createObjectURL(audioBlob);
+        const contactAudioUrl = URL.createObjectURL(responseAudioBlob);
+        
+        // Add user message
+        const userMessage: ModernMessage = {
+          id: Date.now().toString(),
+          content: 'Mensagem de voz enviada',
+          sender: 'user',
+          timestamp: new Date(),
+          type: 'audio',
+          audioUrl: userAudioUrl
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
+        
+        // Add contact response message
+        const contactMessage: ModernMessage = {
+          id: (Date.now() + 1).toString(),
+          content: 'Resposta de voz recebida',
+          sender: 'contact',
+          timestamp: new Date(),
+          type: 'audio',
+          audioUrl: contactAudioUrl
+        };
+        
+        setMessages(prev => [...prev, contactMessage]);
+        
+        // Auto-play the response after a short delay
+        setTimeout(() => {
+          playAudio(contactMessage.id, contactAudioUrl);
+        }, 500);
+        
+        toast.success('Mensagem de voz processada com sucesso');
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
       }
       
-      // Receber áudio de resposta
-      const responseAudioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(responseAudioBlob);
-      
-      // Adicionar mensagem de áudio do usuário
-      const userMessage: ModernMessage = {
-        id: Date.now().toString(),
-        content: 'Mensagem de voz enviada',
-        sender: 'user',
-        timestamp: new Date(),
-        type: 'audio',
-        audioUrl: URL.createObjectURL(audioBlob)
-      };
-      
-      setMessages(prev => [...prev, userMessage]);
-      
-      // Adicionar mensagem de áudio da resposta
-      const contactMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: 'Resposta de voz recebida',
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'audio',
-        audioUrl: audioUrl
-      };
-      
-      setMessages(prev => [...prev, contactMessage]);
-      
-      // Reproduzir automaticamente a resposta
-      setTimeout(() => {
-        playAudio(contactMessage.id, audioUrl);
-      }, 500);
-      
-      toast.success('Mensagem de voz processada');
     } catch (error) {
       console.error('Erro ao processar áudio:', error);
-      toast.error('Erro ao processar mensagem de voz');
+      
+      let errorMessage = 'Erro ao processar mensagem de voz';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Timeout: O servidor demorou muito para responder';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Erro de conexão: Verifique sua internet ou tente novamente';
+      } else if (error.message) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      toast.error(errorMessage);
+      
+      // Add a simple text message indicating the error
+      const errorMessage2: ModernMessage = {
+        id: Date.now().toString(),
+        content: 'Erro ao processar áudio. Tente novamente.',
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, errorMessage2]);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const playAudio = (messageId: string, audioUrl: string) => {
-    const audio = new Audio(audioUrl);
-    setPlayingAudioId(messageId);
-    
-    audio.onended = () => {
-      setPlayingAudioId(null);
-    };
-    
-    audio.onerror = () => {
+    try {
+      // Stop any currently playing audio
+      if (playingAudioId) {
+        const currentAudio = audioRefs.current.get(playingAudioId);
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+      }
+      
+      // Get or create audio element for this message
+      let audio = audioRefs.current.get(messageId);
+      if (!audio) {
+        audio = new Audio();
+        audioRefs.current.set(messageId, audio);
+      }
+      
+      // Set audio source and configure events
+      audio.src = audioUrl;
+      setPlayingAudioId(messageId);
+      
+      audio.onended = () => {
+        setPlayingAudioId(null);
+      };
+      
+      audio.onerror = (e) => {
+        console.error('Erro ao reproduzir áudio:', e);
+        setPlayingAudioId(null);
+        toast.error('Erro ao reproduzir áudio');
+      };
+      
+      audio.onloadeddata = () => {
+        console.log('🎵 Áudio carregado com sucesso');
+      };
+      
+      // Play the audio
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('Erro ao reproduzir áudio:', error);
+          setPlayingAudioId(null);
+          toast.error('Erro ao reproduzir áudio');
+        });
+      }
+      
+    } catch (error) {
+      console.error('Erro ao configurar reprodução de áudio:', error);
       setPlayingAudioId(null);
       toast.error('Erro ao reproduzir áudio');
-    };
-    
-    audio.play().catch(error => {
-      console.error('Erro ao reproduzir áudio:', error);
+    }
+  };
+
+  const stopAudio = (messageId: string) => {
+    const audio = audioRefs.current.get(messageId);
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
       setPlayingAudioId(null);
-      toast.error('Erro ao reproduzir áudio');
-    });
+    }
   };
 
   const handleSendMessage = async () => {
@@ -257,12 +380,10 @@ const ChatTextOnlyPage = () => {
     setInput('');
     setIsLoading(true);
 
-    // Blur input to hide keyboard on mobile
     if (isMobile && inputRef.current) {
       inputRef.current.blur();
     }
 
-    // Simulate typing delay for contact response
     setTimeout(() => {
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
@@ -391,8 +512,14 @@ const ChatTextOnlyPage = () => {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-current hover:bg-white/20"
-            onClick={() => message.audioUrl && playAudio(message.id, message.audioUrl)}
-            disabled={isPlaying}
+            onClick={() => {
+              if (isPlaying) {
+                stopAudio(message.id);
+              } else if (message.audioUrl) {
+                playAudio(message.id, message.audioUrl);
+              }
+            }}
+            disabled={!message.audioUrl}
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </Button>
