@@ -16,10 +16,10 @@ import PersonalizePage from "./pages/PersonalizePage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import ModernChatPage from "./pages/ModernChatPage";
-import ChatFreePage from "./pages/ChatFreePage";
-import ChatBasicPage from "./pages/ChatBasicPage";
+import ChatTextOnlyPage from "./pages/ChatTextOnlyPage";
+import ChatTextAudioPage from "./pages/ChatTextAudioPage";
 import ChatPremiumPage from "./pages/ChatPremiumPage";
-import ChatUltimatePage from "./pages/ChatUltimatePage";
+import ChatTrialPage from "./pages/ChatTrialPage";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import PlanPage from "./pages/PlanPage";
@@ -112,21 +112,21 @@ const App = () => (
                 } 
               />
 
-              {/* Páginas de chat específicas por plano */}
+              {/* Páginas de chat específicas por plano com nomes atualizados */}
               <Route 
-                path="/chat-free" 
+                path="/chat-text-only" 
                 element={
                   <ProtectedRoute>
-                    <ChatFreePage />
+                    <ChatTextOnlyPage />
                   </ProtectedRoute>
                 } 
               />
               
               <Route 
-                path="/chat-basic" 
+                path="/chat-text-audio" 
                 element={
                   <ProtectedRoute>
-                    <ChatBasicPage />
+                    <ChatTextAudioPage />
                   </ProtectedRoute>
                 } 
               />
@@ -141,10 +141,10 @@ const App = () => (
               />
               
               <Route 
-                path="/chat-ultimate" 
+                path="/chat-trial" 
                 element={
                   <ProtectedRoute>
-                    <ChatUltimatePage />
+                    <ChatTrialPage />
                   </ProtectedRoute>
                 } 
               />
