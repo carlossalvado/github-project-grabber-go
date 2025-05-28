@@ -53,22 +53,58 @@ const ChatTextOnlyPage = () => {
   const planName = "Text Only";
   const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
-  // Verificar acesso ao plano
+  // Verificar acesso ao plano usando Supabase
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    const checkPlanAccess = async () => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
 
-    // Verificar se o usuário tem o plano correto
-    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
-    const hasCorrectPlan = userPlanName === 'Text Only';
-    
-    if (!hasCorrectPlan) {
-      toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
-      navigate('/profile');
-      return;
-    }
+      try {
+        console.log('🔍 Verificando acesso ao plano Text Only no Supabase...');
+        
+        // Verificar plano no Supabase
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('plan_name, plan_active')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('❌ Erro ao consultar perfil:', error);
+          // Fallback para dados do cache
+          const userPlanName = plan?.plan_name || userSubscription?.plan_name;
+          const hasCorrectPlan = userPlanName?.toLowerCase().includes('text only');
+          
+          if (!hasCorrectPlan) {
+            toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
+            navigate('/profile');
+            return;
+          }
+        } else {
+          // Usar dados do Supabase
+          const userPlanName = profileData?.plan_name;
+          const userPlanActive = profileData?.plan_active;
+          const hasCorrectPlan = userPlanActive && userPlanName?.toLowerCase().includes('text only');
+          
+          if (!hasCorrectPlan) {
+            console.log('❌ Acesso negado. Plano atual:', userPlanName, 'Ativo:', userPlanActive);
+            toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
+            navigate('/profile');
+            return;
+          }
+          
+          console.log('✅ Acesso liberado para plano Text Only');
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar acesso:', error);
+        toast.error('Erro ao verificar acesso. Redirecionando para o perfil.');
+        navigate('/profile');
+      }
+    };
+
+    checkPlanAccess();
   }, [user, plan, userSubscription, navigate]);
 
   useEffect(() => {
