@@ -1,7 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
+import { useUserCache } from '@/hooks/useUserCache';
 import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,7 @@ interface ModernMessage {
 const ChatBasicPage = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
+  const { plan } = useUserCache();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,7 +43,25 @@ const ChatBasicPage = () => {
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
-  const planName = "Plano Básico";
+  const planName = "Text & Audio";
+
+  // Verificar acesso ao plano
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Verificar se o usuário tem o plano correto
+    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
+    const hasCorrectPlan = userPlanName === 'Text & Audio';
+    
+    if (!hasCorrectPlan) {
+      toast.error('Acesso negado. Você precisa do plano Text & Audio para acessar esta página.');
+      navigate('/profile');
+      return;
+    }
+  }, [user, plan, userSubscription, navigate]);
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">

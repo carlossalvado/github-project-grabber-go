@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
+import { useUserCache } from '@/hooks/useUserCache';
 import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ interface ModernMessage {
 const ChatUltimatePage = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
+  const { plan } = useUserCache();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +44,25 @@ const ChatUltimatePage = () => {
   const contactName = "Charlotte VIP";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
-  const planName = "Plano Ultimate";
+  const planName = "Trial";
+
+  // Verificar acesso ao plano
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Verificar se o usuário tem o plano correto
+    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
+    const hasCorrectPlan = userPlanName === 'Trial';
+    
+    if (!hasCorrectPlan) {
+      toast.error('Acesso negado. Você precisa do plano Trial para acessar esta página.');
+      navigate('/profile');
+      return;
+    }
+  }, [user, plan, userSubscription, navigate]);
 
   useEffect(() => {
     // Check for gift success/cancel parameters
@@ -254,7 +274,7 @@ const ChatUltimatePage = () => {
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
-      {/* Header with Ultimate styling */}
+      {/* Header with Trial styling */}
       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-800 to-yellow-900/20 border-b border-yellow-500/20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button

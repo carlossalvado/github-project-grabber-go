@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
+import { useUserCache } from '@/hooks/useUserCache';
 import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ interface ModernMessage {
 const ChatFreePage = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
+  const { plan } = useUserCache();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +44,25 @@ const ChatFreePage = () => {
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
-  const planName = "Plano Gratuito";
+  const planName = "Text Only";
+
+  // Verificar acesso ao plano
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Verificar se o usuário tem o plano correto
+    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
+    const hasCorrectPlan = userPlanName === 'Text Only';
+    
+    if (!hasCorrectPlan) {
+      toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
+      navigate('/profile');
+      return;
+    }
+  }, [user, plan, userSubscription, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
