@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 import { useUserCache } from '@/hooks/useUserCache';
-import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Mic, MicOff, Send, Smile, Gift, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,29 +23,35 @@ interface ModernMessage {
   type: 'text' | 'image' | 'audio' | 'gift';
   images?: string[];
   audioDuration?: string;
+  audioUrl?: string;
   giftId?: string;
   giftName?: string;
   giftEmoji?: string;
 }
 
-const ChatFreePage = () => {
+const ChatTextOnlyPage = () => {
   const { user } = useAuth();
   const { userSubscription } = useSubscription();
   const { plan } = useUserCache();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
   const planName = "Text Only";
+  const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
   // Verificar acesso ao plano
   useEffect(() => {
@@ -67,6 +74,137 @@ const ChatFreePage = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        handleAudioProcessing();
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.success('Gravação iniciada');
+    } catch (error) {
+      console.error('Erro ao iniciar gravação:', error);
+      toast.error('Erro ao acessar o microfone');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleAudioProcessing = async () => {
+    if (audioChunksRef.current.length === 0) return;
+    
+    setIsProcessing(true);
+    toast.info('Processando áudio...');
+    
+    try {
+      // Criar blob do áudio gravado
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      
+      // Preparar FormData para envio
+      const formData = new FormData();
+      formData.append('data', audioBlob, 'audio.webm');
+      
+      // Enviar para o webhook do n8n
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro na resposta: ${response.status}`);
+      }
+      
+      // Receber áudio de resposta
+      const responseAudioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(responseAudioBlob);
+      
+      // Adicionar mensagem de áudio do usuário
+      const userMessage: ModernMessage = {
+        id: Date.now().toString(),
+        content: 'Mensagem de voz enviada',
+        sender: 'user',
+        timestamp: new Date(),
+        type: 'audio',
+        audioUrl: URL.createObjectURL(audioBlob)
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Adicionar mensagem de áudio da resposta
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: 'Resposta de voz recebida',
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'audio',
+        audioUrl: audioUrl
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+      
+      // Reproduzir automaticamente a resposta
+      setTimeout(() => {
+        playAudio(contactMessage.id, audioUrl);
+      }, 500);
+      
+      toast.success('Mensagem de voz processada');
+    } catch (error) {
+      console.error('Erro ao processar áudio:', error);
+      toast.error('Erro ao processar mensagem de voz');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const playAudio = (messageId: string, audioUrl: string) => {
+    const audio = new Audio(audioUrl);
+    setPlayingAudioId(messageId);
+    
+    audio.onended = () => {
+      setPlayingAudioId(null);
+    };
+    
+    audio.onerror = () => {
+      setPlayingAudioId(null);
+      toast.error('Erro ao reproduzir áudio');
+    };
+    
+    audio.play().catch(error => {
+      console.error('Erro ao reproduzir áudio:', error);
+      setPlayingAudioId(null);
+      toast.error('Erro ao reproduzir áudio');
+    });
+  };
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -116,10 +254,6 @@ const ChatFreePage = () => {
       minute: '2-digit',
       timeZone: 'America/Sao_Paulo'
     });
-  };
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
   };
 
   const handleEmoticonClick = () => {
@@ -180,42 +314,6 @@ const ChatFreePage = () => {
     }
   };
 
-  const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    // Get gift emoji mapping
-    const giftEmojis: { [key: string]: string } = {
-      "00000000-0000-0000-0000-000000000001": "🌹",
-      "00000000-0000-0000-0000-000000000002": "🍫", 
-      "00000000-0000-0000-0000-000000000003": "🧸",
-      "00000000-0000-0000-0000-000000000004": "💐"
-    };
-
-    const giftMessage: ModernMessage = {
-      id: Date.now().toString(),
-      content: `Enviou um presente: ${giftName}`,
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'gift',
-      giftId,
-      giftName,
-      giftEmoji: giftEmojis[giftId] || '🎁'
-    };
-    
-    setMessages(prev => [...prev, giftMessage]);
-    toast.success(`Presente ${giftName} enviado com sucesso!`);
-
-    // Simulate contact response
-    setTimeout(() => {
-      const responseMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages(prev => [...prev, responseMessage]);
-    }, 1500);
-  };
-
   // Mobile loading component
   const MobileLoadingIndicator = () => (
     <div className="flex justify-start mb-4">
@@ -234,22 +332,61 @@ const ChatFreePage = () => {
     </div>
   );
 
-  const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
-    <div className="flex justify-center my-6">
-      <div className="relative">
-        <div className="text-8xl animate-bounce drop-shadow-2xl">
-          {message.giftEmoji || '🎁'}
+  const AudioMessage = ({ message }: { message: ModernMessage }) => {
+    const isPlaying = playingAudioId === message.id;
+    
+    return (
+      <div className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+        {message.sender === 'contact' && (
+          <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+            <AvatarImage src={contactAvatar} alt={contactName} />
+            <AvatarFallback className="bg-purple-600 text-white">
+              {contactName.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+        )}
+        
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl max-w-[70%] ${
+          message.sender === 'user' 
+            ? 'bg-purple-600 text-white rounded-br-md' 
+            : 'bg-gray-700 text-white rounded-bl-md'
+        }`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-current hover:bg-white/20"
+            onClick={() => message.audioUrl && playAudio(message.id, message.audioUrl)}
+            disabled={isPlaying}
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          </Button>
+          
+          <div className="flex-1">
+            <div className="text-sm">{message.content}</div>
+            <div className="text-xs opacity-70 mt-1">
+              {formatTime(message.timestamp)}
+            </div>
+          </div>
+          
+          {isPlaying && (
+            <div className="flex space-x-1">
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse"></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          )}
         </div>
         
-        <div className="absolute -top-2 -left-2 text-2xl animate-pulse text-yellow-400">✨</div>
-        <div className="absolute -top-1 -right-2 text-xl animate-pulse text-pink-400" style={{ animationDelay: '0.5s' }}>💫</div>
-        <div className="absolute -bottom-1 -left-1 text-lg animate-pulse text-purple-400" style={{ animationDelay: '1s' }}>⭐</div>
-        <div className="absolute -bottom-2 -right-1 text-2xl animate-pulse text-blue-400" style={{ animationDelay: '1.5s' }}>✨</div>
-        
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 animate-ping text-red-400">❤️</div>
+        {message.sender === 'user' && (
+          <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+            <AvatarFallback className="bg-gray-300 text-gray-600">
+              EU
+            </AvatarFallback>
+          </Avatar>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
@@ -311,34 +448,98 @@ const ChatFreePage = () => {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-4 space-y-4">
-            <div className="flex justify-center items-center h-full">
-              <div className="text-center text-gray-400">
-                <p className="text-lg mb-2">Versão Gratuita Limitada</p>
-                <p className="text-sm">Atualize seu plano para conversas ilimitadas</p>
+            {messages.length === 0 ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="text-center text-gray-400">
+                  <p className="text-lg mb-2">Comece uma conversa!</p>
+                  <p className="text-sm">Digite uma mensagem ou grave um áudio para {contactName}</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex justify-center">
+                  <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
+                    Hoje
+                  </span>
+                </div>
+                {messages.map((message) => (
+                  <div key={message.id}>
+                    {message.type === 'audio' ? (
+                      <AudioMessage message={message} />
+                    ) : (
+                      <div className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+                        {message.sender === 'contact' && (
+                          <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+                            <AvatarImage src={contactAvatar} alt={contactName} />
+                            <AvatarFallback className="bg-purple-600 text-white">
+                              {contactName.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div className={`max-w-[70%] space-y-1`}>
+                          <div className={`px-4 py-3 rounded-2xl ${
+                            message.sender === 'user' 
+                              ? 'bg-purple-600 text-white rounded-br-md' 
+                              : 'bg-gray-700 text-white rounded-bl-md'
+                          }`}>
+                            <div className="text-sm">{message.content}</div>
+                            <div className="text-xs opacity-70 mt-1">
+                              {formatTime(message.timestamp)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {message.sender === 'user' && (
+                          <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                            <AvatarFallback className="bg-gray-300 text-gray-600">
+                              EU
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isLoading && <MobileLoadingIndicator />}
+              </>
+            )}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
 
-      {/* Input area - disabled for free plan */}
+      {/* Processing indicator */}
+      {isProcessing && (
+        <div className="px-4 py-2 bg-yellow-600 text-white text-center">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>Processando áudio...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
             <Input
-              value=""
-              placeholder="Atualize para o plano básico para conversar..."
-              className="bg-gray-700 border-gray-600 text-gray-400 placeholder-gray-500 pr-12 rounded-full"
-              disabled
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Digite sua mensagem..."
+              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
+              disabled={isLoading || isRecording || isProcessing}
             />
           </div>
           
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 text-gray-500 cursor-not-allowed"
-            disabled
+            onClick={handleEmoticonClick}
+            className="flex-shrink-0 text-gray-400 hover:text-white hover:bg-gray-700"
+            disabled={isRecording || isProcessing}
           >
             <Smile size={20} />
           </Button>
@@ -346,32 +547,55 @@ const ChatFreePage = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 text-gray-500 cursor-not-allowed"
-            disabled
+            onClick={handleGiftClick}
+            className="flex-shrink-0 text-gray-400 hover:text-white hover:bg-gray-700"
+            disabled={isRecording || isProcessing}
           >
             <Gift size={20} />
           </Button>
           
           <Button
-            variant="ghost"
+            variant={isRecording ? "destructive" : "ghost"}
             size="icon"
-            className="flex-shrink-0 text-gray-500 cursor-not-allowed"
-            disabled
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`flex-shrink-0 ${isRecording ? 'animate-pulse' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+            disabled={isProcessing}
           >
-            <Mic size={20} />
+            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
           </Button>
           
           <Button
             size="icon"
-            className="bg-gray-600 text-gray-400 rounded-full flex-shrink-0 cursor-not-allowed"
-            disabled
+            onClick={handleSendMessage}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
+            disabled={!input.trim() || isLoading || isRecording || isProcessing}
           >
             <Send size={18} />
           </Button>
         </div>
       </div>
+
+      {/* Emoticon Selector */}
+      {showEmoticonSelector && (
+        <div className="absolute bottom-20 left-4 right-4 z-10">
+          <EmoticonSelector 
+            onSelect={handleEmoticonSelect}
+            onClose={() => setShowEmoticonSelector(false)}
+          />
+        </div>
+      )}
+
+      {/* Gift Selection */}
+      {showGiftSelection && (
+        <div className="absolute inset-0 z-10">
+          <GiftSelection 
+            onClose={() => setShowGiftSelection(false)}
+            onSelectGift={handleGiftSelect}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChatFreePage;
+export default ChatTextOnlyPage;
