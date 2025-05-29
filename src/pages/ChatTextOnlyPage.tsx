@@ -47,6 +47,7 @@ const ChatTextOnlyPage = () => {
   const [messages, setMessages] = useState<ModernMessage[]>([]);
   const planName = "Text Only";
   const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   // Verificar acesso ao plano via Supabase
   useEffect(() => {
@@ -171,23 +172,80 @@ const ChatTextOnlyPage = () => {
       // Criar blob do áudio gravado
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       
-      // Preparar FormData para envio
-      const formData = new FormData();
-      formData.append('data', audioBlob, 'audio.webm');
+      // Converter para base64
+      const base64Audio = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          // Remove o prefixo data:audio/webm;base64,
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(audioBlob);
+      });
+      
+      // Preparar payload no formato solicitado
+      const payload = {
+        "config": {
+          "encoding": "WEBM_OPUS",
+          "sampleRateHertz": 16000,
+          "languageCode": "pt-BR"
+        },
+        "audio": {
+          "content": base64Audio
+        }
+      };
+      
+      console.log('Enviando áudio para n8n:', payload);
       
       // Enviar para o webhook do n8n
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
-        throw new Error(`Erro na resposta: ${response.status}`);
+        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
       }
       
-      // Receber áudio de resposta
-      const responseAudioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(responseAudioBlob);
+      const contentType = response.headers.get('Content-Type');
+      console.log('Content-Type da resposta:', contentType);
+      
+      let audioUrl: string;
+      let responseText = '';
+      
+      // Verificar se a resposta é áudio ou JSON
+      if (contentType?.includes('audio/')) {
+        console.log('Resposta é áudio direto');
+        // Se a resposta for áudio direto
+        const responseAudioBlob = await response.blob();
+        audioUrl = URL.createObjectURL(responseAudioBlob);
+      } else {
+        console.log('Resposta é JSON');
+        // Se a resposta for JSON
+        const jsonResponse = await response.json();
+        console.log('Resposta JSON:', jsonResponse);
+        
+        if (jsonResponse.audio && jsonResponse.audio.content) {
+          // Se o áudio estiver em base64 no JSON
+          const base64AudioResponse = jsonResponse.audio.content;
+          const audioBlob = new Blob([
+            Uint8Array.from(atob(base64AudioResponse), c => c.charCodeAt(0))
+          ], { type: 'audio/webm' });
+          audioUrl = URL.createObjectURL(audioBlob);
+        } else if (jsonResponse.audioUrl) {
+          // Se houver uma URL direta para o áudio
+          audioUrl = jsonResponse.audioUrl;
+        } else if (jsonResponse.text) {
+          // Se for apenas texto
+          responseText = jsonResponse.text;
+        } else {
+          throw new Error('Formato de resposta não reconhecido');
+        }
+      }
       
       // Adicionar mensagem de áudio do usuário
       const userMessage: ModernMessage = {
@@ -201,43 +259,75 @@ const ChatTextOnlyPage = () => {
       
       setMessages(prev => [...prev, userMessage]);
       
-      // Adicionar mensagem de áudio da resposta
-      const contactMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: 'Resposta de voz recebida',
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'audio',
-        audioUrl: audioUrl
-      };
-      
-      setMessages(prev => [...prev, contactMessage]);
-      
-      // Reproduzir automaticamente a resposta
-      setTimeout(() => {
-        playAudio(contactMessage.id, audioUrl);
-      }, 500);
+      // Adicionar mensagem de resposta
+      if (audioUrl) {
+        const contactMessage: ModernMessage = {
+          id: (Date.now() + 1).toString(),
+          content: 'Resposta de voz recebida',
+          sender: 'contact',
+          timestamp: new Date(),
+          type: 'audio',
+          audioUrl: audioUrl
+        };
+        
+        setMessages(prev => [...prev, contactMessage]);
+        
+        // Reproduzir automaticamente a resposta após um pequeno delay
+        setTimeout(() => {
+          playAudio(contactMessage.id, audioUrl);
+        }, 500);
+      } else if (responseText) {
+        const contactMessage: ModernMessage = {
+          id: (Date.now() + 1).toString(),
+          content: responseText,
+          sender: 'contact',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        
+        setMessages(prev => [...prev, contactMessage]);
+      }
       
       toast.success('Mensagem de voz processada');
     } catch (error) {
       console.error('Erro ao processar áudio:', error);
-      toast.error('Erro ao processar mensagem de voz');
+      toast.error(`Erro ao processar mensagem de voz: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const playAudio = (messageId: string, audioUrl: string) => {
-    const audio = new Audio(audioUrl);
+    // Parar qualquer áudio que esteja tocando
+    if (playingAudioId) {
+      const currentAudio = audioRefs.current.get(playingAudioId);
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+    }
+    
+    // Criar novo elemento de áudio ou usar existente
+    let audio = audioRefs.current.get(messageId);
+    if (!audio) {
+      audio = new Audio(audioUrl);
+      audioRefs.current.set(messageId, audio);
+    }
+    
     setPlayingAudioId(messageId);
     
     audio.onended = () => {
       setPlayingAudioId(null);
     };
     
-    audio.onerror = () => {
+    audio.onerror = (error) => {
+      console.error('Erro ao reproduzir áudio:', error);
       setPlayingAudioId(null);
       toast.error('Erro ao reproduzir áudio');
+    };
+    
+    audio.onloadeddata = () => {
+      console.log('Áudio carregado, duration:', audio?.duration);
     };
     
     audio.play().catch(error => {
