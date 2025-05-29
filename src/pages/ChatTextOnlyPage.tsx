@@ -181,19 +181,48 @@ const ChatTextOnlyPage = () => {
     toast.info('Processando áudio...');
     
     try {
-      // Create audio blob from recorded chunks
+      // Create audio blob from recorded chunks with WEBM_OPUS format
       const audioBlob = new Blob(audioChunksRef.current, { 
-        type: 'audio/webm' 
+        type: 'audio/webm;codecs=opus' 
       });
       
       console.log('📤 Enviando áudio para processamento:', {
         size: audioBlob.size,
-        type: audioBlob.type
+        type: audioBlob.type,
+        format: 'WEBM_OPUS'
       });
       
-      // Prepare FormData for sending
-      const formData = new FormData();
-      formData.append('data', audioBlob, 'audio.webm');
+      // Convert audio blob to base64
+      const reader = new FileReader();
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data URL prefix to get only the base64 content
+          const base64Content = result.split(',')[1];
+          resolve(base64Content);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+      
+      // Prepare JSON payload in the required format
+      const payload = {
+        config: {
+          encoding: "WEBM_OPUS",
+          sampleRateHertz: 16000,
+          languageCode: "pt-BR"
+        },
+        audio: {
+          content: base64Audio
+        }
+      };
+      
+      console.log('📦 Payload preparado:', {
+        encoding: payload.config.encoding,
+        sampleRate: payload.config.sampleRateHertz,
+        language: payload.config.languageCode,
+        audioContentLength: payload.audio.content.length
+      });
       
       // Send to n8n webhook with timeout
       const controller = new AbortController();
@@ -202,7 +231,10 @@ const ChatTextOnlyPage = () => {
       try {
         const response = await fetch(webhookUrl, {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload),
           signal: controller.signal
         });
         
@@ -217,57 +249,96 @@ const ChatTextOnlyPage = () => {
           contentType: response.headers.get('content-type')
         });
         
-        // Check if response is audio
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('audio')) {
-          throw new Error('Resposta não contém áudio válido');
+        // Check if response contains audio data
+        const responseData = await response.json();
+        
+        if (responseData.audio && responseData.audio.content) {
+          // Convert base64 response back to audio blob
+          const responseAudioData = responseData.audio.content;
+          const binaryString = atob(responseAudioData);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const responseAudioBlob = new Blob([bytes], { 
+            type: 'audio/webm;codecs=opus' 
+          });
+          
+          console.log('🎵 Blob de áudio recebido:', {
+            size: responseAudioBlob.size,
+            type: responseAudioBlob.type
+          });
+          
+          if (responseAudioBlob.size === 0) {
+            throw new Error('Arquivo de áudio vazio recebido');
+          }
+          
+          // Create object URLs for both user and contact messages
+          const userAudioUrl = URL.createObjectURL(audioBlob);
+          const contactAudioUrl = URL.createObjectURL(responseAudioBlob);
+          
+          // Add user message
+          const userMessage: ModernMessage = {
+            id: Date.now().toString(),
+            content: 'Mensagem de voz enviada',
+            sender: 'user',
+            timestamp: new Date(),
+            type: 'audio',
+            audioUrl: userAudioUrl
+          };
+          
+          setMessages(prev => [...prev, userMessage]);
+          
+          // Add contact response message
+          const contactMessage: ModernMessage = {
+            id: (Date.now() + 1).toString(),
+            content: 'Resposta de voz recebida',
+            sender: 'contact',
+            timestamp: new Date(),
+            type: 'audio',
+            audioUrl: contactAudioUrl
+          };
+          
+          setMessages(prev => [...prev, contactMessage]);
+          
+          // Auto-play the response after a short delay
+          setTimeout(() => {
+            playAudio(contactMessage.id, contactAudioUrl);
+          }, 500);
+          
+          toast.success('Mensagem de voz processada com sucesso');
+          
+        } else {
+          // Handle text response if no audio is returned
+          const textResponse = responseData.text || 'Resposta recebida sem áudio';
+          
+          // Add user audio message
+          const userAudioUrl = URL.createObjectURL(audioBlob);
+          const userMessage: ModernMessage = {
+            id: Date.now().toString(),
+            content: 'Mensagem de voz enviada',
+            sender: 'user',
+            timestamp: new Date(),
+            type: 'audio',
+            audioUrl: userAudioUrl
+          };
+          
+          setMessages(prev => [...prev, userMessage]);
+          
+          // Add text response message
+          const contactMessage: ModernMessage = {
+            id: (Date.now() + 1).toString(),
+            content: textResponse,
+            sender: 'contact',
+            timestamp: new Date(),
+            type: 'text'
+          };
+          
+          setMessages(prev => [...prev, contactMessage]);
+          
+          toast.success('Mensagem processada com sucesso');
         }
-        
-        // Get audio response as blob
-        const responseAudioBlob = await response.blob();
-        console.log('🎵 Blob de áudio recebido:', {
-          size: responseAudioBlob.size,
-          type: responseAudioBlob.type
-        });
-        
-        if (responseAudioBlob.size === 0) {
-          throw new Error('Arquivo de áudio vazio recebido');
-        }
-        
-        // Create object URLs for both user and contact messages
-        const userAudioUrl = URL.createObjectURL(audioBlob);
-        const contactAudioUrl = URL.createObjectURL(responseAudioBlob);
-        
-        // Add user message
-        const userMessage: ModernMessage = {
-          id: Date.now().toString(),
-          content: 'Mensagem de voz enviada',
-          sender: 'user',
-          timestamp: new Date(),
-          type: 'audio',
-          audioUrl: userAudioUrl
-        };
-        
-        setMessages(prev => [...prev, userMessage]);
-        
-        // Add contact response message
-        const contactMessage: ModernMessage = {
-          id: (Date.now() + 1).toString(),
-          content: 'Resposta de voz recebida',
-          sender: 'contact',
-          timestamp: new Date(),
-          type: 'audio',
-          audioUrl: contactAudioUrl
-        };
-        
-        setMessages(prev => [...prev, contactMessage]);
-        
-        // Auto-play the response after a short delay
-        setTimeout(() => {
-          playAudio(contactMessage.id, contactAudioUrl);
-        }, 500);
-        
-        toast.success('Mensagem de voz processada com sucesso');
         
       } catch (fetchError) {
         clearTimeout(timeoutId);
