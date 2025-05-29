@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -227,11 +228,11 @@ const ChatTextOnlyPage = () => {
         console.log('Resposta é JSON');
         // Se a resposta for JSON, tentar processar mesmo se houver erro de parsing
         try {
-          const responseText = await response.text();
-          console.log('Resposta como texto:', responseText);
+          const responseTextRaw = await response.text();
+          console.log('Resposta como texto:', responseTextRaw);
           
-          if (responseText.trim()) {
-            const jsonResponse = JSON.parse(responseText);
+          if (responseTextRaw.trim()) {
+            const jsonResponse = JSON.parse(responseTextRaw);
             console.log('Resposta JSON:', jsonResponse);
             
             if (jsonResponse.audio && jsonResponse.audio.content) {
@@ -249,7 +250,7 @@ const ChatTextOnlyPage = () => {
               responseText = jsonResponse.text;
             } else {
               console.log('Formato de resposta não reconhecido, usando resposta como texto');
-              responseText = responseText;
+              responseText = responseTextRaw;
             }
           } else {
             console.log('Resposta vazia');
