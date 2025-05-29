@@ -214,7 +214,7 @@ const ChatTextOnlyPage = () => {
       const contentType = response.headers.get('Content-Type');
       console.log('Content-Type da resposta:', contentType);
       
-      let audioUrl: string;
+      let audioUrl: string | null = null;
       let responseText = '';
       
       // Verificar se a resposta é áudio ou JSON
@@ -225,25 +225,40 @@ const ChatTextOnlyPage = () => {
         audioUrl = URL.createObjectURL(responseAudioBlob);
       } else {
         console.log('Resposta é JSON');
-        // Se a resposta for JSON
-        const jsonResponse = await response.json();
-        console.log('Resposta JSON:', jsonResponse);
-        
-        if (jsonResponse.audio && jsonResponse.audio.content) {
-          // Se o áudio estiver em base64 no JSON
-          const base64AudioResponse = jsonResponse.audio.content;
-          const audioBlob = new Blob([
-            Uint8Array.from(atob(base64AudioResponse), c => c.charCodeAt(0))
-          ], { type: 'audio/webm' });
-          audioUrl = URL.createObjectURL(audioBlob);
-        } else if (jsonResponse.audioUrl) {
-          // Se houver uma URL direta para o áudio
-          audioUrl = jsonResponse.audioUrl;
-        } else if (jsonResponse.text) {
-          // Se for apenas texto
-          responseText = jsonResponse.text;
-        } else {
-          throw new Error('Formato de resposta não reconhecido');
+        // Se a resposta for JSON, tentar processar mesmo se houver erro de parsing
+        try {
+          const responseText = await response.text();
+          console.log('Resposta como texto:', responseText);
+          
+          if (responseText.trim()) {
+            const jsonResponse = JSON.parse(responseText);
+            console.log('Resposta JSON:', jsonResponse);
+            
+            if (jsonResponse.audio && jsonResponse.audio.content) {
+              // Se o áudio estiver em base64 no JSON
+              const base64AudioResponse = jsonResponse.audio.content;
+              const audioBlob = new Blob([
+                Uint8Array.from(atob(base64AudioResponse), c => c.charCodeAt(0))
+              ], { type: 'audio/webm' });
+              audioUrl = URL.createObjectURL(audioBlob);
+            } else if (jsonResponse.audioUrl) {
+              // Se houver uma URL direta para o áudio
+              audioUrl = jsonResponse.audioUrl;
+            } else if (jsonResponse.text) {
+              // Se for apenas texto
+              responseText = jsonResponse.text;
+            } else {
+              console.log('Formato de resposta não reconhecido, usando resposta como texto');
+              responseText = responseText;
+            }
+          } else {
+            console.log('Resposta vazia');
+            responseText = 'Resposta vazia do servidor';
+          }
+        } catch (parseError) {
+          console.log('Erro ao fazer parse do JSON, tratando como texto:', parseError);
+          const textResponse = await response.text();
+          responseText = textResponse || 'Erro ao processar resposta';
         }
       }
       
