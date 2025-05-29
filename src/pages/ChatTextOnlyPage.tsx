@@ -1,9 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
-import { useUserCache } from '@/hooks/useUserCache';
 import { ArrowLeft, Phone, Video, Mic, MicOff, Send, Smile, Gift, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,8 +28,6 @@ interface ModernMessage {
 
 const ChatTextOnlyPage = () => {
   const { user } = useAuth();
-  const { userSubscription } = useSubscription();
-  const { plan } = useUserCache();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,23 +48,69 @@ const ChatTextOnlyPage = () => {
   const planName = "Text Only";
   const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
-  // Verificar acesso ao plano
+  // Verificar acesso ao plano via Supabase
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    const checkPlanAccess = async () => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
 
-    // Verificar se o usuário tem o plano correto
-    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
-    const hasCorrectPlan = userPlanName === 'Text Only';
-    
-    if (!hasCorrectPlan) {
-      toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
-      navigate('/profile');
-      return;
-    }
-  }, [user, plan, userSubscription, navigate]);
+      try {
+        // Verificar subscription ativa
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('plan_name, status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+
+        if (subError && subError.code !== 'PGRST116') {
+          console.error('Erro ao consultar subscription:', subError);
+          throw subError;
+        }
+
+        let hasAccess = false;
+        let userPlanName = subscription?.plan_name;
+
+        // Se encontrou subscription ativa, verificar se é o plano correto
+        if (userPlanName) {
+          hasAccess = userPlanName === 'Text Only';
+        } else {
+          // Se não encontrou subscription, verificar no profiles
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('plan_name, plan_active')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Erro ao consultar profile:', profileError);
+            throw profileError;
+          }
+
+          if (profile?.plan_active && profile?.plan_name) {
+            userPlanName = profile.plan_name;
+            hasAccess = profile.plan_name === 'Text Only';
+          }
+        }
+
+        if (!hasAccess) {
+          toast.error('Acesso negado. Você precisa do plano Text Only para acessar esta página.');
+          navigate('/profile');
+          return;
+        }
+
+        console.log('Acesso liberado para o plano:', userPlanName);
+      } catch (error) {
+        console.error('Erro ao verificar acesso ao plano:', error);
+        toast.error('Erro ao verificar permissões. Redirecionando para o perfil.');
+        navigate('/profile');
+      }
+    };
+
+    checkPlanAccess();
+  }, [user, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -9,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -106,22 +106,74 @@ const ProfilePage = () => {
   const isActivePlan = planData?.plan_active || hasPlanActive();
   const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
 
-  const handleChatRedirect = () => {
-    if (!isActivePlan || !activePlanName) {
-      navigate('/chat-free');
+  const handleChatRedirect = async () => {
+    if (!user) {
+      toast.error('Você precisa estar logado para acessar o chat');
+      navigate('/login');
       return;
     }
 
-    const lowerPlanName = activePlanName.toLowerCase();
-    
-    if (lowerPlanName.includes('basic') || lowerPlanName.includes('básico')) {
-      navigate('/chat-basic');
-    } else if (lowerPlanName.includes('premium')) {
-      navigate('/chat-premium');
-    } else if (lowerPlanName.includes('ultimate')) {
-      navigate('/chat-ultimate');
-    } else {
-      navigate('/modern-chat');
+    try {
+      // Consultar o plano ativo no Supabase
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('plan_name, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (subError && subError.code !== 'PGRST116') {
+        console.error('Erro ao consultar subscription:', subError);
+        throw subError;
+      }
+
+      // Se não encontrou subscription ativa, verificar no profiles
+      let userPlanName = subscription?.plan_name;
+      
+      if (!userPlanName) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('plan_name, plan_active')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Erro ao consultar profile:', profileError);
+          throw profileError;
+        }
+
+        if (profile?.plan_active) {
+          userPlanName = profile.plan_name;
+        }
+      }
+
+      // Redirecionar baseado no plano
+      if (!userPlanName) {
+        toast.info('Nenhum plano ativo encontrado, redirecionando para plano gratuito');
+        navigate('/');
+        return;
+      }
+
+      const lowerPlanName = userPlanName.toLowerCase();
+      
+      if (lowerPlanName.includes('text only') || lowerPlanName === 'text only') {
+        navigate('/chat-text-only');
+      } else if (lowerPlanName.includes('text') && lowerPlanName.includes('audio')) {
+        navigate('/chat-text-audio');
+      } else if (lowerPlanName.includes('premium')) {
+        navigate('/chat-premium');
+      } else if (lowerPlanName.includes('ultimate')) {
+        navigate('/chat-ultimate');
+      } else {
+        // Fallback para o chat básico
+        navigate('/chat-text-only');
+      }
+
+      toast.success(`Redirecionando para o chat do plano ${userPlanName}`);
+    } catch (error: any) {
+      console.error('Erro ao verificar plano do usuário:', error);
+      toast.error('Erro ao verificar seu plano. Redirecionando para página inicial.');
+      navigate('/');
     }
   };
 
