@@ -46,7 +46,7 @@ const ChatTextOnlyPage = () => {
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
   const planName = "Text Only";
-  const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+  const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d9739-ohasd-5-pijasd54-asd42";
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
