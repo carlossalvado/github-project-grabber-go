@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Mic, MicOff, Send, Smile, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
-import EmoticonSelector from '@/components/EmoticonSelector';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { elevenLabsService } from '@/services/elevenLabsService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ interface ModernMessage {
   type: 'text' | 'image' | 'audio' | 'gift';
   images?: string[];
   audioDuration?: string;
+  audioUrl?: string;
   giftId?: string;
   giftName?: string;
   giftEmoji?: string;
@@ -29,11 +31,18 @@ const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [input, setInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const isMobile = useIsMobile();
+  
+  const {
+    isRecording,
+    recordingTime,
+    startRecording,
+    stopRecording
+  } = useAudioRecording();
   
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
@@ -111,6 +120,12 @@ const ChatTextAudioPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
     
@@ -127,7 +142,6 @@ const ChatTextAudioPage = () => {
     setInput('');
     setIsLoading(true);
 
-    // Blur input to hide keyboard on mobile
     if (isMobile && inputRef.current) {
       inputRef.current.blur();
     }
@@ -135,7 +149,6 @@ const ChatTextAudioPage = () => {
     try {
       console.log('Enviando mensagem de texto para n8n:', messageContent);
       
-      // Enviar mensagem para o webhook do n8n
       const response = await fetch(textWebhookUrl, {
         method: 'POST',
         headers: {
@@ -154,7 +167,6 @@ const ChatTextAudioPage = () => {
       
       console.log('Resposta recebida do n8n');
       
-      // Processar resposta do n8n
       let responseText = '';
       try {
         const responseData = await response.json();
@@ -194,7 +206,6 @@ const ChatTextAudioPage = () => {
       console.error('Erro ao enviar mensagem para n8n:', error);
       toast.error(`Erro ao processar mensagem: ${error.message}`);
       
-      // Fallback - resposta local em caso de erro
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
         content: `Desculpe, ocorreu um erro ao processar sua mensagem. Mensagem recebida: "${messageContent}"`,
@@ -206,6 +217,106 @@ const ChatTextAudioPage = () => {
       setMessages(prev => [...prev, contactMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAudioMessage = async () => {
+    if (isRecording) {
+      // Stop recording and process
+      setIsLoading(true);
+      try {
+        const audioBlob = await stopRecording();
+        if (!audioBlob) {
+          throw new Error('Falha na gravação');
+        }
+
+        // Transcribe audio with ElevenLabs
+        const transcribedText = await elevenLabsService.transcribeAudio(audioBlob);
+        
+        if (!transcribedText.trim()) {
+          throw new Error('Não foi possível transcrever o áudio');
+        }
+
+        // Add user message
+        const userMessage: ModernMessage = {
+          id: Date.now().toString(),
+          content: transcribedText,
+          sender: 'user',
+          timestamp: new Date(),
+          type: 'audio',
+          audioDuration: formatRecordingTime(recordingTime),
+          audioUrl: URL.createObjectURL(audioBlob)
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
+
+        // Send to n8n webhook for processing
+        const response = await fetch(textWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: transcribedText,
+            timestamp: new Date().toISOString(),
+            user: user?.email || 'anonymous'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro na resposta do n8n: ${response.status}`);
+        }
+
+        let responseText = '';
+        try {
+          const responseData = await response.json();
+          if (responseData.message) {
+            responseText = responseData.message;
+          } else if (responseData.text) {
+            responseText = responseData.text;
+          } else if (responseData.response) {
+            responseText = responseData.response;
+          } else if (typeof responseData === 'string') {
+            responseText = responseData;
+          } else {
+            responseText = JSON.stringify(responseData);
+          }
+        } catch (jsonError) {
+          responseText = await response.text();
+        }
+
+        if (responseText) {
+          // Generate audio response with ElevenLabs
+          const audioContent = await elevenLabsService.generateSpeech(responseText);
+          const audioUrl = elevenLabsService.base64ToAudioUrl(audioContent);
+
+          const contactMessage: ModernMessage = {
+            id: (Date.now() + 2).toString(),
+            content: responseText,
+            sender: 'contact',
+            timestamp: new Date(),
+            type: 'audio',
+            audioUrl: audioUrl
+          };
+          
+          setMessages(prev => [...prev, contactMessage]);
+
+          // Auto-play the response
+          setTimeout(() => {
+            const audio = new Audio(audioUrl);
+            audio.play().catch(console.error);
+          }, 500);
+        }
+
+      } catch (error) {
+        console.error('Erro ao processar áudio:', error);
+        toast.error(`Erro ao processar áudio: ${error.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Start recording
+      await startRecording();
     }
   };
 
@@ -224,6 +335,18 @@ const ChatTextAudioPage = () => {
     });
   };
 
+  const playAudio = (messageId: string, audioUrl: string) => {
+    const existingAudio = audioRefs.current.get(messageId);
+    if (existingAudio) {
+      existingAudio.pause();
+      existingAudio.currentTime = 0;
+    }
+
+    const audio = new Audio(audioUrl);
+    audioRefs.current.set(messageId, audio);
+    audio.play().catch(console.error);
+  };
+
   // Mobile loading component
   const MobileLoadingIndicator = () => (
     <div className="flex justify-start mb-4">
@@ -235,7 +358,7 @@ const ChatTextAudioPage = () => {
               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
             </div>
-            <span className="text-sm text-gray-300">digitando...</span>
+            <span className="text-sm text-gray-300">processando...</span>
           </div>
         </div>
       </div>
@@ -306,7 +429,7 @@ const ChatTextAudioPage = () => {
               <div className="flex justify-center items-center h-full">
                 <div className="text-center text-gray-400">
                   <p className="text-lg mb-2">Comece uma conversa!</p>
-                  <p className="text-sm">Digite uma mensagem para {contactName}</p>
+                  <p className="text-sm">Digite uma mensagem ou grave um áudio para {contactName}</p>
                 </div>
               </div>
             ) : (
@@ -333,6 +456,21 @@ const ChatTextAudioPage = () => {
                           ? 'bg-purple-600 text-white rounded-br-md' 
                           : 'bg-gray-700 text-white rounded-bl-md'
                       }`}>
+                        {message.type === 'audio' && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => message.audioUrl && playAudio(message.id, message.audioUrl)}
+                              className="p-1 h-auto text-current hover:bg-white/10"
+                            >
+                              <Mic size={16} />
+                            </Button>
+                            {message.audioDuration && (
+                              <span className="text-xs opacity-70">{message.audioDuration}</span>
+                            )}
+                          </div>
+                        )}
                         <div className="text-sm">{message.content}</div>
                         <div className="text-xs opacity-70 mt-1">
                           {formatTime(message.timestamp)}
@@ -357,6 +495,16 @@ const ChatTextAudioPage = () => {
         </ScrollArea>
       </div>
 
+      {/* Recording indicator */}
+      {isRecording && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+            <span className="font-medium">Gravando... {formatRecordingTime(recordingTime)}</span>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -368,7 +516,7 @@ const ChatTextAudioPage = () => {
               onKeyPress={handleKeyPress}
               placeholder="Digite sua mensagem..."
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
-              disabled={isLoading}
+              disabled={isLoading || isRecording}
             />
           </div>
           
@@ -391,19 +539,20 @@ const ChatTextAudioPage = () => {
           </Button>
           
           <Button
-            variant="ghost"
+            variant={isRecording ? "destructive" : "ghost"}
             size="icon"
-            className="flex-shrink-0 text-gray-400 cursor-not-allowed"
-            disabled
+            className={`flex-shrink-0 ${isRecording ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
+            onClick={handleAudioMessage}
+            disabled={isLoading}
           >
-            <Mic size={20} />
+            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
           </Button>
           
           <Button
             size="icon"
             onClick={handleSendMessage}
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isRecording}
           >
             <Send size={18} />
           </Button>
