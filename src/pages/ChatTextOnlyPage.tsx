@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +47,7 @@ const ChatTextOnlyPage = () => {
   const [messages, setMessages] = useState<ModernMessage[]>([]);
   const planName = "Text Only";
   const webhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   // Verificar acesso ao plano via Supabase
@@ -365,6 +365,7 @@ const ChatTextOnlyPage = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = input;
     setInput('');
     setIsLoading(true);
 
@@ -373,19 +374,81 @@ const ChatTextOnlyPage = () => {
       inputRef.current.blur();
     }
 
-    // Simulate typing delay for contact response
-    setTimeout(() => {
+    try {
+      console.log('Enviando mensagem de texto para n8n:', messageContent);
+      
+      // Enviar mensagem para o webhook do n8n
+      const response = await fetch(textWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          timestamp: new Date().toISOString(),
+          user: user?.email || 'anonymous'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
+      }
+      
+      console.log('Resposta recebida do n8n');
+      
+      // Processar resposta do n8n
+      let responseText = '';
+      try {
+        const responseData = await response.json();
+        console.log('Resposta JSON do n8n:', responseData);
+        
+        if (responseData.message) {
+          responseText = responseData.message;
+        } else if (responseData.text) {
+          responseText = responseData.text;
+        } else if (responseData.response) {
+          responseText = responseData.response;
+        } else if (typeof responseData === 'string') {
+          responseText = responseData;
+        } else {
+          responseText = JSON.stringify(responseData);
+        }
+      } catch (jsonError) {
+        console.log('Resposta não é JSON, tratando como texto');
+        responseText = await response.text();
+      }
+      
+      if (responseText) {
+        const contactMessage: ModernMessage = {
+          id: (Date.now() + 1).toString(),
+          content: responseText,
+          sender: 'contact',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        
+        setMessages(prev => [...prev, contactMessage]);
+      } else {
+        throw new Error('Resposta vazia do n8n');
+      }
+      
+    } catch (error) {
+      console.error('Erro ao enviar mensagem para n8n:', error);
+      toast.error(`Erro ao processar mensagem: ${error.message}`);
+      
+      // Fallback - resposta local em caso de erro
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
-        content: `Olá! Recebi sua mensagem: "${userMessage.content}"`,
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem. Mensagem recebida: "${messageContent}"`,
         sender: 'contact',
         timestamp: new Date(),
         type: 'text'
       };
       
       setMessages(prev => [...prev, contactMessage]);
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

@@ -13,6 +13,8 @@ interface ChatInputProps {
   onGiftClick?: () => void;
   value?: string;
   onChange?: (value: string) => void;
+  enableN8nIntegration?: boolean;
+  userEmail?: string;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
@@ -22,21 +24,92 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onEmoticonClick,
   onGiftClick,
   value = '',
-  onChange
+  onChange,
+  enableN8nIntegration = false,
+  userEmail = 'anonymous'
 }) => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim() && !disabled) {
-      onSendMessage(value.trim());
-      onChange?.('');
+    if (!value.trim() || disabled || isLoading) return;
+
+    const messageContent = value.trim();
+    onChange?.('');
+    
+    if (enableN8nIntegration) {
+      setIsLoading(true);
       
-      // Focus the textarea after sending
-      if (textareaRef.current) {
-        textareaRef.current.focus();
+      try {
+        console.log('Enviando mensagem de texto para n8n:', messageContent);
+        
+        // Enviar mensagem para o webhook do n8n
+        const response = await fetch(textWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: messageContent,
+            timestamp: new Date().toISOString(),
+            user: userEmail
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
+        }
+        
+        // Processar resposta do n8n
+        let responseText = '';
+        try {
+          const responseData = await response.json();
+          console.log('Resposta JSON do n8n:', responseData);
+          
+          if (responseData.message) {
+            responseText = responseData.message;
+          } else if (responseData.text) {
+            responseText = responseData.text;
+          } else if (responseData.response) {
+            responseText = responseData.response;
+          } else if (typeof responseData === 'string') {
+            responseText = responseData;
+          } else {
+            responseText = JSON.stringify(responseData);
+          }
+        } catch (jsonError) {
+          console.log('Resposta não é JSON, tratando como texto');
+          responseText = await response.text();
+        }
+        
+        // Enviar mensagem do usuário e resposta do n8n
+        onSendMessage(messageContent);
+        if (responseText) {
+          setTimeout(() => {
+            onSendMessage(responseText);
+          }, 500);
+        }
+        
+      } catch (error) {
+        console.error('Erro ao enviar mensagem para n8n:', error);
+        toast.error(`Erro ao processar mensagem: ${error.message}`);
+        
+        // Fallback - enviar apenas a mensagem do usuário
+        onSendMessage(messageContent);
+      } finally {
+        setIsLoading(false);
       }
+    } else {
+      // Comportamento original sem integração n8n
+      onSendMessage(messageContent);
+    }
+    
+    // Focus the textarea after sending
+    if (textareaRef.current) {
+      textareaRef.current.focus();
     }
   };
   
@@ -64,6 +137,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             variant="ghost" 
             className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
             onClick={onEmoticonClick}
+            disabled={isLoading}
           >
             <Smile size={20} />
           </Button>
@@ -74,6 +148,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             variant="ghost" 
             className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
             onClick={onGiftClick}
+            disabled={isLoading}
           >
             <Gift size={20} />
           </Button>
@@ -85,7 +160,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           onChange={handleChange}
           placeholder="Digite sua mensagem..."
           className="min-h-12 resize-none flex-1 rounded-full px-4 focus-visible:ring-gray-400"
-          disabled={disabled || isRecording}
+          disabled={disabled || isRecording || isLoading}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -101,7 +176,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             variant={isRecording ? "destructive" : "outline"} 
             className={`rounded-full flex-shrink-0 ${isRecording ? "animate-pulse" : ""}`}
             onClick={toggleRecording}
-            disabled={disabled}
+            disabled={disabled || isLoading}
           >
             {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
           </Button>
@@ -110,10 +185,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <Button 
           type="submit" 
           size="icon"
-          disabled={!value.trim() || disabled || isRecording}
+          disabled={!value.trim() || disabled || isRecording || isLoading}
           className="rounded-full bg-black hover:bg-gray-800 flex-shrink-0"
         >
-          <Send size={18} />
+          {isLoading ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send size={18} />
+          )}
         </Button>
       </form>
     </div>

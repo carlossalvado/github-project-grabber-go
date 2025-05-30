@@ -39,6 +39,7 @@ const ChatTextAudioPage = () => {
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
   const [messages, setMessages] = useState<ModernMessage[]>([]);
   const planName = "Text & Audio";
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
 
   // Verificar acesso ao plano via Supabase
   useEffect(() => {
@@ -106,6 +107,141 @@ const ChatTextAudioPage = () => {
     checkPlanAccess();
   }, [user, navigate]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    
+    const userMessage: ModernMessage = {
+      id: Date.now().toString(),
+      content: input,
+      sender: 'user',
+      timestamp: new Date(),
+      type: 'text'
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    const messageContent = input;
+    setInput('');
+    setIsLoading(true);
+
+    // Blur input to hide keyboard on mobile
+    if (isMobile && inputRef.current) {
+      inputRef.current.blur();
+    }
+
+    try {
+      console.log('Enviando mensagem de texto para n8n:', messageContent);
+      
+      // Enviar mensagem para o webhook do n8n
+      const response = await fetch(textWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          timestamp: new Date().toISOString(),
+          user: user?.email || 'anonymous'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
+      }
+      
+      console.log('Resposta recebida do n8n');
+      
+      // Processar resposta do n8n
+      let responseText = '';
+      try {
+        const responseData = await response.json();
+        console.log('Resposta JSON do n8n:', responseData);
+        
+        if (responseData.message) {
+          responseText = responseData.message;
+        } else if (responseData.text) {
+          responseText = responseData.text;
+        } else if (responseData.response) {
+          responseText = responseData.response;
+        } else if (typeof responseData === 'string') {
+          responseText = responseData;
+        } else {
+          responseText = JSON.stringify(responseData);
+        }
+      } catch (jsonError) {
+        console.log('Resposta não é JSON, tratando como texto');
+        responseText = await response.text();
+      }
+      
+      if (responseText) {
+        const contactMessage: ModernMessage = {
+          id: (Date.now() + 1).toString(),
+          content: responseText,
+          sender: 'contact',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        
+        setMessages(prev => [...prev, contactMessage]);
+      } else {
+        throw new Error('Resposta vazia do n8n');
+      }
+      
+    } catch (error) {
+      console.error('Erro ao enviar mensagem para n8n:', error);
+      toast.error(`Erro ao processar mensagem: ${error.message}`);
+      
+      // Fallback - resposta local em caso de erro
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem. Mensagem recebida: "${messageContent}"`,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo'
+    });
+  };
+
+  // Mobile loading component
+  const MobileLoadingIndicator = () => (
+    <div className="flex justify-start mb-4">
+      <div className="max-w-[70%] space-y-1">
+        <div className="bg-gray-700 text-white rounded-2xl rounded-bl-md px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            </div>
+            <span className="text-sm text-gray-300">digitando...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
       {/* Header */}
@@ -162,7 +298,7 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
 
-      {/* Messages - Basic text only */}
+      {/* Messages */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-4 space-y-4">
@@ -180,7 +316,40 @@ const ChatTextAudioPage = () => {
                     Hoje
                   </span>
                 </div>
-                {/* Basic message rendering */}
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+                    {message.sender === 'contact' && (
+                      <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+                        <AvatarImage src={contactAvatar} alt={contactName} />
+                        <AvatarFallback className="bg-purple-600 text-white">
+                          {contactName.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    
+                    <div className={`max-w-[70%] space-y-1`}>
+                      <div className={`px-4 py-3 rounded-2xl ${
+                        message.sender === 'user' 
+                          ? 'bg-purple-600 text-white rounded-br-md' 
+                          : 'bg-gray-700 text-white rounded-bl-md'
+                      }`}>
+                        <div className="text-sm">{message.content}</div>
+                        <div className="text-xs opacity-70 mt-1">
+                          {formatTime(message.timestamp)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {message.sender === 'user' && (
+                      <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                        <AvatarFallback className="bg-gray-300 text-gray-600">
+                          EU
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                  </div>
+                ))}
+                {isLoading && <MobileLoadingIndicator />}
               </>
             )}
             <div ref={messagesEndRef} />
@@ -188,7 +357,7 @@ const ChatTextAudioPage = () => {
         </ScrollArea>
       </div>
 
-      {/* Input area - Basic features only */}
+      {/* Input area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
@@ -196,7 +365,8 @@ const ChatTextAudioPage = () => {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Send message ..."
+              onKeyPress={handleKeyPress}
+              placeholder="Digite sua mensagem..."
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
               disabled={isLoading}
             />
@@ -231,6 +401,7 @@ const ChatTextAudioPage = () => {
           
           <Button
             size="icon"
+            onClick={handleSendMessage}
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
             disabled={!input.trim() || isLoading}
           >
