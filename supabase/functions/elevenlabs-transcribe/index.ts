@@ -29,7 +29,7 @@ serve(async (req) => {
     // Prepare form data for ElevenLabs
     const formData = new FormData()
     const blob = new Blob([binaryAudio], { type: 'audio/webm' })
-    formData.append('audio', blob, 'audio.webm')
+    formData.append('file', blob, 'audio.webm')
     formData.append('model_id', 'eleven_multilingual_v2')
 
     // Prepare headers with HMAC authentication
