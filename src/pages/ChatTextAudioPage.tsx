@@ -1,16 +1,17 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, MicOff, Send, Smile, Gift, Play, Pause, Loader2, AlertCircle } from 'lucide-react'; // Added Play/Pause, Loader, AlertCircle icons
+import { ArrowLeft, Mic, MicOff, Send, Smile, Gift, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { elevenLabsService } from '@/services/elevenLabsService';
 import { supabase } from '@/integrations/supabase/client';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Define message structure with new fields for audio processing state
 interface ModernMessage {
@@ -46,6 +47,9 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  // N8N webhook URL - substitua pela sua URL real
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
 
   // Scroll to bottom effect
   useEffect(() => {
@@ -104,7 +108,6 @@ const ChatTextAudioPage = () => {
           audioUrl: audioUrl,
           isTranscribing: true, // Mark as transcribing
           transcriptionError: null,
-          // audioDuration: formatRecordingTime(recordingTime) // Optional: Add duration
         };
         setMessages(prev => [...prev, userAudioMessage]);
 
@@ -160,27 +163,14 @@ const ChatTextAudioPage = () => {
       // If transcription is empty, maybe don't proceed to AI?
       if (!transcribedText.trim()) {
           console.log("Transcrição vazia, não enviando para IA.");
-          // Optionally show a message or just stop here
           return;
       }
 
-      // 2. Send transcribed text to backend/AI for response
-      console.log("Enviando texto para obter resposta da IA...");
-      setIsLoading(true); // Indicate loading for AI response part
-      // Replace with your actual API call
-      const response = await fetch('/api/chat', { // EXAMPLE API endpoint
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: transcribedText, userId: user?.id })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro na API de chat: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      const responseText = responseData.message || responseData.text || responseData.response || "Desculpe, não consegui processar isso.";
-      console.log("Resposta da IA:", responseText);
+      // 2. Send transcribed text to n8n webhook
+      console.log("Enviando texto transcrito para n8n...");
+      setIsLoading(true);
+      
+      const responseText = await sendToN8nWebhook(transcribedText);
 
       // 3. Generate speech for the AI response using ElevenLabs
       console.log("Gerando áudio da resposta com ElevenLabs...");
@@ -216,14 +206,85 @@ const ChatTextAudioPage = () => {
           ? { ...msg, isTranscribing: false, transcriptionError: error.message || 'Falha no processamento' }
           : msg
       ));
-      // **Important:** Do NOT add a separate error message from the contact.
-      // The error is now indicated on the user's audio message bubble.
 
     } finally {
       setIsLoading(false); // Stop general loading indicator
     }
   };
 
+  // --- N8N Webhook Communication ---
+  const sendToN8nWebhook = async (messageText: string): Promise<string> => {
+    try {
+      console.log('Enviando mensagem para n8n:', messageText);
+      
+      const response = await fetch(textWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: messageText,
+          timestamp: new Date().toISOString(),
+          user: user?.email || 'anonymous'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro na resposta do webhook: ${response.status} - ${response.statusText}`);
+      }
+      
+      // Try to parse as JSON first
+      let responseText = '';
+      const contentType = response.headers.get('content-type');
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          const responseData = await response.json();
+          console.log('Resposta JSON do n8n:', responseData);
+          
+          // Extract text from various possible response formats
+          if (responseData.message) {
+            responseText = responseData.message;
+          } else if (responseData.text) {
+            responseText = responseData.text;
+          } else if (responseData.response) {
+            responseText = responseData.response;
+          } else if (typeof responseData === 'string') {
+            responseText = responseData;
+          } else {
+            responseText = JSON.stringify(responseData);
+          }
+        } else {
+          // If not JSON, treat as plain text
+          responseText = await response.text();
+          console.log('Resposta em texto do n8n:', responseText);
+          
+          // Check if response is HTML (common error case)
+          if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
+            throw new Error('O webhook retornou HTML ao invés de texto. Verifique a configuração do n8n.');
+          }
+        }
+      } catch (parseError) {
+        console.error('Erro ao processar resposta:', parseError);
+        // Fallback to plain text
+        responseText = await response.text();
+        
+        if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
+          throw new Error('O webhook retornou HTML ao invés de texto. Verifique a configuração do n8n.');
+        }
+      }
+      
+      if (!responseText || responseText.trim() === '') {
+        responseText = "Desculpe, não consegui processar sua mensagem.";
+      }
+      
+      return responseText;
+      
+    } catch (error: any) {
+      console.error('Erro ao comunicar com n8n:', error);
+      throw new Error(`Falha na comunicação com n8n: ${error.message}`);
+    }
+  };
 
   // --- Message Sending Logic (Text) ---
   const handleSendMessage = async () => {
@@ -243,22 +304,9 @@ const ChatTextAudioPage = () => {
     setIsLoading(true);
 
     try {
-      // 1. Send text message to backend/AI
-      console.log("Enviando texto para obter resposta da IA...");
-      // Replace with your actual API call
-      const response = await fetch('/api/chat', { // EXAMPLE API endpoint
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: currentInput, userId: user?.id })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro na API de chat: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      const responseText = responseData.message || responseData.text || responseData.response || "Desculpe, não consegui processar isso.";
-      console.log("Resposta da IA:", responseText);
+      // 1. Send text message to n8n webhook
+      console.log("Enviando texto para n8n...");
+      const responseText = await sendToN8nWebhook(currentInput);
 
       // 2. Generate speech for the AI response using ElevenLabs
       console.log("Gerando áudio da resposta com ElevenLabs...");
@@ -287,11 +335,11 @@ const ChatTextAudioPage = () => {
     } catch (error: any) {
       console.error('Erro ao enviar mensagem ou gerar áudio:', error);
       toast.error(`Erro: ${error.message || 'Falha ao processar mensagem.'}`);
-      // Add error message to chat (optional, could be handled differently)
+      // Add error message to chat
       setMessages(prev => [...prev, {
         id: `error_${Date.now()}`,
         content: `Erro ao processar resposta: ${error.message}`,
-        sender: 'contact', // Or system
+        sender: 'contact',
         timestamp: new Date(),
         type: 'text'
       }]);
@@ -345,15 +393,11 @@ const ChatTextAudioPage = () => {
       audio.onended = () => {
         console.log(`Áudio onended: ${messageId}`);
         setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
-        // Don't delete ref immediately, allow replay unless URL is revoked
-        // if (audioUrl.startsWith('blob:')) {
-        //   URL.revokeObjectURL(audioUrl);
-        // }
       };
       audio.onerror = (e) => {
         console.error("Erro no elemento de áudio:", e);
         toast.error("Erro ao carregar o áudio.");
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false, audioUrl: undefined, transcriptionError: msg.transcriptionError || "Erro ao carregar" } : msg)); // Mark as error
+        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false, audioUrl: undefined, transcriptionError: msg.transcriptionError || "Erro ao carregar" } : msg));
         audioRefs.current.delete(messageId);
         if (audioUrl.startsWith('blob:')) {
           URL.revokeObjectURL(audioUrl);
@@ -388,7 +432,6 @@ const ChatTextAudioPage = () => {
     return date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
-      // timeZone: 'America/Sao_Paulo' // Adjust timezone if needed
     });
   };
 
@@ -413,7 +456,6 @@ const ChatTextAudioPage = () => {
             {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
           </Button>
           <div className="text-xs text-gray-400">
-            {/* Placeholder for audio duration/waveform */} 
             <span>Áudio</span>
             {message.audioDuration && <span> ({message.audioDuration})</span>}
           </div>
@@ -500,7 +542,6 @@ const ChatTextAudioPage = () => {
           </Avatar>
           <span className="font-medium">{contactName}</span>
         </div>
-        {/* Add other header icons/buttons if needed */}
       </div>
 
       {/* Messages Area */}
@@ -528,7 +569,6 @@ const ChatTextAudioPage = () => {
 
               {message.sender === 'user' && (
                   <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-                      {/* You might want to use the actual user's avatar here */} 
                       <AvatarFallback className="bg-blue-600 text-white">
                           {user?.email?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
@@ -544,8 +584,6 @@ const ChatTextAudioPage = () => {
 
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0">
-        {/* Add emoticon/gift buttons if needed */} 
-        {/* <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white"><Smile size={20} /></Button> */}
         <Input
           ref={inputRef}
           type="text"
@@ -581,4 +619,3 @@ const ChatTextAudioPage = () => {
 };
 
 export default ChatTextAudioPage;
-
