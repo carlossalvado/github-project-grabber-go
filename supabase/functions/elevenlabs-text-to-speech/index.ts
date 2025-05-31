@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId = 'XB0fDUnXU5powFXDhCwa' } = await req.json()
+    const { text, voiceId = 'XB0fDUnXU5powFXDhCwa', hmacKey } = await req.json()
     
     if (!text) {
       throw new Error('Texto é obrigatório')
@@ -23,13 +23,20 @@ serve(async (req) => {
       throw new Error('Chave da API ElevenLabs não configurada')
     }
 
+    // Prepare headers with HMAC authentication
+    const headers: Record<string, string> = {
+      'xi-api-key': elevenLabsApiKey,
+      'Content-Type': 'application/json',
+    }
+
+    if (hmacKey) {
+      headers['Authorization'] = `HMAC ${hmacKey}`
+    }
+
     // Generate speech with ElevenLabs
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
-      headers: {
-        'xi-api-key': elevenLabsApiKey,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         text: text,
         model_id: 'eleven_multilingual_v2',

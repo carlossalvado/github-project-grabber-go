@@ -9,11 +9,15 @@ export interface ElevenLabsResponse {
 
 class ElevenLabsService {
   private agentId = 'agent_01jwfmbhwtfm9aanc0r7sbqzdf';
+  private hmacKey = 'wsec_98d3f7a84315eecfd8b1584fcf759af388ba926e5298c31b275fef5f87dfe27d';
   
   private async getSignedUrl(): Promise<string> {
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-get-signed-url', {
-        body: { agentId: this.agentId }
+        body: { 
+          agentId: this.agentId,
+          hmacKey: this.hmacKey
+        }
       });
 
       if (error) throw error;
@@ -28,7 +32,8 @@ class ElevenLabsService {
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-transcribe', {
         body: { 
-          audio: await this.blobToBase64(audioBlob)
+          audio: await this.blobToBase64(audioBlob),
+          hmacKey: this.hmacKey
         }
       });
 
@@ -45,7 +50,8 @@ class ElevenLabsService {
       const { data, error } = await supabase.functions.invoke('elevenlabs-text-to-speech', {
         body: { 
           text,
-          voiceId: 'XB0fDUnXU5powFXDhCwa' // Charlotte voice
+          voiceId: 'XB0fDUnXU5powFXDhCwa', // Charlotte voice
+          hmacKey: this.hmacKey
         }
       });
 

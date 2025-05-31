@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { audio } = await req.json()
+    const { audio, hmacKey } = await req.json()
     
     if (!audio) {
       throw new Error('Dados de áudio não fornecidos')
@@ -30,14 +30,21 @@ serve(async (req) => {
     const formData = new FormData()
     const blob = new Blob([binaryAudio], { type: 'audio/webm' })
     formData.append('audio', blob, 'audio.webm')
-    formData.append('model_id', 'eleven_multilingual_v2') // Add required model_id
+    formData.append('model_id', 'eleven_multilingual_v2')
+
+    // Prepare headers with HMAC authentication
+    const headers: Record<string, string> = {
+      'xi-api-key': elevenLabsApiKey,
+    }
+
+    if (hmacKey) {
+      headers['Authorization'] = `HMAC ${hmacKey}`
+    }
 
     // Send to ElevenLabs Speech-to-Text
     const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
       method: 'POST',
-      headers: {
-        'xi-api-key': elevenLabsApiKey,
-      },
+      headers,
       body: formData,
     })
 

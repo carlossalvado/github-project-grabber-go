@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { agentId } = await req.json()
+    const { agentId, hmacKey } = await req.json()
     
     if (!agentId) {
       throw new Error('Agent ID é obrigatório')
@@ -23,12 +23,18 @@ serve(async (req) => {
       throw new Error('Chave da API ElevenLabs não configurada')
     }
 
-    // Get signed URL from ElevenLabs
+    // Get signed URL from ElevenLabs with HMAC authentication
+    const headers: Record<string, string> = {
+      'xi-api-key': elevenLabsApiKey,
+    }
+
+    if (hmacKey) {
+      headers['Authorization'] = `HMAC ${hmacKey}`
+    }
+
     const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`, {
       method: 'GET',
-      headers: {
-        'xi-api-key': elevenLabsApiKey,
-      },
+      headers,
     })
 
     if (!response.ok) {
