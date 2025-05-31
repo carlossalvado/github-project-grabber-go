@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -48,8 +47,9 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // N8N webhook URL - substitua pela sua URL real
+  // Webhook URLs
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
 
   // Scroll to bottom effect
   useEffect(() => {
@@ -111,7 +111,7 @@ const ChatTextAudioPage = () => {
         };
         setMessages(prev => [...prev, userAudioMessage]);
 
-        // 2. Start asynchronous processing (transcription -> AI -> speech)
+        // 2. Start asynchronous processing (transcription -> n8n -> speech)
         processAudioMessage(audioBlob, userMessageId);
       };
 
@@ -160,17 +160,17 @@ const ChatTextAudioPage = () => {
           : msg
       ));
 
-      // If transcription is empty, maybe don't proceed to AI?
+      // If transcription is empty, maybe don't proceed to n8n?
       if (!transcribedText.trim()) {
-          console.log("Transcrição vazia, não enviando para IA.");
+          console.log("Transcrição vazia, não enviando para n8n.");
           return;
       }
 
-      // 2. Send transcribed text to n8n webhook
-      console.log("Enviando texto transcrito para n8n...");
+      // 2. Send transcribed text to n8n AUDIO webhook
+      console.log("Enviando texto transcrito para n8n (webhook de áudio)...");
       setIsLoading(true);
       
-      const responseText = await sendToN8nWebhook(transcribedText);
+      const responseText = await sendToN8nWebhook(transcribedText, audioWebhookUrl);
 
       // 3. Generate speech for the AI response using ElevenLabs
       console.log("Gerando áudio da resposta com ElevenLabs...");
@@ -213,11 +213,11 @@ const ChatTextAudioPage = () => {
   };
 
   // --- N8N Webhook Communication ---
-  const sendToN8nWebhook = async (messageText: string): Promise<string> => {
+  const sendToN8nWebhook = async (messageText: string, webhookUrl: string = textWebhookUrl): Promise<string> => {
     try {
-      console.log('Enviando mensagem para n8n:', messageText);
+      console.log('Enviando mensagem para n8n:', messageText, 'URL:', webhookUrl);
       
-      const response = await fetch(textWebhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -304,36 +304,22 @@ const ChatTextAudioPage = () => {
     setIsLoading(true);
 
     try {
-      // 1. Send text message to n8n webhook
-      console.log("Enviando texto para n8n...");
-      const responseText = await sendToN8nWebhook(currentInput);
+      // 1. Send text message to n8n text webhook
+      console.log("Enviando texto para n8n (webhook de texto)...");
+      const responseText = await sendToN8nWebhook(currentInput, textWebhookUrl);
 
-      // 2. Generate speech for the AI response using ElevenLabs
-      console.log("Gerando áudio da resposta com ElevenLabs...");
-      const audioContentBase64 = await elevenLabsService.generateSpeech(responseText);
-      console.log("Conteúdo do áudio (base64) recebido.");
-
-      if (!audioContentBase64) {
-        throw new Error("Geração de áudio falhou ou retornou vazia.");
-      }
-
-      // 3. Convert base64 to audio URL and add contact message
-      console.log("Convertendo base64 para URL de áudio...");
-      const contactAudioUrl = elevenLabsService.base64ToAudioUrl(audioContentBase64);
-      console.log("URL do áudio gerada:", contactAudioUrl);
-
+      // 2. Add text response from n8n
       const contactMessage: ModernMessage = {
-        id: `contact_audio_${Date.now()}`,
-        content: responseText, // Store text content internally
+        id: `contact_text_${Date.now()}`,
+        content: responseText,
         sender: 'contact',
         timestamp: new Date(),
-        type: 'audio',
-        audioUrl: contactAudioUrl,
+        type: 'text',
       };
       setMessages(prev => [...prev, contactMessage]);
 
     } catch (error: any) {
-      console.error('Erro ao enviar mensagem ou gerar áudio:', error);
+      console.error('Erro ao enviar mensagem:', error);
       toast.error(`Erro: ${error.message || 'Falha ao processar mensagem.'}`);
       // Add error message to chat
       setMessages(prev => [...prev, {
