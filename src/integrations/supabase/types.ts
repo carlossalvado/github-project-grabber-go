@@ -36,6 +36,86 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          audio_input_url: string | null
+          chat_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          llm_response_text: string | null
+          message_type: Database["public"]["Enums"]["message_type"]
+          response_audio_url: string | null
+          status: Database["public"]["Enums"]["message_status"]
+          text_content: string | null
+          transcription: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_input_url?: string | null
+          chat_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          llm_response_text?: string | null
+          message_type: Database["public"]["Enums"]["message_type"]
+          response_audio_url?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          text_content?: string | null
+          transcription?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_input_url?: string | null
+          chat_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          llm_response_text?: string | null
+          message_type?: Database["public"]["Enums"]["message_type"]
+          response_audio_url?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          text_content?: string | null
+          transcription?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gifts: {
         Row: {
           description: string
@@ -239,7 +319,17 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      message_status:
+        | "processing"
+        | "transcribed"
+        | "generating_response"
+        | "completed"
+        | "error"
+      message_type:
+        | "text_input"
+        | "audio_input"
+        | "text_output"
+        | "audio_output"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -354,6 +444,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      message_status: [
+        "processing",
+        "transcribed",
+        "generating_response",
+        "completed",
+        "error",
+      ],
+      message_type: [
+        "text_input",
+        "audio_input",
+        "text_output",
+        "audio_output",
+      ],
+    },
   },
 } as const

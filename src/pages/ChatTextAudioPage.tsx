@@ -1,45 +1,48 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, MicOff, Send, Smile, Gift, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Send, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { elevenLabsService } from '@/services/elevenLabsService';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Define message structure with new fields for audio processing state
-interface ModernMessage {
+// Define message structure based on chat_messages table
+interface ChatMessage {
   id: string;
-  content: string; // Holds transcription for user audio, or text for text messages
-  sender: 'user' | 'contact';
-  timestamp: Date;
-  type: 'text' | 'audio';
-  audioUrl?: string;
-  audioDuration?: string; // Optional: Store duration if available
-  isPlaying?: boolean; // Optional: Track playback state
-  // User audio specific states
-  isTranscribing?: boolean; // Track transcription status for user audio
-  transcriptionError?: string | null; // Store transcription error message
+  created_at: string;
+  chat_id: string;
+  user_id: string;
+  message_type: 'text_input' | 'audio_input' | 'text_output' | 'audio_output';
+  text_content?: string;
+  audio_input_url?: string;
+  transcription?: string;
+  status: 'processing' | 'transcribed' | 'generating_response' | 'completed' | 'error';
+  error_message?: string;
+  llm_response_text?: string;
+  response_audio_url?: string;
+  updated_at: string;
+  isPlaying?: boolean; // Client-side state
 }
 
-// Mock contact info (replace with actual data)
+// Mock contact info
 const contactName = "Isa";
-const contactAvatar = "/placeholder.svg"; // Replace with actual avatar URL
+const contactAvatar = "/placeholder.svg";
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { userSubscription } = useSubscription();
-  const [messages, setMessages] = useState<ModernMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // General loading for AI response generation
+  const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,9 +50,51 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Webhook URLs
+  // Webhook URLs - atualize com suas URLs do n8n
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
   const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
+
+  // Initialize chat
+  useEffect(() => {
+    if (user) {
+      initializeChat();
+    }
+  }, [user]);
+
+  // Set up realtime subscription
+  useEffect(() => {
+    if (!currentChatId) return;
+
+    console.log('Setting up realtime subscription for chat:', currentChatId);
+
+    const channel = supabase
+      .channel('chat_messages_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `chat_id=eq.${currentChatId}`
+        },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          
+          if (payload.eventType === 'UPDATE') {
+            const updatedMessage = payload.new as ChatMessage;
+            setMessages(prev => prev.map(msg => 
+              msg.id === updatedMessage.id ? { ...updatedMessage, isPlaying: msg.isPlaying } : msg
+            ));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [currentChatId]);
 
   // Scroll to bottom effect
   useEffect(() => {
@@ -67,18 +112,70 @@ const ChatTextAudioPage = () => {
       audioRefs.current.forEach((audio) => {
         audio.pause();
         if (audio.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audio.src); // Clean up blob URLs only
+          URL.revokeObjectURL(audio.src);
         }
       });
       audioRefs.current.clear();
     };
   }, []);
 
+  const initializeChat = async () => {
+    if (!user) return;
+
+    try {
+      // Create or get existing chat
+      const { data: existingChats, error: fetchError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+
+      let chatId: string;
+
+      if (existingChats && existingChats.length > 0) {
+        chatId = existingChats[0].id;
+      } else {
+        // Create new chat
+        const { data: newChat, error: createError } = await supabase
+          .from('chats')
+          .insert({
+            user_id: user.id,
+            title: `Chat com ${contactName}`,
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        chatId = newChat.id;
+      }
+
+      setCurrentChatId(chatId);
+
+      // Load existing messages
+      const { data: existingMessages, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (messagesError) throw messagesError;
+      
+      setMessages(existingMessages || []);
+
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      toast.error('Erro ao inicializar chat');
+    }
+  };
+
   // --- Audio Recording Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' }); // Specify mimeType if possible
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -95,24 +192,7 @@ const ChatTextAudioPage = () => {
         }
 
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const userMessageId = `user_audio_${Date.now()}`;
-
-        // 1. Add user audio message to chat IMMEDIATELY
-        const userAudioMessage: ModernMessage = {
-          id: userMessageId,
-          content: '', // Transcription will be added later
-          sender: 'user',
-          timestamp: new Date(),
-          type: 'audio',
-          audioUrl: audioUrl,
-          isTranscribing: true, // Mark as transcribing
-          transcriptionError: null,
-        };
-        setMessages(prev => [...prev, userAudioMessage]);
-
-        // 2. Start asynchronous processing (transcription -> n8n -> speech)
-        processAudioMessage(audioBlob, userMessageId);
+        processAudioMessage(audioBlob);
       };
 
       mediaRecorderRef.current.start();
@@ -141,83 +221,123 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  // --- Asynchronous Audio Processing ---
-  const processAudioMessage = async (audioBlob: Blob, userMessageId: string) => {
+  // --- Audio Processing with New Architecture ---
+  const processAudioMessage = async (audioBlob: Blob) => {
+    if (!user || !currentChatId) {
+      toast.error('Usuário não autenticado ou chat não inicializado');
+      return;
+    }
+
     try {
-      // 1. Transcribe audio
-      console.log("Transcrevendo áudio...");
-      const transcribedText = await elevenLabsService.transcribeAudio(audioBlob);
-      console.log("Texto transcrito:", transcribedText);
+      console.log('Processing audio message...');
 
-      if (!transcribedText && transcribedText !== "") { // Allow empty transcription if valid
-        throw new Error("Transcrição falhou ou retornou inválida.");
+      // 1. Get signed upload URL
+      const { data: urlData, error: urlError } = await supabase.functions.invoke('get-signed-upload-url', {
+        body: {
+          chatId: currentChatId,
+          fileType: 'audio/webm'
+        }
+      });
+
+      if (urlError) throw urlError;
+
+      const { signedUrl, path: audioPath, messageId } = urlData;
+
+      console.log('Got signed URL, uploading audio...');
+
+      // 2. Upload audio directly to storage
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        body: audioBlob,
+        headers: {
+          'Content-Type': 'audio/webm'
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload audio');
       }
 
-      // Update user message state: transcription successful
-      setMessages(prev => prev.map(msg =>
-        msg.id === userMessageId
-          ? { ...msg, content: transcribedText, isTranscribing: false, transcriptionError: null }
-          : msg
-      ));
+      console.log('Audio uploaded successfully');
 
-      // If transcription is empty, maybe don't proceed to n8n?
-      if (!transcribedText.trim()) {
-          console.log("Transcrição vazia, não enviando para n8n.");
-          return;
+      // 3. Create message record in database
+      const { data: messageData, error: messageError } = await supabase
+        .from('chat_messages')
+        .insert({
+          id: messageId,
+          chat_id: currentChatId,
+          user_id: user.id,
+          message_type: 'audio_input',
+          audio_input_url: audioPath,
+          status: 'processing'
+        })
+        .select()
+        .single();
+
+      if (messageError) throw messageError;
+
+      // Add message to local state immediately
+      setMessages(prev => [...prev, messageData]);
+
+      console.log('Message record created, triggering n8n webhook...');
+
+      // 4. Trigger n8n webhook with message ID
+      const webhookResponse = await fetch(audioWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messageId: messageId,
+          chatId: currentChatId,
+          userId: user.id,
+          audioPath: audioPath,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (!webhookResponse.ok) {
+        throw new Error(`Webhook failed: ${webhookResponse.status}`);
       }
 
-      // 2. Send transcribed text to n8n AUDIO webhook
-      console.log("Enviando texto transcrito para n8n (webhook de áudio)...");
-      setIsLoading(true);
-      
-      const responseText = await sendToN8nWebhook(transcribedText, audioWebhookUrl);
-
-      // 3. Generate speech for the AI response using ElevenLabs
-      console.log("Gerando áudio da resposta com ElevenLabs...");
-      const audioContentBase64 = await elevenLabsService.generateSpeech(responseText);
-      console.log("Conteúdo do áudio (base64) recebido.");
-
-      if (!audioContentBase64) {
-        throw new Error("Geração de áudio falhou ou retornou vazia.");
-      }
-
-      // 4. Convert base64 to audio URL and add contact message
-      console.log("Convertendo base64 para URL de áudio...");
-      const contactAudioUrl = elevenLabsService.base64ToAudioUrl(audioContentBase64);
-      console.log("URL do áudio gerada:", contactAudioUrl);
-
-      const contactMessage: ModernMessage = {
-        id: `contact_audio_${Date.now()}`,
-        content: responseText, // Store text content internally
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'audio',
-        audioUrl: contactAudioUrl,
-      };
-      setMessages(prev => [...prev, contactMessage]);
+      console.log('n8n webhook triggered successfully');
+      toast.success('Áudio enviado para processamento');
 
     } catch (error: any) {
-      console.error('Erro no processamento assíncrono do áudio:', error);
-      toast.error(`Erro: ${error.message || 'Falha ao processar áudio.'}`);
-
-      // Update user message state: transcription or subsequent step failed
-      setMessages(prev => prev.map(msg =>
-        msg.id === userMessageId
-          ? { ...msg, isTranscribing: false, transcriptionError: error.message || 'Falha no processamento' }
-          : msg
-      ));
-
-    } finally {
-      setIsLoading(false); // Stop general loading indicator
+      console.error('Error processing audio message:', error);
+      toast.error(`Erro ao processar áudio: ${error.message}`);
     }
   };
 
-  // --- N8N Webhook Communication ---
-  const sendToN8nWebhook = async (messageText: string, webhookUrl: string = textWebhookUrl): Promise<string> => {
+  // --- Text Message Logic ---
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading || isRecording || !user || !currentChatId) return;
+
+    const messageText = input.trim();
+    setInput('');
+    setIsLoading(true);
+
     try {
-      console.log('Enviando mensagem para n8n:', messageText, 'URL:', webhookUrl);
-      
-      const response = await fetch(webhookUrl, {
+      // Create text message in database
+      const { data: messageData, error: messageError } = await supabase
+        .from('chat_messages')
+        .insert({
+          chat_id: currentChatId,
+          user_id: user.id,
+          message_type: 'text_input',
+          text_content: messageText,
+          status: 'completed'
+        })
+        .select()
+        .single();
+
+      if (messageError) throw messageError;
+
+      // Add to local state
+      setMessages(prev => [...prev, messageData]);
+
+      // Send to n8n text webhook
+      const response = await fetch(textWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -225,176 +345,104 @@ const ChatTextAudioPage = () => {
         body: JSON.stringify({
           message: messageText,
           timestamp: new Date().toISOString(),
-          user: user?.email || 'anonymous'
+          user: user.email || 'anonymous',
+          chatId: currentChatId,
+          messageId: messageData.id
         })
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Erro na resposta do webhook: ${response.status} - ${response.statusText}`);
+        throw new Error(`Webhook failed: ${response.status}`);
       }
-      
-      // Try to parse as JSON first
+
+      // Process response
       let responseText = '';
-      const contentType = response.headers.get('content-type');
-      
       try {
-        if (contentType && contentType.includes('application/json')) {
-          const responseData = await response.json();
-          console.log('Resposta JSON do n8n:', responseData);
-          
-          // Extract text from various possible response formats
-          if (responseData.message) {
-            responseText = responseData.message;
-          } else if (responseData.text) {
-            responseText = responseData.text;
-          } else if (responseData.response) {
-            responseText = responseData.response;
-          } else if (typeof responseData === 'string') {
-            responseText = responseData;
-          } else {
-            responseText = JSON.stringify(responseData);
-          }
-        } else {
-          // If not JSON, treat as plain text
-          responseText = await response.text();
-          console.log('Resposta em texto do n8n:', responseText);
-          
-          // Check if response is HTML (common error case)
-          if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
-            throw new Error('O webhook retornou HTML ao invés de texto. Verifique a configuração do n8n.');
-          }
-        }
-      } catch (parseError) {
-        console.error('Erro ao processar resposta:', parseError);
-        // Fallback to plain text
-        responseText = await response.text();
-        
-        if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
-          throw new Error('O webhook retornou HTML ao invés de texto. Verifique a configuração do n8n.');
-        }
+        const responseData = await response.json();
+        responseText = responseData.message || responseData.text || responseData.response || 'Resposta não disponível';
+      } catch {
+        responseText = await response.text() || 'Resposta não disponível';
       }
-      
-      if (!responseText || responseText.trim() === '') {
-        responseText = "Desculpe, não consegui processar sua mensagem.";
-      }
-      
-      return responseText;
-      
-    } catch (error: any) {
-      console.error('Erro ao comunicar com n8n:', error);
-      throw new Error(`Falha na comunicação com n8n: ${error.message}`);
-    }
-  };
 
-  // --- Message Sending Logic (Text) ---
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading || isRecording) return;
+      // Create response message
+      const { error: responseError } = await supabase
+        .from('chat_messages')
+        .insert({
+          chat_id: currentChatId,
+          user_id: user.id,
+          message_type: 'text_output',
+          text_content: responseText,
+          status: 'completed'
+        });
 
-    const newMessage: ModernMessage = {
-      id: `user_text_${Date.now()}`,
-      content: input,
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text',
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    const currentInput = input;
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      // 1. Send text message to n8n text webhook
-      console.log("Enviando texto para n8n (webhook de texto)...");
-      const responseText = await sendToN8nWebhook(currentInput, textWebhookUrl);
-
-      // 2. Add text response from n8n
-      const contactMessage: ModernMessage = {
-        id: `contact_text_${Date.now()}`,
-        content: responseText,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text',
-      };
-      setMessages(prev => [...prev, contactMessage]);
+      if (responseError) throw responseError;
 
     } catch (error: any) {
-      console.error('Erro ao enviar mensagem:', error);
-      toast.error(`Erro: ${error.message || 'Falha ao processar mensagem.'}`);
-      // Add error message to chat
-      setMessages(prev => [...prev, {
-        id: `error_${Date.now()}`,
-        content: `Erro ao processar resposta: ${error.message}`,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text'
-      }]);
+      console.error('Error sending message:', error);
+      toast.error(`Erro ao enviar mensagem: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   // --- Audio Playback Logic ---
-  const playAudio = (messageId: string, audioUrl: string) => {
-    if (!audioUrl) {
-        toast.error("Áudio indisponível.");
-        return;
+  const playAudio = async (messageId: string, audioPath: string) => {
+    if (!audioPath) {
+      toast.error("Áudio indisponível.");
+      return;
     }
 
-    // Pause any currently playing audio
-    audioRefs.current.forEach((audio, id) => {
-      if (id !== messageId && !audio.paused) {
-        audio.pause();
-        // Update state for the paused audio
-        setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isPlaying: false } : msg));
-      }
-    });
-
-    let audio = audioRefs.current.get(messageId);
-
-    if (audio) {
-      if (audio.paused) {
-        audio.play().catch(err => {
-          console.error("Erro ao tocar áudio:", err);
-          toast.error("Não foi possível tocar o áudio.");
-          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
-        });
-      } else {
-        audio.pause();
-      }
-    } else {
-      // Create new audio element if it doesn't exist
-      console.log(`Criando novo elemento de áudio para: ${messageId} com URL: ${audioUrl}`);
-      audio = new Audio(audioUrl);
-      audioRefs.current.set(messageId, audio);
-
-      audio.onplay = () => {
-        console.log(`Áudio onplay: ${messageId}`);
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: true } : { ...msg, isPlaying: false }));
-      };
-      audio.onpause = () => {
-        console.log(`Áudio onpause: ${messageId}`);
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
-      };
-      audio.onended = () => {
-        console.log(`Áudio onended: ${messageId}`);
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
-      };
-      audio.onerror = (e) => {
-        console.error("Erro no elemento de áudio:", e);
-        toast.error("Erro ao carregar o áudio.");
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false, audioUrl: undefined, transcriptionError: msg.transcriptionError || "Erro ao carregar" } : msg));
-        audioRefs.current.delete(messageId);
-        if (audioUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(audioUrl);
+    try {
+      // Pause any currently playing audio
+      audioRefs.current.forEach((audio, id) => {
+        if (id !== messageId && !audio.paused) {
+          audio.pause();
+          setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isPlaying: false } : msg));
         }
-      };
-
-      audio.play().catch(err => {
-        console.error("Erro ao tocar áudio (catch inicial):", err);
-        toast.error("Não foi possível iniciar o áudio.");
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
       });
+
+      let audio = audioRefs.current.get(messageId);
+
+      if (audio) {
+        if (audio.paused) {
+          await audio.play();
+        } else {
+          audio.pause();
+        }
+      } else {
+        // Get public URL for audio
+        const { data } = supabase.storage.from('chat_audio').getPublicUrl(audioPath);
+        
+        audio = new Audio(data.publicUrl);
+        audioRefs.current.set(messageId, audio);
+
+        audio.onplay = () => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId ? { ...msg, isPlaying: true } : { ...msg, isPlaying: false }
+          ));
+        };
+        
+        audio.onpause = () => {
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+        };
+        
+        audio.onended = () => {
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+        };
+        
+        audio.onerror = (e) => {
+          console.error("Erro no elemento de áudio:", e);
+          toast.error("Erro ao carregar o áudio.");
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+          audioRefs.current.delete(messageId);
+        };
+
+        await audio.play();
+      }
+    } catch (error) {
+      console.error("Erro ao tocar áudio:", error);
+      toast.error("Não foi possível tocar o áudio.");
+      setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
     }
   };
 
@@ -414,8 +462,8 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', {
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -428,85 +476,68 @@ const ChatTextAudioPage = () => {
   };
 
   // --- Render Logic ---
-  const renderMessageContent = (message: ModernMessage) => {
-    if (message.type === 'audio' && message.audioUrl) {
+  const renderMessageContent = (message: ChatMessage) => {
+    if (message.message_type === 'audio_input' || message.message_type === 'audio_output') {
+      const audioPath = message.message_type === 'audio_input' ? message.audio_input_url : message.response_audio_url;
+      const showContent = message.message_type === 'audio_input' ? message.transcription : message.llm_response_text;
+      
       return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`h-8 w-8 ${message.sender === 'user' ? 'text-white' : 'text-gray-900 dark:text-white'}`}
-            onClick={() => playAudio(message.id, message.audioUrl!)}
-            disabled={message.isTranscribing} // Disable play while transcribing
-          >
-            {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
-          </Button>
-          <div className="text-xs text-gray-400">
-            <span>Áudio</span>
-            {message.audioDuration && <span> ({message.audioDuration})</span>}
-          </div>
-          {/* Indicators for user audio */}
-          {message.sender === 'user' && (
-            <div className="ml-auto pl-2 flex items-center">
-              {message.isTranscribing && (
-                <Loader2 size={16} className="animate-spin text-gray-400" />
-              )}
-              {message.transcriptionError && (
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertCircle size={16} className="text-red-500 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-black text-white text-xs max-w-xs break-words">
-                      <p>Erro: {message.transcriptionError}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+        <div className="space-y-2">
+          {audioPath && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 ${message.message_type === 'audio_input' ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                onClick={() => playAudio(message.id, audioPath)}
+                disabled={message.status === 'processing'}
+              >
+                {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
+              </Button>
+              <div className="text-xs text-gray-400">
+                <span>Áudio</span>
+              </div>
+              <div className="ml-auto pl-2 flex items-center">
+                {message.status === 'processing' && (
+                  <Loader2 size={16} className="animate-spin text-gray-400" />
+                )}
+                {message.status === 'error' && (
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertCircle size={16} className="text-red-500 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black text-white text-xs max-w-xs break-words">
+                        <p>Erro: {message.error_message}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
             </div>
+          )}
+          
+          {showContent && (
+            <p className="whitespace-pre-wrap break-words text-sm mt-2">{showContent}</p>
+          )}
+          
+          {message.status === 'processing' && (
+            <p className="text-xs text-gray-500 italic">Processando...</p>
           )}
         </div>
       );
-    } else if (message.type === 'text') {
-      return <p className="whitespace-pre-wrap break-words">{message.content}</p>;
     } else {
-        // Fallback for user audio message before URL is ready or if error occurs early
-        if (message.sender === 'user' && message.type === 'audio') {
-            return (
-                <div className="flex items-center gap-2 text-gray-400">
-                    <Mic size={16} />
-                    <span>Áudio gravado</span>
-                    {message.isTranscribing && <Loader2 size={16} className="animate-spin" />}
-                    {message.transcriptionError && <AlertCircle size={16} className="text-red-500" />}
-                </div>
-            );
-        }
-        return <p className="text-gray-500 italic">Conteúdo indisponível</p>;
+      return <p className="whitespace-pre-wrap break-words">{message.text_content}</p>;
     }
   };
 
-  const MobileLoadingIndicator = () => (
-    <div className="flex justify-start mb-4">
-       <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-          <AvatarImage src={contactAvatar} alt={contactName} />
-          <AvatarFallback className="bg-purple-600 text-white">
-              {contactName.charAt(0)}
-          </AvatarFallback>
-       </Avatar>
-      <div className="max-w-[70%] space-y-1">
-        <div className="bg-gray-700 text-white rounded-2xl rounded-bl-md px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
-            <span className="text-sm text-gray-300">processando...</span>
-          </div>
-        </div>
+  if (!user) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <p>Por favor, faça login para acessar o chat.</p>
       </div>
-    </div>
-  );
+    );
+  }
 
   // --- JSX ---
   return (
@@ -518,7 +549,7 @@ const ChatTextAudioPage = () => {
             variant="ghost"
             size="icon"
             className="text-gray-400 hover:text-white"
-            onClick={() => navigate(-1)} // Go back
+            onClick={() => navigate(-1)}
           >
             <ArrowLeft size={20} />
           </Button>
@@ -533,37 +564,43 @@ const ChatTextAudioPage = () => {
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-              {message.sender === 'contact' && (
-                <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                  <AvatarImage src={contactAvatar} alt={contactName} />
-                  <AvatarFallback className="bg-purple-600 text-white">
-                    {contactName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-
-              <div className={`max-w-[70%] space-y-1`}>
-                <div className={`px-4 py-3 rounded-2xl shadow-md ${message.sender === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-white rounded-bl-none'}`}>
-                  {renderMessageContent(message)}
-                </div>
-                <div className={`text-xs text-gray-500 mt-1 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}>
-                  {formatTime(message.timestamp)}
-                </div>
-              </div>
-
-              {message.sender === 'user' && (
-                  <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                          {user?.email?.charAt(0).toUpperCase() || 'U'}
-                      </AvatarFallback>
+          {messages.map((message) => {
+            const isUserMessage = message.message_type === 'text_input' || message.message_type === 'audio_input';
+            
+            return (
+              <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+                {!isUserMessage && (
+                  <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+                    <AvatarImage src={contactAvatar} alt={contactName} />
+                    <AvatarFallback className="bg-purple-600 text-white">
+                      {contactName.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
-              )}
-            </div>
-          ))}
-          {/* Show general loading indicator only when AI is processing text response */} 
-          {isLoading && <MobileLoadingIndicator />}
+                )}
+
+                <div className="max-w-[70%] space-y-1">
+                  <div className={`px-4 py-3 rounded-2xl shadow-md ${
+                    isUserMessage 
+                      ? 'bg-purple-600 text-white rounded-br-none' 
+                      : 'bg-gray-700 text-white rounded-bl-none'
+                  }`}>
+                    {renderMessageContent(message)}
+                  </div>
+                  <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
+                    {formatTime(message.created_at)}
+                  </div>
+                </div>
+
+                {isUserMessage && (
+                  <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                    <AvatarFallback className="bg-blue-600 text-white">
+                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            );
+          })}
           <div ref={messagesEndRef} />
         </ScrollArea>
       </div>
@@ -594,7 +631,7 @@ const ChatTextAudioPage = () => {
             size="icon"
             className={`${isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} rounded-full text-white`}
             onClick={handleAudioMessage}
-            disabled={isLoading} // Disable mic button while AI is processing previous message
+            disabled={isLoading}
           >
             {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
           </Button>
