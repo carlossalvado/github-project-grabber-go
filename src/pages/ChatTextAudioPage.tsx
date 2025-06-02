@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -50,9 +49,9 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Webhook URLs - atualize com suas URLs do n8n
-  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
-  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
+  // Webhook URLs atualizadas
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
   // Initialize chat
   useEffect(() => {
