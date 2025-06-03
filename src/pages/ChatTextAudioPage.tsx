@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ interface ChatMessage {
   id: string;
   created_at: string;
   user_id: string;
-  chat_id?: string; // Add chat_id as optional since text messages don't use it
+  chat_id?: string; // Keep optional for text messages
   message_type: 'text_input' | 'audio_input' | 'text_output' | 'audio_output';
   text_content?: string;
   audio_input_url?: string;
@@ -26,6 +27,18 @@ interface ChatMessage {
   response_audio_url?: string;
   updated_at: string;
   isPlaying?: boolean; // Client-side state
+}
+
+// Define separate type for database inserts with required chat_id
+interface AudioMessageInsert {
+  id: string;
+  created_at: string;
+  user_id: string;
+  chat_id: string; // Required for database insert
+  message_type: 'audio_input';
+  audio_input_url: string;
+  status: 'completed';
+  updated_at: string;
 }
 
 // Mock contact info
@@ -259,12 +272,12 @@ const ChatTextAudioPage = () => {
 
       console.log('Audio uploaded successfully');
 
-      // 3. Create message record in database and add to local state immediately
-      const newMessage: ChatMessage = {
+      // 3. Create message record in database with proper typing
+      const audioMessageInsert: AudioMessageInsert = {
         id: messageId,
         created_at: new Date().toISOString(),
         user_id: user.id,
-        chat_id: currentChatId, // Add the required chat_id
+        chat_id: currentChatId,
         message_type: 'audio_input',
         audio_input_url: audioPath,
         status: 'completed',
@@ -273,7 +286,7 @@ const ChatTextAudioPage = () => {
 
       const { data: messageData, error: messageError } = await supabase
         .from('chat_messages')
-        .insert(newMessage)
+        .insert(audioMessageInsert)
         .select()
         .single();
 
