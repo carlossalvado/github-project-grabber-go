@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ interface ChatMessage {
   id: string;
   created_at: string;
   user_id: string;
+  chat_id?: string; // Add chat_id as optional since text messages don't use it
   message_type: 'text_input' | 'audio_input' | 'text_output' | 'audio_output';
   text_content?: string;
   audio_input_url?: string;
@@ -264,6 +264,7 @@ const ChatTextAudioPage = () => {
         id: messageId,
         created_at: new Date().toISOString(),
         user_id: user.id,
+        chat_id: currentChatId, // Add the required chat_id
         message_type: 'audio_input',
         audio_input_url: audioPath,
         status: 'completed',
