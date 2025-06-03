@@ -359,6 +359,8 @@ const ChatTextAudioPage = () => {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      console.log('Enviando mensagem para o webhook:', textWebhookUrl);
+      
       // Send directly to n8n webhook
       const response = await fetch(textWebhookUrl, {
         method: 'POST',
@@ -373,18 +375,32 @@ const ChatTextAudioPage = () => {
         })
       });
 
+      console.log('Resposta do webhook recebida:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Webhook failed: ${response.status}`);
+        throw new Error(`Webhook failed: ${response.status} - ${response.statusText}`);
       }
 
-      // Process response
-      let responseText = '';
-      try {
-        const responseData = await response.json();
-        responseText = responseData.message || responseData.text || responseData.response || 'Resposta não disponível';
-      } catch {
-        responseText = await response.text() || 'Resposta não disponível';
+      // Try to get response as text first, then parse if possible
+      const responseText = await response.text();
+      console.log('Conteúdo da resposta:', responseText);
+      
+      let aiResponseText = '';
+      
+      if (responseText) {
+        try {
+          // Try to parse as JSON first
+          const responseData = JSON.parse(responseText);
+          aiResponseText = responseData.message || responseData.text || responseData.response || responseData.reply || responseText;
+        } catch {
+          // If not JSON, use the text directly
+          aiResponseText = responseText;
+        }
+      } else {
+        aiResponseText = 'Resposta recebida com sucesso';
       }
+
+      console.log('Resposta processada da IA:', aiResponseText);
 
       // Add AI response to local state
       const aiMessage: ChatMessage = {
@@ -392,7 +408,7 @@ const ChatTextAudioPage = () => {
         created_at: new Date().toISOString(),
         user_id: user.id,
         message_type: 'text_output',
-        text_content: responseText,
+        text_content: aiResponseText,
         status: 'completed',
         updated_at: new Date().toISOString()
       };
@@ -400,7 +416,21 @@ const ChatTextAudioPage = () => {
       setMessages(prev => [...prev, aiMessage]);
 
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      console.error('Erro detalhado ao enviar mensagem:', error);
+      
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        message_type: 'text_output',
+        text_content: `Erro na comunicação: ${error.message}. Verifique se o webhook está funcionando corretamente.`,
+        status: 'error',
+        error_message: error.message,
+        updated_at: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
       toast.error(`Erro ao enviar mensagem: ${error.message}`);
     } finally {
       setIsLoading(false);
