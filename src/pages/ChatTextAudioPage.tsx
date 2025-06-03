@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -391,7 +390,15 @@ const ChatTextAudioPage = () => {
         try {
           // Try to parse as JSON first
           const responseData = JSON.parse(responseText);
-          aiResponseText = responseData.message || responseData.text || responseData.response || responseData.reply || responseText;
+          
+          // Handle array format from n8n (like [{"output":"message"}])
+          if (Array.isArray(responseData) && responseData.length > 0) {
+            const firstItem = responseData[0];
+            aiResponseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || firstItem.reply || responseText;
+          } else {
+            // Handle single object format
+            aiResponseText = responseData.output || responseData.message || responseData.text || responseData.response || responseData.reply || responseText;
+          }
         } catch {
           // If not JSON, use the text directly
           aiResponseText = responseText;
