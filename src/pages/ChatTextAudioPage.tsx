@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,11 +11,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Define message structure based on chat_messages table
+// Define message structure for local state
 interface ChatMessage {
   id: string;
   created_at: string;
-  chat_id: string;
   user_id: string;
   message_type: 'text_input' | 'audio_input' | 'text_output' | 'audio_output';
   text_content?: string;
@@ -49,18 +49,18 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Webhook URLs - atualize com suas URLs do n8n
-  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
-  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d9739-ohasd-5-pijasd54-asd42";
+  // Updated webhook URLs
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
-  // Initialize chat
+  // Initialize chat - only needed for audio messages
   useEffect(() => {
     if (user) {
       initializeChat();
     }
   }, [user]);
 
-  // Set up realtime subscription
+  // Set up realtime subscription - only for audio messages
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -122,7 +122,7 @@ const ChatTextAudioPage = () => {
     if (!user) return;
 
     try {
-      // Create or get existing chat
+      // Create or get existing chat for audio messages
       const { data: existingChats, error: fetchError } = await supabase
         .from('chats')
         .select('*')
@@ -153,7 +153,7 @@ const ChatTextAudioPage = () => {
 
       setCurrentChatId(chatId);
 
-      // Load existing messages
+      // Load existing messages - only audio messages from database
       const { data: existingMessages, error: messagesError } = await supabase
         .from('chat_messages')
         .select('*')
@@ -220,7 +220,7 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  // --- Audio Processing with Direct n8n Integration ---
+  // --- Audio Processing with Supabase Storage and n8n webhook ---
   const processAudioMessage = async (audioBlob: Blob) => {
     if (!user || !currentChatId) {
       toast.error('Usuário não autenticado ou chat não inicializado');
@@ -259,17 +259,20 @@ const ChatTextAudioPage = () => {
 
       console.log('Audio uploaded successfully');
 
-      // 3. Create message record in database
+      // 3. Create message record in database and add to local state immediately
+      const newMessage: ChatMessage = {
+        id: messageId,
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        message_type: 'audio_input',
+        audio_input_url: audioPath,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      };
+
       const { data: messageData, error: messageError } = await supabase
         .from('chat_messages')
-        .insert({
-          id: messageId,
-          chat_id: currentChatId,
-          user_id: user.id,
-          message_type: 'audio_input',
-          audio_input_url: audioPath,
-          status: 'processing'
-        })
+        .insert(newMessage)
         .select()
         .single();
 
@@ -312,64 +315,37 @@ const ChatTextAudioPage = () => {
       }
 
       console.log('n8n webhook triggered successfully with audio file');
-      toast.success('Áudio enviado para processamento');
 
     } catch (error: any) {
       console.error('Error processing audio message:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
-      
-      // Update message with error status
-      if (currentChatId) {
-        try {
-          const { error: updateError } = await supabase
-            .from('chat_messages')
-            .update({
-              status: 'error',
-              error_message: `Erro ao processar áudio: ${error.message}`,
-              updated_at: new Date().toISOString()
-            })
-            .eq('chat_id', currentChatId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-            
-          if (updateError) {
-            console.error('Error updating message with error status:', updateError);
-          }
-        } catch (updateError) {
-          console.error('Error updating message with error status:', updateError);
-        }
-      }
     }
   };
 
-  // --- Text Message Logic ---
+  // --- Text Message Logic - Direct n8n integration without Supabase ---
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading || isRecording || !user || !currentChatId) return;
+    if (!input.trim() || isLoading || isRecording || !user) return;
 
     const messageText = input.trim();
+    const messageId = crypto.randomUUID();
     setInput('');
     setIsLoading(true);
 
+    // Add user message to local state immediately
+    const userMessage: ChatMessage = {
+      id: messageId,
+      created_at: new Date().toISOString(),
+      user_id: user.id,
+      message_type: 'text_input',
+      text_content: messageText,
+      status: 'completed',
+      updated_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+
     try {
-      // Create text message in database
-      const { data: messageData, error: messageError } = await supabase
-        .from('chat_messages')
-        .insert({
-          chat_id: currentChatId,
-          user_id: user.id,
-          message_type: 'text_input',
-          text_content: messageText,
-          status: 'completed'
-        })
-        .select()
-        .single();
-
-      if (messageError) throw messageError;
-
-      // Add to local state
-      setMessages(prev => [...prev, messageData]);
-
-      // Send to n8n text webhook
+      // Send directly to n8n webhook
       const response = await fetch(textWebhookUrl, {
         method: 'POST',
         headers: {
@@ -379,8 +355,7 @@ const ChatTextAudioPage = () => {
           message: messageText,
           timestamp: new Date().toISOString(),
           user: user.email || 'anonymous',
-          chatId: currentChatId,
-          messageId: messageData.id
+          messageId: messageId
         })
       });
 
@@ -397,18 +372,18 @@ const ChatTextAudioPage = () => {
         responseText = await response.text() || 'Resposta não disponível';
       }
 
-      // Create response message
-      const { error: responseError } = await supabase
-        .from('chat_messages')
-        .insert({
-          chat_id: currentChatId,
-          user_id: user.id,
-          message_type: 'text_output',
-          text_content: responseText,
-          status: 'completed'
-        });
+      // Add AI response to local state
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        message_type: 'text_output',
+        text_content: responseText,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      };
 
-      if (responseError) throw responseError;
+      setMessages(prev => [...prev, aiMessage]);
 
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -523,29 +498,11 @@ const ChatTextAudioPage = () => {
                 size="icon"
                 className={`h-8 w-8 ${message.message_type === 'audio_input' ? 'text-white' : 'text-gray-900 dark:text-white'}`}
                 onClick={() => playAudio(message.id, audioPath)}
-                disabled={message.status === 'processing'}
               >
                 {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
               </Button>
               <div className="text-xs text-gray-400">
                 <span>Áudio</span>
-              </div>
-              <div className="ml-auto pl-2 flex items-center">
-                {message.status === 'processing' && (
-                  <Loader2 size={16} className="animate-spin text-gray-400" />
-                )}
-                {message.status === 'error' && (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertCircle size={16} className="text-red-500 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-black text-white text-xs max-w-xs break-words">
-                        <p>Erro: {message.error_message}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
               </div>
             </div>
           )}
@@ -553,10 +510,6 @@ const ChatTextAudioPage = () => {
           {/* Mostrar conteúdo de texto apenas para mensagens de áudio de entrada (transcrição) */}
           {message.message_type === 'audio_input' && showContent && (
             <p className="whitespace-pre-wrap break-words text-sm mt-2">{showContent}</p>
-          )}
-          
-          {message.status === 'processing' && (
-            <p className="text-xs text-gray-500 italic">Processando...</p>
           )}
         </div>
       );
