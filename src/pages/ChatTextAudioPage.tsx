@@ -49,9 +49,9 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Webhook URLs atualizadas
-  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
-  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+  // Webhook URLs - atualize com suas URLs do n8n
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d9739-ohasd-5-pijasd54-asd42";
 
   // Initialize chat
   useEffect(() => {
@@ -220,7 +220,7 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  // --- Audio Processing with New Architecture ---
+  // --- Audio Processing with Direct n8n Integration ---
   const processAudioMessage = async (audioBlob: Blob) => {
     if (!user || !currentChatId) {
       toast.error('Usuário não autenticado ou chat não inicializado');
@@ -278,33 +278,67 @@ const ChatTextAudioPage = () => {
       // Add message to local state immediately
       setMessages(prev => [...prev, messageData]);
 
-      console.log('Message record created, triggering n8n webhook...');
+      console.log('Message record created, preparing to send audio to n8n webhook...');
 
-      // 4. Trigger n8n webhook with message ID
+      // 4. Download the audio blob from storage to send directly to n8n
+      const { data: audioData, error: downloadError } = await supabase.storage
+        .from('chat_audio')
+        .download(audioPath);
+
+      if (downloadError) {
+        throw new Error(`Erro ao baixar áudio para envio ao n8n: ${downloadError.message}`);
+      }
+
+      // 5. Create FormData with the audio file for n8n
+      const formData = new FormData();
+      formData.append('file', audioData, 'audio.webm');
+      formData.append('messageId', messageId);
+      formData.append('chatId', currentChatId);
+      formData.append('userId', user.id);
+      formData.append('audioPath', audioPath);
+      formData.append('timestamp', new Date().toISOString());
+
+      console.log('Sending audio directly to n8n webhook...');
+
+      // 6. Send audio directly to n8n webhook as FormData
       const webhookResponse = await fetch(audioWebhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messageId: messageId,
-          chatId: currentChatId,
-          userId: user.id,
-          audioPath: audioPath,
-          timestamp: new Date().toISOString()
-        })
+        body: formData
       });
 
       if (!webhookResponse.ok) {
-        throw new Error(`Webhook failed: ${webhookResponse.status}`);
+        const errorText = await webhookResponse.text();
+        throw new Error(`Webhook failed (${webhookResponse.status}): ${errorText}`);
       }
 
-      console.log('n8n webhook triggered successfully');
+      console.log('n8n webhook triggered successfully with audio file');
       toast.success('Áudio enviado para processamento');
 
     } catch (error: any) {
       console.error('Error processing audio message:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
+      
+      // Update message with error status
+      if (currentChatId) {
+        try {
+          const { error: updateError } = await supabase
+            .from('chat_messages')
+            .update({
+              status: 'error',
+              error_message: `Erro ao processar áudio: ${error.message}`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('chat_id', currentChatId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (updateError) {
+            console.error('Error updating message with error status:', updateError);
+          }
+        } catch (updateError) {
+          console.error('Error updating message with error status:', updateError);
+        }
+      }
     }
   };
 
@@ -516,7 +550,8 @@ const ChatTextAudioPage = () => {
             </div>
           )}
           
-          {showContent && (
+          {/* Mostrar conteúdo de texto apenas para mensagens de áudio de entrada (transcrição) */}
+          {message.message_type === 'audio_input' && showContent && (
             <p className="whitespace-pre-wrap break-words text-sm mt-2">{showContent}</p>
           )}
           
@@ -604,37 +639,46 @@ const ChatTextAudioPage = () => {
         </ScrollArea>
       </div>
 
+      {/* Recording Indicator */}
+      {isRecording && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-full flex flex-col items-center justify-center">
+          <div className="animate-pulse mb-2">
+            <Mic size={48} className="text-red-500" />
+          </div>
+          <div className="text-white font-medium">
+            {formatRecordingTime(recordingTime)}
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0">
+      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`flex-shrink-0 ${isRecording ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
+          onClick={handleAudioMessage}
+        >
+          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+        </Button>
         <Input
           ref={inputRef}
-          type="text"
-          placeholder={isRecording ? `Gravando... ${formatRecordingTime(recordingTime)}` : "Digite sua mensagem..."}
-          className="flex-1 bg-gray-700 border-gray-600 placeholder-gray-400 text-white rounded-full px-4 py-2 focus:ring-purple-500 focus:border-purple-500"
+          className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
+          placeholder="Digite uma mensagem..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isRecording || isLoading}
+          onKeyDown={handleKeyPress}
+          disabled={isLoading || isRecording}
         />
-        {input.trim() ? (
-          <Button
-            size="icon"
-            className="bg-purple-600 hover:bg-purple-700 rounded-full text-white"
-            onClick={handleSendMessage}
-            disabled={isLoading || isRecording}
-          >
-            <Send size={20} />
-          </Button>
-        ) : (
-          <Button
-            size="icon"
-            className={`${isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} rounded-full text-white`}
-            onClick={handleAudioMessage}
-            disabled={isLoading}
-          >
-            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 text-gray-400 hover:text-white"
+          onClick={handleSendMessage}
+          disabled={!input.trim() || isLoading || isRecording}
+        >
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+        </Button>
       </div>
     </div>
   );
