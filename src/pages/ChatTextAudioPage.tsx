@@ -53,7 +53,7 @@ const ChatTextAudioPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [agentData, setAgentData<{
+  const [agentData, setAgentData] = useState<{
     name: string;
     avatar_url: string;
   } | null>(null);
@@ -66,7 +66,7 @@ const ChatTextAudioPage = () => {
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   // Updated webhook URLs
-  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadsfd54-asasdfadsfd42";
   const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
   // Load agent data
