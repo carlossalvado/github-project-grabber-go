@@ -69,13 +69,29 @@ const ChatTextAudioPage = () => {
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadsfd54-asasdfadsfd42";
   const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
 
+  // Test image loading function
+  const testImageLoad = (url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        console.log('✅ Imagem carregou com sucesso:', url);
+        resolve(true);
+      };
+      img.onerror = (error) => {
+        console.error('❌ Erro ao carregar imagem:', url, error);
+        resolve(false);
+      };
+      img.src = url;
+    });
+  };
+
   // Load agent data
   useEffect(() => {
     const loadAgentData = async () => {
       if (!user) return;
 
       try {
-        console.log('Loading agent data for user:', user.id);
+        console.log('🔍 Carregando dados do agente para usuário:', user.id);
         
         // Get user's selected agent
         const { data: selectedAgent, error: agentError } = await supabase
@@ -85,16 +101,21 @@ const ChatTextAudioPage = () => {
           .single();
 
         if (agentError) {
-          console.error('Error fetching selected agent:', agentError);
-          // Use default agent data
+          console.error('❌ Erro ao buscar agente selecionado:', agentError);
+          const defaultUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          console.log('🔄 Testando URL padrão:', defaultUrl);
+          
+          const canLoad = await testImageLoad(defaultUrl);
+          console.log('🧪 Teste de carregamento da URL padrão:', canLoad ? 'SUCESSO' : 'FALHOU');
+          
           setAgentData({
             name: 'Isa',
-            avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+            avatar_url: defaultUrl
           });
           return;
         }
 
-        console.log('Selected agent found:', selectedAgent);
+        console.log('✅ Agente selecionado encontrado:', selectedAgent);
 
         // Get agent details
         const { data: agent, error: agentDetailsError } = await supabase
@@ -104,46 +125,72 @@ const ChatTextAudioPage = () => {
           .single();
 
         if (agentDetailsError) {
-          console.error('Error fetching agent details:', agentDetailsError);
-          // Use default agent data
+          console.error('❌ Erro ao buscar detalhes do agente:', agentDetailsError);
+          const fallbackUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          const canLoad = await testImageLoad(fallbackUrl);
+          console.log('🧪 Teste de carregamento da URL de fallback:', canLoad ? 'SUCESSO' : 'FALHOU');
+          
           setAgentData({
             name: selectedAgent.nickname || 'Isa',
-            avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+            avatar_url: fallbackUrl
           });
           return;
         }
 
-        console.log('Agent details found:', agent);
-        console.log('Raw avatar URL from database:', agent.avatar_url);
+        console.log('📋 Detalhes do agente encontrados:', agent);
+        console.log('🔗 URL bruta do avatar do banco:', agent.avatar_url);
+        console.log('🔍 Tipo da URL:', typeof agent.avatar_url);
+        console.log('📏 Tamanho da URL:', agent.avatar_url?.length || 0);
+
+        // Test the original URL first
+        const originalCanLoad = await testImageLoad(agent.avatar_url);
+        console.log('🧪 Teste da URL original do banco:', originalCanLoad ? 'SUCESSO' : 'FALHOU');
+
+        let finalAvatarUrl = agent.avatar_url;
 
         // Check if avatar_url is a Supabase storage path
-        let finalAvatarUrl = agent.avatar_url;
         if (agent.avatar_url && !agent.avatar_url.startsWith('http')) {
+          console.log('🔄 URL não é HTTP, tentando gerar URL pública do Storage...');
+          
           // If it's a storage path, get the public URL
           const { data: publicUrlData } = supabase.storage
             .from('avatars')
             .getPublicUrl(agent.avatar_url);
           
           finalAvatarUrl = publicUrlData.publicUrl;
-          console.log('Generated public URL:', finalAvatarUrl);
+          console.log('🔗 URL pública gerada:', finalAvatarUrl);
+          
+          const publicCanLoad = await testImageLoad(finalAvatarUrl);
+          console.log('🧪 Teste da URL pública gerada:', publicCanLoad ? 'SUCESSO' : 'FALHOU');
         }
 
-        setAgentData({
-          name: selectedAgent.nickname || agent.name,
-          avatar_url: finalAvatarUrl || 'https://i.imgur.com/nV9pbvg.jpg'
-        });
+        // If still can't load, try fallback
+        if (!originalCanLoad && !finalAvatarUrl.startsWith('http')) {
+          console.log('⚠️ Nenhuma URL funcionou, usando fallback...');
+          finalAvatarUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          
+          const fallbackCanLoad = await testImageLoad(finalAvatarUrl);
+          console.log('🧪 Teste da URL de fallback final:', fallbackCanLoad ? 'SUCESSO' : 'FALHOU');
+        }
 
-        console.log('Final agent data set:', {
+        const finalAgentData = {
           name: selectedAgent.nickname || agent.name,
           avatar_url: finalAvatarUrl || 'https://i.imgur.com/nV9pbvg.jpg'
-        });
+        };
+
+        console.log('✅ Dados finais do agente definidos:', finalAgentData);
+        setAgentData(finalAgentData);
 
       } catch (error) {
-        console.error('Error loading agent data:', error);
-        // Use default agent data as fallback
+        console.error('💥 Erro crítico ao carregar dados do agente:', error);
+        const emergencyUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+        
+        const emergencyCanLoad = await testImageLoad(emergencyUrl);
+        console.log('🚨 Teste da URL de emergência:', emergencyCanLoad ? 'SUCESSO' : 'FALHOU');
+        
         setAgentData({
           name: 'Isa',
-          avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+          avatar_url: emergencyUrl
         });
       }
     };
@@ -672,7 +719,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  console.log('Rendering ChatTextAudioPage with agent data:', agentData);
+  console.log('🎨 Renderizando ChatTextAudioPage com dados do agente:', agentData);
 
   // --- JSX ---
   return (
@@ -692,11 +739,17 @@ const ChatTextAudioPage = () => {
             <AvatarImage 
               src={agentData.avatar_url} 
               alt={agentData.name}
-              onLoad={() => console.log('Avatar image loaded successfully:', agentData.avatar_url)}
+              onLoad={() => {
+                console.log('🎉 Avatar do header carregou com sucesso!', agentData.avatar_url);
+              }}
               onError={(e) => {
-                console.error('Error loading avatar image:', agentData.avatar_url);
-                console.error('Image error event:', e);
-                e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
+                console.error('💥 Erro ao carregar avatar do header:', agentData.avatar_url);
+                console.error('📋 Detalhes do erro:', e);
+                // Try to load a simpler fallback
+                const target = e.currentTarget as HTMLImageElement;
+                if (target.src !== 'https://via.placeholder.com/40x40/6366f1/ffffff?text=I') {
+                  target.src = 'https://via.placeholder.com/40x40/6366f1/ffffff?text=I';
+                }
               }}
             />
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
@@ -718,10 +771,15 @@ const ChatTextAudioPage = () => {
                     <AvatarImage 
                       src={agentData.avatar_url} 
                       alt={agentData.name}
-                      onLoad={() => console.log('Message avatar image loaded successfully')}
+                      onLoad={() => {
+                        console.log('🎉 Avatar da mensagem carregou com sucesso!');
+                      }}
                       onError={(e) => {
-                        console.error('Error loading message avatar image:', agentData.avatar_url);
-                        e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
+                        console.error('💥 Erro ao carregar avatar da mensagem:', agentData.avatar_url);
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target.src !== 'https://via.placeholder.com/32x32/6366f1/ffffff?text=I') {
+                          target.src = 'https://via.placeholder.com/32x32/6366f1/ffffff?text=I';
+                        }
                       }}
                     />
                     <AvatarFallback className="bg-purple-600 text-white">
