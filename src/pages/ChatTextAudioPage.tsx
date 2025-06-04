@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -54,7 +53,7 @@ const ChatTextAudioPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [agentData, setAgentData] = useState<{
+  const [agentData, setAgentData<{
     name: string;
     avatar_url: string;
   } | null>(null);
@@ -95,7 +94,7 @@ const ChatTextAudioPage = () => {
           return;
         }
 
-        console.log('Selected agent:', selectedAgent);
+        console.log('Selected agent found:', selectedAgent);
 
         // Get agent details
         const { data: agent, error: agentDetailsError } = await supabase
@@ -114,12 +113,29 @@ const ChatTextAudioPage = () => {
           return;
         }
 
-        console.log('Agent details:', agent);
-        console.log('Agent avatar URL:', agent.avatar_url);
+        console.log('Agent details found:', agent);
+        console.log('Raw avatar URL from database:', agent.avatar_url);
+
+        // Check if avatar_url is a Supabase storage path
+        let finalAvatarUrl = agent.avatar_url;
+        if (agent.avatar_url && !agent.avatar_url.startsWith('http')) {
+          // If it's a storage path, get the public URL
+          const { data: publicUrlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(agent.avatar_url);
+          
+          finalAvatarUrl = publicUrlData.publicUrl;
+          console.log('Generated public URL:', finalAvatarUrl);
+        }
 
         setAgentData({
           name: selectedAgent.nickname || agent.name,
-          avatar_url: agent.avatar_url || 'https://i.imgur.com/nV9pbvg.jpg'
+          avatar_url: finalAvatarUrl || 'https://i.imgur.com/nV9pbvg.jpg'
+        });
+
+        console.log('Final agent data set:', {
+          name: selectedAgent.nickname || agent.name,
+          avatar_url: finalAvatarUrl || 'https://i.imgur.com/nV9pbvg.jpg'
         });
 
       } catch (error) {
@@ -656,7 +672,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  console.log('Rendering with agent data:', agentData);
+  console.log('Rendering ChatTextAudioPage with agent data:', agentData);
 
   // --- JSX ---
   return (
@@ -676,8 +692,10 @@ const ChatTextAudioPage = () => {
             <AvatarImage 
               src={agentData.avatar_url} 
               alt={agentData.name}
+              onLoad={() => console.log('Avatar image loaded successfully:', agentData.avatar_url)}
               onError={(e) => {
                 console.error('Error loading avatar image:', agentData.avatar_url);
+                console.error('Image error event:', e);
                 e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
               }}
             />
@@ -700,6 +718,7 @@ const ChatTextAudioPage = () => {
                     <AvatarImage 
                       src={agentData.avatar_url} 
                       alt={agentData.name}
+                      onLoad={() => console.log('Message avatar image loaded successfully')}
                       onError={(e) => {
                         console.error('Error loading message avatar image:', agentData.avatar_url);
                         e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
