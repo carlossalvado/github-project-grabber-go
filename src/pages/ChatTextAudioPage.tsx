@@ -53,6 +53,10 @@ const ChatTextAudioPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [agentData, setAgentData] = useState<{
+    name: string;
+    avatar_url: string;
+  } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -64,6 +68,64 @@ const ChatTextAudioPage = () => {
   // Updated webhook URLs
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
   const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+
+  // Load agent data
+  useEffect(() => {
+    const loadAgentData = async () => {
+      if (!user) return;
+
+      try {
+        // Get user's selected agent
+        const { data: selectedAgent, error: agentError } = await supabase
+          .from('user_selected_agent')
+          .select('agent_id, nickname')
+          .eq('user_id', user.id)
+          .single();
+
+        if (agentError) {
+          console.error('Error fetching selected agent:', agentError);
+          // Use default agent data
+          setAgentData({
+            name: 'Isa',
+            avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+          });
+          return;
+        }
+
+        // Get agent details
+        const { data: agent, error: agentDetailsError } = await supabase
+          .from('ai_agents')
+          .select('name, avatar_url')
+          .eq('id', selectedAgent.agent_id)
+          .single();
+
+        if (agentDetailsError) {
+          console.error('Error fetching agent details:', agentDetailsError);
+          // Use default agent data
+          setAgentData({
+            name: selectedAgent.nickname || 'Isa',
+            avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+          });
+          return;
+        }
+
+        setAgentData({
+          name: selectedAgent.nickname || agent.name,
+          avatar_url: agent.avatar_url
+        });
+
+      } catch (error) {
+        console.error('Error loading agent data:', error);
+        // Use default agent data as fallback
+        setAgentData({
+          name: 'Isa',
+          avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+        });
+      }
+    };
+
+    loadAgentData();
+  }, [user]);
 
   // Initialize chat - only needed for audio messages
   useEffect(() => {
@@ -577,6 +639,15 @@ const ChatTextAudioPage = () => {
     );
   }
 
+  // Show loading if agent data is not loaded yet
+  if (!agentData) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <Loader2 className="animate-spin" size={32} />
+      </div>
+    );
+  }
+
   // --- JSX ---
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
@@ -592,10 +663,10 @@ const ChatTextAudioPage = () => {
             <ArrowLeft size={20} />
           </Button>
           <Avatar>
-            <AvatarImage src={contactAvatar} alt={contactName} />
-            <AvatarFallback className="bg-purple-600">{contactName.charAt(0)}</AvatarFallback>
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{contactName}</span>
+          <span className="font-medium">{agentData.name}</span>
         </div>
       </div>
 
@@ -609,9 +680,9 @@ const ChatTextAudioPage = () => {
               <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
                 {!isUserMessage && (
                   <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                    <AvatarImage src={contactAvatar} alt={contactName} />
+                    <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
                     <AvatarFallback className="bg-purple-600 text-white">
-                      {contactName.charAt(0)}
+                      {agentData.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 )}
