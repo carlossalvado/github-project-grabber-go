@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,8 @@ const ChatTextAudioPage = () => {
       if (!user) return;
 
       try {
+        console.log('Loading agent data for user:', user.id);
+        
         // Get user's selected agent
         const { data: selectedAgent, error: agentError } = await supabase
           .from('user_selected_agent')
@@ -91,6 +94,8 @@ const ChatTextAudioPage = () => {
           });
           return;
         }
+
+        console.log('Selected agent:', selectedAgent);
 
         // Get agent details
         const { data: agent, error: agentDetailsError } = await supabase
@@ -109,9 +114,12 @@ const ChatTextAudioPage = () => {
           return;
         }
 
+        console.log('Agent details:', agent);
+        console.log('Agent avatar URL:', agent.avatar_url);
+
         setAgentData({
           name: selectedAgent.nickname || agent.name,
-          avatar_url: agent.avatar_url
+          avatar_url: agent.avatar_url || 'https://i.imgur.com/nV9pbvg.jpg'
         });
 
       } catch (error) {
@@ -648,6 +656,8 @@ const ChatTextAudioPage = () => {
     );
   }
 
+  console.log('Rendering with agent data:', agentData);
+
   // --- JSX ---
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
@@ -663,7 +673,14 @@ const ChatTextAudioPage = () => {
             <ArrowLeft size={20} />
           </Button>
           <Avatar>
-            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarImage 
+              src={agentData.avatar_url} 
+              alt={agentData.name}
+              onError={(e) => {
+                console.error('Error loading avatar image:', agentData.avatar_url);
+                e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
+              }}
+            />
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <span className="font-medium">{agentData.name}</span>
@@ -680,7 +697,14 @@ const ChatTextAudioPage = () => {
               <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
                 {!isUserMessage && (
                   <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                    <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                    <AvatarImage 
+                      src={agentData.avatar_url} 
+                      alt={agentData.name}
+                      onError={(e) => {
+                        console.error('Error loading message avatar image:', agentData.avatar_url);
+                        e.currentTarget.src = 'https://i.imgur.com/nV9pbvg.jpg';
+                      }}
+                    />
                     <AvatarFallback className="bg-purple-600 text-white">
                       {agentData.name.charAt(0)}
                     </AvatarFallback>
