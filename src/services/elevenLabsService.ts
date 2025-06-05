@@ -1,4 +1,6 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface ElevenLabsResponse {
   text?: string;
   audioContent?: string;
@@ -6,27 +8,36 @@ export interface ElevenLabsResponse {
 }
 
 class ElevenLabsService {
-  private apiKey = 'sk_9eb765fea090202fcc226bffc261d4b04b01c97013f4fcc3';
-  private baseUrl = 'https://api.elevenlabs.io/v1';
+  private agentId = 'agent_01jwfmbhwtfm9aanc0r7sbqzdf';
+  private hmacKey = 'wsec_98d3f7a84315eecfd8b1584fcf759af388ba926e5298c31b275fef5f87dfe27d';
+  
+  private async getSignedUrl(): Promise<string> {
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-get-signed-url', {
+        body: { 
+          agentId: this.agentId,
+          hmacKey: this.hmacKey
+        }
+      });
+
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Erro ao obter URL assinada:', error);
+      throw new Error('Falha ao conectar com ElevenLabs');
+    }
+  }
 
   async transcribeAudio(audioBlob: Blob): Promise<string> {
     try {
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.webm');
-
-      const response = await fetch(`${this.baseUrl}/speech-to-text`, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': this.apiKey,
-        },
-        body: formData
+      const { data, error } = await supabase.functions.invoke('elevenlabs-transcribe', {
+        body: { 
+          audio: await this.blobToBase64(audioBlob),
+          hmacKey: this.hmacKey
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      if (error) throw error;
       return data.text || '';
     } catch (error) {
       console.error('Erro na transcrição:', error);
@@ -34,41 +45,45 @@ class ElevenLabsService {
     }
   }
 
-  async generateSpeech(text: string, voiceId: string = 'XB0fDUnXU5powFXDhCwa'): Promise<Blob> {
+  async generateSpeech(text: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': this.apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('elevenlabs-text-to-speech', {
+        body: { 
           text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5
-          }
-        })
+          voiceId: 'XB0fDUnXU5powFXDhCwa', // Charlotte voice
+          hmacKey: this.hmacKey
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`Speech generation failed: ${response.status}`);
-      }
-
-      return await response.blob();
+      if (error) throw error;
+      return data.audioContent;
     } catch (error) {
       console.error('Erro na geração de áudio:', error);
       throw new Error('Falha na geração do áudio');
     }
   }
 
-  createAudioUrl(audioBlob: Blob): string {
-    return URL.createObjectURL(audioBlob);
+  private async blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
-  revokeAudioUrl(url: string): void {
-    URL.revokeObjectURL(url);
+  base64ToAudioUrl(base64Audio: string): string {
+    const byteCharacters = atob(base64Audio);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+    return URL.createObjectURL(blob);
   }
 }
 

@@ -1,41 +1,246 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, MicOff, Send, Play, Pause, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Send, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
-import { elevenLabsService } from '@/services/elevenLabsService';
+import { supabase } from '@/integrations/supabase/client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Define message structure for local state
+interface ChatMessage {
+  id: string;
+  created_at: string;
+  user_id: string;
+  chat_id?: string; // Keep optional for text messages
+  message_type: 'text_input' | 'audio_input' | 'text_output' | 'audio_output';
+  text_content?: string;
+  audio_input_url?: string;
+  transcription?: string;
+  status: 'processing' | 'transcribed' | 'generating_response' | 'completed' | 'error';
+  error_message?: string;
+  llm_response_text?: string;
+  response_audio_url?: string;
+  updated_at: string;
+  isPlaying?: boolean; // Client-side state
+}
+
+// Define separate type for database inserts with required chat_id
+interface AudioMessageInsert {
+  id: string;
+  created_at: string;
+  user_id: string;
+  chat_id: string; // Required for database insert
+  message_type: 'audio_input';
+  audio_input_url: string;
+  status: 'completed';
+  updated_at: string;
+}
+
+// Mock contact info
+const contactName = "Isa";
+const contactAvatar = "/placeholder.svg";
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { messages, addMessage, updateMessage } = useLocalCache();
-  
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [agentData, setAgentData] = useState<{
+    name: string;
+    avatar_url: string;
+  } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Agent data
-  const agentData = {
-    name: 'Isa',
-    avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+  // Updated webhook URLs
+  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d97asdfasd39-ohasasdfasdd-5-pijaasdfadsfd54-asasdfadsfd42";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook-test/d9739-ohasd-5-pijasd54-asd42";
+
+  // Test image loading function
+  const testImageLoad = (url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        console.log('✅ Imagem carregou com sucesso:', url);
+        resolve(true);
+      };
+      img.onerror = (error) => {
+        console.error('❌ Erro ao carregar imagem:', url, error);
+        resolve(false);
+      };
+      img.src = url;
+    });
   };
 
-  // Scroll to bottom when messages change
+  // Load agent data
+  useEffect(() => {
+    const loadAgentData = async () => {
+      if (!user) return;
+
+      try {
+        console.log('🔍 Carregando dados do agente para usuário:', user.id);
+        
+        // Get user's selected agent
+        const { data: selectedAgent, error: agentError } = await supabase
+          .from('user_selected_agent')
+          .select('agent_id, nickname')
+          .eq('user_id', user.id)
+          .single();
+
+        if (agentError) {
+          console.error('❌ Erro ao buscar agente selecionado:', agentError);
+          const defaultUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          console.log('🔄 Testando URL padrão:', defaultUrl);
+          
+          const canLoad = await testImageLoad(defaultUrl);
+          console.log('🧪 Teste de carregamento da URL padrão:', canLoad ? 'SUCESSO' : 'FALHOU');
+          
+          setAgentData({
+            name: 'Isa',
+            avatar_url: defaultUrl
+          });
+          return;
+        }
+
+        console.log('✅ Agente selecionado encontrado:', selectedAgent);
+
+        // Get agent details
+        const { data: agent, error: agentDetailsError } = await supabase
+          .from('ai_agents')
+          .select('name, avatar_url')
+          .eq('id', selectedAgent.agent_id)
+          .single();
+
+        if (agentDetailsError) {
+          console.error('❌ Erro ao buscar detalhes do agente:', agentDetailsError);
+          const fallbackUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          const canLoad = await testImageLoad(fallbackUrl);
+          console.log('🧪 Teste de carregamento da URL de fallback:', canLoad ? 'SUCESSO' : 'FALHOU');
+          
+          setAgentData({
+            name: selectedAgent.nickname || 'Isa',
+            avatar_url: fallbackUrl
+          });
+          return;
+        }
+
+        console.log('📋 Detalhes do agente encontrados:', agent);
+        console.log('🔗 URL bruta do avatar do banco:', agent.avatar_url);
+        console.log('🔍 Tipo da URL:', typeof agent.avatar_url);
+        console.log('📏 Tamanho da URL:', agent.avatar_url?.length || 0);
+
+        // Test the original URL first
+        const originalCanLoad = await testImageLoad(agent.avatar_url);
+        console.log('🧪 Teste da URL original do banco:', originalCanLoad ? 'SUCESSO' : 'FALHOU');
+
+        let finalAvatarUrl = agent.avatar_url;
+
+        // Check if avatar_url is a Supabase storage path
+        if (agent.avatar_url && !agent.avatar_url.startsWith('http')) {
+          console.log('🔄 URL não é HTTP, tentando gerar URL pública do Storage...');
+          
+          // If it's a storage path, get the public URL
+          const { data: publicUrlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(agent.avatar_url);
+          
+          finalAvatarUrl = publicUrlData.publicUrl;
+          console.log('🔗 URL pública gerada:', finalAvatarUrl);
+          
+          const publicCanLoad = await testImageLoad(finalAvatarUrl);
+          console.log('🧪 Teste da URL pública gerada:', publicCanLoad ? 'SUCESSO' : 'FALHOU');
+        }
+
+        // If still can't load, try fallback
+        if (!originalCanLoad && !finalAvatarUrl.startsWith('http')) {
+          console.log('⚠️ Nenhuma URL funcionou, usando fallback...');
+          finalAvatarUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+          
+          const fallbackCanLoad = await testImageLoad(finalAvatarUrl);
+          console.log('🧪 Teste da URL de fallback final:', fallbackCanLoad ? 'SUCESSO' : 'FALHOU');
+        }
+
+        const finalAgentData = {
+          name: selectedAgent.nickname || agent.name,
+          avatar_url: finalAvatarUrl || 'https://i.imgur.com/nV9pbvg.jpg'
+        };
+
+        console.log('✅ Dados finais do agente definidos:', finalAgentData);
+        setAgentData(finalAgentData);
+
+      } catch (error) {
+        console.error('💥 Erro crítico ao carregar dados do agente:', error);
+        const emergencyUrl = 'https://i.imgur.com/nV9pbvg.jpg';
+        
+        const emergencyCanLoad = await testImageLoad(emergencyUrl);
+        console.log('🚨 Teste da URL de emergência:', emergencyCanLoad ? 'SUCESSO' : 'FALHOU');
+        
+        setAgentData({
+          name: 'Isa',
+          avatar_url: emergencyUrl
+        });
+      }
+    };
+
+    loadAgentData();
+  }, [user]);
+
+  // Initialize chat - only needed for audio messages
+  useEffect(() => {
+    if (user) {
+      initializeChat();
+    }
+  }, [user]);
+
+  // Set up realtime subscription - only for audio messages
+  useEffect(() => {
+    if (!currentChatId) return;
+
+    console.log('Setting up realtime subscription for chat:', currentChatId);
+
+    const channel = supabase
+      .channel('chat_messages_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `chat_id=eq.${currentChatId}`
+        },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          
+          if (payload.eventType === 'UPDATE') {
+            const updatedMessage = payload.new as ChatMessage;
+            setMessages(prev => prev.map(msg => 
+              msg.id === updatedMessage.id ? { ...updatedMessage, isPlaying: msg.isPlaying } : msg
+            ));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [currentChatId]);
+
+  // Scroll to bottom effect
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -45,19 +250,72 @@ const ChatTextAudioPage = () => {
     inputRef.current?.focus();
   }, []);
 
-  // Cleanup audio URLs on unmount
+  // Cleanup audio elements on unmount
   useEffect(() => {
     return () => {
-      audioElementsRef.current.forEach((audio) => {
+      audioRefs.current.forEach((audio) => {
         audio.pause();
         if (audio.src.startsWith('blob:')) {
           URL.revokeObjectURL(audio.src);
         }
       });
-      audioElementsRef.current.clear();
+      audioRefs.current.clear();
     };
   }, []);
 
+  const initializeChat = async () => {
+    if (!user) return;
+
+    try {
+      // Create or get existing chat for audio messages
+      const { data: existingChats, error: fetchError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+
+      let chatId: string;
+
+      if (existingChats && existingChats.length > 0) {
+        chatId = existingChats[0].id;
+      } else {
+        // Create new chat
+        const { data: newChat, error: createError } = await supabase
+          .from('chats')
+          .insert({
+            user_id: user.id,
+            title: `Chat com ${contactName}`,
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        chatId = newChat.id;
+      }
+
+      setCurrentChatId(chatId);
+
+      // Load existing messages - only audio messages from database
+      const { data: existingMessages, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (messagesError) throw messagesError;
+      
+      setMessages(existingMessages || []);
+
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      toast.error('Erro ao inicializar chat');
+    }
+  };
+
+  // --- Audio Recording Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -72,6 +330,7 @@ const ChatTextAudioPage = () => {
 
       mediaRecorderRef.current.onstop = () => {
         if (audioChunksRef.current.length === 0) {
+          console.warn("Nenhum dado de áudio gravado.");
           toast.warning("Nenhum áudio foi gravado.");
           return;
         }
@@ -89,7 +348,7 @@ const ChatTextAudioPage = () => {
 
     } catch (error) {
       console.error("Erro ao iniciar gravação:", error);
-      toast.error("Não foi possível acessar o microfone.");
+      toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
       setIsRecording(false);
     }
   };
@@ -106,135 +365,280 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  // --- Audio Processing with Supabase Storage and n8n webhook ---
   const processAudioMessage = async (audioBlob: Blob) => {
-    if (!user) {
-      toast.error('Usuário não autenticado');
+    if (!user || !currentChatId) {
+      toast.error('Usuário não autenticado ou chat não inicializado');
       return;
     }
 
-    const audioUrl = elevenLabsService.createAudioUrl(audioBlob);
-    
-    // Add user message immediately
-    const messageId = addMessage({
-      type: 'user',
-      audioBlob,
-      audioUrl,
-      timestamp: new Date().toISOString()
-    });
-
     try {
-      setIsLoading(true);
+      console.log('Processing audio message...');
 
-      // Transcribe audio
-      const transcription = await elevenLabsService.transcribeAudio(audioBlob);
-      
-      // Update message with transcription
-      updateMessage(messageId, { transcription });
-
-      // Generate AI response
-      const responseText = `Recebi seu áudio: "${transcription}". Esta é uma resposta de exemplo.`;
-      const responseAudioBlob = await elevenLabsService.generateSpeech(responseText);
-      const responseAudioUrl = elevenLabsService.createAudioUrl(responseAudioBlob);
-
-      // Add AI response
-      addMessage({
-        type: 'assistant',
-        audioBlob: responseAudioBlob,
-        audioUrl: responseAudioUrl,
-        transcription: responseText,
-        timestamp: new Date().toISOString()
+      // 1. Get signed upload URL
+      const { data: urlData, error: urlError } = await supabase.functions.invoke('get-signed-upload-url', {
+        body: {
+          chatId: currentChatId,
+          fileType: 'audio/webm'
+        }
       });
 
+      if (urlError) throw urlError;
+
+      const { signedUrl, path: audioPath, messageId } = urlData;
+
+      console.log('Got signed URL, uploading audio...');
+
+      // 2. Upload audio directly to storage
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        body: audioBlob,
+        headers: {
+          'Content-Type': 'audio/webm'
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload audio');
+      }
+
+      console.log('Audio uploaded successfully');
+
+      // 3. Create message record in database with proper typing
+      const audioMessageInsert: AudioMessageInsert = {
+        id: messageId,
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        chat_id: currentChatId,
+        message_type: 'audio_input',
+        audio_input_url: audioPath,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: messageData, error: messageError } = await supabase
+        .from('chat_messages')
+        .insert(audioMessageInsert)
+        .select()
+        .single();
+
+      if (messageError) throw messageError;
+
+      // Add message to local state immediately
+      setMessages(prev => [...prev, messageData]);
+
+      console.log('Message record created, preparing to send audio to n8n webhook...');
+
+      // 4. Download the audio blob from storage to send directly to n8n
+      const { data: audioData, error: downloadError } = await supabase.storage
+        .from('chat_audio')
+        .download(audioPath);
+
+      if (downloadError) {
+        throw new Error(`Erro ao baixar áudio para envio ao n8n: ${downloadError.message}`);
+      }
+
+      // 5. Create FormData with the audio file for n8n
+      const formData = new FormData();
+      formData.append('file', audioData, 'audio.webm');
+      formData.append('messageId', messageId);
+      formData.append('chatId', currentChatId);
+      formData.append('userId', user.id);
+      formData.append('audioPath', audioPath);
+      formData.append('timestamp', new Date().toISOString());
+
+      console.log('Sending audio directly to n8n webhook...');
+
+      // 6. Send audio directly to n8n webhook as FormData
+      const webhookResponse = await fetch(audioWebhookUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        throw new Error(`Webhook failed (${webhookResponse.status}): ${errorText}`);
+      }
+
+      console.log('n8n webhook triggered successfully with audio file');
+
     } catch (error: any) {
-      console.error('Error processing audio:', error);
+      console.error('Error processing audio message:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  // --- Text Message Logic - Direct n8n integration without Supabase ---
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading || isRecording || !user) return;
 
     const messageText = input.trim();
+    const messageId = crypto.randomUUID();
     setInput('');
     setIsLoading(true);
 
-    // Add user text message
-    addMessage({
-      type: 'user',
-      transcription: messageText,
-      timestamp: new Date().toISOString()
-    });
+    // Add user message to local state immediately
+    const userMessage: ChatMessage = {
+      id: messageId,
+      created_at: new Date().toISOString(),
+      user_id: user.id,
+      message_type: 'text_input',
+      text_content: messageText,
+      status: 'completed',
+      updated_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Generate AI response
-      const responseText = `Você disse: "${messageText}". Esta é uma resposta de exemplo.`;
-      const responseAudioBlob = await elevenLabsService.generateSpeech(responseText);
-      const responseAudioUrl = elevenLabsService.createAudioUrl(responseAudioBlob);
-
-      // Add AI response
-      addMessage({
-        type: 'assistant',
-        audioBlob: responseAudioBlob,
-        audioUrl: responseAudioUrl,
-        transcription: responseText,
-        timestamp: new Date().toISOString()
+      console.log('Enviando mensagem para o webhook:', textWebhookUrl);
+      
+      // Send directly to n8n webhook
+      const response = await fetch(textWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: messageText,
+          timestamp: new Date().toISOString(),
+          user: user.email || 'anonymous',
+          messageId: messageId
+        })
       });
 
+      console.log('Resposta do webhook recebida:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.status} - ${response.statusText}`);
+      }
+
+      // Try to get response as text first, then parse if possible
+      const responseText = await response.text();
+      console.log('Conteúdo da resposta:', responseText);
+      
+      let aiResponseText = '';
+      
+      if (responseText) {
+        try {
+          // Try to parse as JSON first
+          const responseData = JSON.parse(responseText);
+          
+          // Handle array format from n8n (like [{"output":"message"}])
+          if (Array.isArray(responseData) && responseData.length > 0) {
+            const firstItem = responseData[0];
+            aiResponseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || firstItem.reply || responseText;
+          } else {
+            // Handle single object format
+            aiResponseText = responseData.output || responseData.message || responseData.text || responseData.response || responseData.reply || responseText;
+          }
+        } catch {
+          // If not JSON, use the text directly
+          aiResponseText = responseText;
+        }
+      } else {
+        aiResponseText = 'Resposta recebida com sucesso';
+      }
+
+      console.log('Resposta processada da IA:', aiResponseText);
+
+      // Add AI response to local state
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        message_type: 'text_output',
+        text_content: aiResponseText,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
     } catch (error: any) {
-      console.error('Error generating response:', error);
-      toast.error(`Erro ao gerar resposta: ${error.message}`);
+      console.error('Erro detalhado ao enviar mensagem:', error);
+      
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        message_type: 'text_output',
+        text_content: `Erro na comunicação: ${error.message}. Verifique se o webhook está funcionando corretamente.`,
+        status: 'error',
+        error_message: error.message,
+        updated_at: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error(`Erro ao enviar mensagem: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const playAudio = async (message: CachedMessage) => {
-    if (!message.audioUrl) return;
+  // --- Audio Playback Logic ---
+  const playAudio = async (messageId: string, audioPath: string) => {
+    if (!audioPath) {
+      toast.error("Áudio indisponível.");
+      return;
+    }
 
     try {
-      let audio = audioElementsRef.current.get(message.id);
-
-      // Stop any currently playing audio
-      audioElementsRef.current.forEach((existingAudio, id) => {
-        if (id !== message.id && !existingAudio.paused) {
-          existingAudio.pause();
-          setPlayingMessageId(null);
+      // Pause any currently playing audio
+      audioRefs.current.forEach((audio, id) => {
+        if (id !== messageId && !audio.paused) {
+          audio.pause();
+          setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isPlaying: false } : msg));
         }
       });
+
+      let audio = audioRefs.current.get(messageId);
 
       if (audio) {
         if (audio.paused) {
           await audio.play();
-          setPlayingMessageId(message.id);
         } else {
           audio.pause();
-          setPlayingMessageId(null);
         }
       } else {
-        audio = new Audio(message.audioUrl);
-        audioElementsRef.current.set(message.id, audio);
+        // Get public URL for audio
+        const { data } = supabase.storage.from('chat_audio').getPublicUrl(audioPath);
+        
+        audio = new Audio(data.publicUrl);
+        audioRefs.current.set(messageId, audio);
 
-        audio.onended = () => {
-          setPlayingMessageId(null);
+        audio.onplay = () => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId ? { ...msg, isPlaying: true } : { ...msg, isPlaying: false }
+          ));
         };
-
-        audio.onerror = () => {
+        
+        audio.onpause = () => {
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+        };
+        
+        audio.onended = () => {
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+        };
+        
+        audio.onerror = (e) => {
+          console.error("Erro no elemento de áudio:", e);
           toast.error("Erro ao carregar o áudio.");
-          setPlayingMessageId(null);
+          setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
+          audioRefs.current.delete(messageId);
         };
 
         await audio.play();
-        setPlayingMessageId(message.id);
       }
     } catch (error) {
       console.error("Erro ao tocar áudio:", error);
       toast.error("Não foi possível tocar o áudio.");
-      setPlayingMessageId(null);
+      setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, isPlaying: false } : msg));
     }
   };
 
+  // --- Helper Functions ---
   const handleAudioMessage = () => {
     if (isRecording) {
       stopRecording();
@@ -263,32 +667,39 @@ const ChatTextAudioPage = () => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  const renderMessageContent = (message: CachedMessage) => {
-    const isUserMessage = message.type === 'user';
-    
-    return (
-      <div className="space-y-2">
-        {message.audioUrl && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 ${isUserMessage ? 'text-white' : 'text-gray-900 dark:text-white'}`}
-              onClick={() => playAudio(message)}
-            >
-              {playingMessageId === message.id ? <Pause size={18} /> : <Play size={18} />}
-            </Button>
-            <div className="text-xs text-gray-400">
-              <span>Áudio</span>
+  // --- Render Logic ---
+  const renderMessageContent = (message: ChatMessage) => {
+    if (message.message_type === 'audio_input' || message.message_type === 'audio_output') {
+      const audioPath = message.message_type === 'audio_input' ? message.audio_input_url : message.response_audio_url;
+      const showContent = message.message_type === 'audio_input' ? message.transcription : message.llm_response_text;
+      
+      return (
+        <div className="space-y-2">
+          {audioPath && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 ${message.message_type === 'audio_input' ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                onClick={() => playAudio(message.id, audioPath)}
+              >
+                {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
+              </Button>
+              <div className="text-xs text-gray-400">
+                <span>Áudio</span>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {message.transcription && (
-          <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
-        )}
-      </div>
-    );
+          )}
+          
+          {/* Mostrar conteúdo de texto apenas para mensagens de áudio de entrada (transcrição) */}
+          {message.message_type === 'audio_input' && showContent && (
+            <p className="whitespace-pre-wrap break-words text-sm mt-2">{showContent}</p>
+          )}
+        </div>
+      );
+    } else {
+      return <p className="whitespace-pre-wrap break-words">{message.text_content}</p>;
+    }
   };
 
   if (!user) {
@@ -299,6 +710,18 @@ const ChatTextAudioPage = () => {
     );
   }
 
+  // Show loading if agent data is not loaded yet
+  if (!agentData) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <Loader2 className="animate-spin" size={32} />
+      </div>
+    );
+  }
+
+  console.log('🎨 Renderizando ChatTextAudioPage com dados do agente:', agentData);
+
+  // --- JSX ---
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
       {/* Header */}
@@ -313,7 +736,22 @@ const ChatTextAudioPage = () => {
             <ArrowLeft size={20} />
           </Button>
           <Avatar>
-            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarImage 
+              src={agentData.avatar_url} 
+              alt={agentData.name}
+              onLoad={() => {
+                console.log('🎉 Avatar do header carregou com sucesso!', agentData.avatar_url);
+              }}
+              onError={(e) => {
+                console.error('💥 Erro ao carregar avatar do header:', agentData.avatar_url);
+                console.error('📋 Detalhes do erro:', e);
+                // Try to load a simpler fallback
+                const target = e.currentTarget as HTMLImageElement;
+                if (target.src !== 'https://via.placeholder.com/40x40/6366f1/ffffff?text=I') {
+                  target.src = 'https://via.placeholder.com/40x40/6366f1/ffffff?text=I';
+                }
+              }}
+            />
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <span className="font-medium">{agentData.name}</span>
@@ -324,13 +762,26 @@ const ChatTextAudioPage = () => {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           {messages.map((message) => {
-            const isUserMessage = message.type === 'user';
+            const isUserMessage = message.message_type === 'text_input' || message.message_type === 'audio_input';
             
             return (
               <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
                 {!isUserMessage && (
                   <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                    <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                    <AvatarImage 
+                      src={agentData.avatar_url} 
+                      alt={agentData.name}
+                      onLoad={() => {
+                        console.log('🎉 Avatar da mensagem carregou com sucesso!');
+                      }}
+                      onError={(e) => {
+                        console.error('💥 Erro ao carregar avatar da mensagem:', agentData.avatar_url);
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target.src !== 'https://via.placeholder.com/32x32/6366f1/ffffff?text=I') {
+                          target.src = 'https://via.placeholder.com/32x32/6366f1/ffffff?text=I';
+                        }
+                      }}
+                    />
                     <AvatarFallback className="bg-purple-600 text-white">
                       {agentData.name.charAt(0)}
                     </AvatarFallback>
@@ -346,7 +797,7 @@ const ChatTextAudioPage = () => {
                     {renderMessageContent(message)}
                   </div>
                   <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
-                    {formatTime(message.timestamp)}
+                    {formatTime(message.created_at)}
                   </div>
                 </div>
 
