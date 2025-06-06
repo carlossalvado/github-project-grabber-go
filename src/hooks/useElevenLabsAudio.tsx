@@ -166,28 +166,32 @@ export const useElevenLabsAudio = () => {
         ws.onopen = () => {
           console.log('Conectado ao agente ElevenLabs');
           
-          // Converter audioBlob para ArrayBuffer e depois para base64
           const reader = new FileReader();
           reader.onload = () => {
             const arrayBuffer = reader.result as ArrayBuffer;
             const uint8Array = new Uint8Array(arrayBuffer);
             
-            // --- START MODIFIED BASE64 CONVERSION ---
-            // A more robust way to convert Uint8Array to Base64
-            let binary = '';
-            const len = uint8Array.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(uint8Array[i]);
+            // --- START FIX FOR AUDIO STREAMING ---
+            const chunkSize = 4096; // Tamanho do chunk em bytes
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+              const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+              
+              // Convert chunk to Base64
+              let binary = '';
+              const len = chunk.byteLength;
+              for (let j = 0; j < len; j++) {
+                  binary += String.fromCharCode(chunk[j]);
+              }
+              const base64Chunk = btoa(binary);
+              
+              // Send each chunk
+              ws.send(JSON.stringify({
+                user_audio_chunk: base64Chunk
+              }));
             }
-            const base64Audio = btoa(binary);
-            // --- END MODIFIED BASE64 CONVERSION ---
+            // --- END FIX FOR AUDIO STREAMING ---
             
-            // Enviar áudio em formato correto
-            ws.send(JSON.stringify({
-              user_audio_chunk: base64Audio
-            }));
-            
-            // Sinalizar fim do áudio
+            // Sinalizar fim do áudio após todos os chunks
             ws.send(JSON.stringify({
               user_audio_chunk: ""
             }));
@@ -211,6 +215,7 @@ export const useElevenLabsAudio = () => {
             }
             
             if (data.audio_event && data.audio_event.event_id === 'audio_stream_end') {
+              console.log('ElevenLabs: audio_stream_end event received.'); // Log para confirmar o evento
               // Combinar todos os chunks de áudio
               const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
               const combinedAudio = new Uint8Array(totalLength);
@@ -342,5 +347,3 @@ export const useElevenLabsAudio = () => {
     clearAudioMessages
   };
 };
-
-
