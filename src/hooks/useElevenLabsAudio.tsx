@@ -53,7 +53,18 @@ export const useElevenLabsAudio = () => {
           return;
         }
         
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        let audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        // --- START FIX FOR BUFFER SIZE ERROR ---
+        // Ensure audioBlob size is a multiple of 2 (for 16-bit samples)
+        // This is a common workaround for "buffer size must be a multiple of element size" errors
+        // when dealing with audio data that is expected to be 16-bit PCM.
+        if (audioBlob.size % 2 !== 0) {
+          const padding = new Uint8Array([0]); // Add a single zero byte
+          audioBlob = new Blob([audioBlob, padding], { type: 'audio/webm' });
+        }
+        // --- END FIX FOR BUFFER SIZE ERROR ---
+
         processAudioWithElevenLabs(audioBlob);
       };
       
@@ -157,14 +168,15 @@ export const useElevenLabsAudio = () => {
             const arrayBuffer = reader.result as ArrayBuffer;
             const uint8Array = new Uint8Array(arrayBuffer);
             
-            // Converter para base64
+            // --- START MODIFIED BASE64 CONVERSION ---
+            // A more robust way to convert Uint8Array to Base64
             let binary = '';
-            const chunkSize = 8192;
-            for (let i = 0; i < uint8Array.length; i += chunkSize) {
-              const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            const len = uint8Array.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(uint8Array[i]);
             }
             const base64Audio = btoa(binary);
+            // --- END MODIFIED BASE64 CONVERSION ---
             
             // Enviar áudio em formato correto
             ws.send(JSON.stringify({
@@ -316,3 +328,5 @@ export const useElevenLabsAudio = () => {
     clearAudioMessages
   };
 };
+
+
