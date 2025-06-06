@@ -114,6 +114,7 @@ export const useElevenLabsAudio = () => {
       const audioResponse = await sendToElevenLabsAgent(audioBlob);
       
       if (audioResponse) {
+        console.log('ElevenLabs audioResponse received:', audioResponse); // Log para verificar o audioResponse
         const assistantAudioUrl = URL.createObjectURL(audioResponse);
         const assistantMessage: AudioMessage = {
           id: crypto.randomUUID(),
@@ -127,6 +128,9 @@ export const useElevenLabsAudio = () => {
         
         // Reproduzir automaticamente a resposta
         setTimeout(() => playAudio(assistantMessage), 500);
+      } else {
+        console.warn('ElevenLabs audioResponse is null or empty.'); // Log se audioResponse for nulo/vazio
+        toast.error('Não foi possível obter resposta de áudio do ElevenLabs.');
       }
       
     } catch (error: any) {
@@ -250,7 +254,10 @@ export const useElevenLabsAudio = () => {
   };
 
   const playAudio = async (message: AudioMessage) => {
-    if (!message.audioUrl) return;
+    if (!message.audioUrl) {
+      console.warn('Attempted to play audio with no audioUrl:', message);
+      return;
+    }
     
     try {
       // Parar qualquer áudio em reprodução
@@ -266,6 +273,7 @@ export const useElevenLabsAudio = () => {
         audioElementsRef.current.set(message.id, audio);
         
         audio.onended = () => {
+          console.log('Audio playback ended for message:', message.id);
           setAudioMessages(prev => 
             prev.map(msg => 
               msg.id === message.id ? { ...msg, isPlaying: false } : msg
@@ -273,7 +281,12 @@ export const useElevenLabsAudio = () => {
           );
         };
         
-        audio.onerror = () => {
+        audio.onerror = (e) => {
+          console.error("Erro ao carregar ou tocar o áudio:", e); // Log do erro completo
+          if (audio) {
+            console.error('Audio element error code:', audio.error?.code);
+            console.error('Audio element error message:', audio.error?.message);
+          }
           toast.error("Erro ao carregar o áudio.");
           setAudioMessages(prev => 
             prev.map(msg => 
@@ -290,9 +303,10 @@ export const useElevenLabsAudio = () => {
       );
       
       await audio.play();
+      console.log('Attempting to play audio for message:', message.id);
       
     } catch (error) {
-      console.error("Erro ao tocar áudio:", error);
+      console.error("Erro ao tocar áudio (catch block):", error);
       toast.error("Não foi possível tocar o áudio.");
     }
   };
