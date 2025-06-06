@@ -23,7 +23,7 @@ export const useElevenLabsAudio = () => {
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const ELEVENLABS_API_KEY = 'sk_9eb765fea090202fcc226bffc261d4b04b01c97013f4fcc3';
-  const WEBHOOK_URL = 'https://api.elevenlabs.io/v1/convai/conversation/get_signed_url';
+  const AGENT_ID = 'agent_01jwfmbhwtfm9aanc0r7sbqzdf';
 
   const startRecording = async () => {
     try {
@@ -100,15 +100,8 @@ export const useElevenLabsAudio = () => {
       
       setAudioMessages(prev => [...prev, userMessage]);
       
-      // Primeiro, transcrever o áudio
-      const transcriptionResponse = await transcribeAudio(audioBlob);
-      
-      if (!transcriptionResponse) {
-        throw new Error('Falha na transcrição do áudio');
-      }
-      
-      // Enviar texto transcrito para ElevenLabs conversational AI
-      const audioResponse = await sendToElevenLabsConversational(transcriptionResponse);
+      // Usar o Conversational AI Agent do ElevenLabs
+      const audioResponse = await sendToElevenLabsAgent(audioBlob);
       
       if (audioResponse) {
         const assistantAudioUrl = URL.createObjectURL(audioResponse);
@@ -134,59 +127,108 @@ export const useElevenLabsAudio = () => {
     }
   };
 
-  const transcribeAudio = async (audioBlob: Blob): Promise<string | null> => {
+  const sendToElevenLabsAgent = async (audioBlob: Blob): Promise<Blob | null> => {
     try {
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.webm');
-      
-      const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
+      // Primeiro, obter a URL assinada para o agente
+      const signedUrlResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${AGENT_ID}`, {
+        method: 'GET',
         headers: {
           'xi-api-key': ELEVENLABS_API_KEY,
-        },
-        body: formData
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`Erro na transcrição: ${response.status}`);
+      if (!signedUrlResponse.ok) {
+        throw new Error(`Erro ao obter URL assinada: ${signedUrlResponse.status}`);
       }
       
-      const data = await response.json();
-      return data.text || '';
+      const { signed_url } = await signedUrlResponse.json();
       
-    } catch (error) {
-      console.error('Erro na transcrição:', error);
-      return null;
-    }
-  };
-
-  const sendToElevenLabsConversational = async (text: string): Promise<Blob | null> => {
-    try {
-      // Usar Text-to-Speech do ElevenLabs para gerar resposta em áudio
-      const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa', {
-        method: 'POST',
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: `Você disse: "${text}". Esta é uma resposta de exemplo do ElevenLabs.`,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5
+      // Conectar via WebSocket com o agente
+      return new Promise((resolve, reject) => {
+        const ws = new WebSocket(signed_url);
+        let audioResponse: Blob | null = null;
+        const audioChunks: Uint8Array[] = [];
+        
+        ws.onopen = () => {
+          console.log('Conectado ao agente ElevenLabs');
+          
+          // Enviar configuração inicial
+          ws.send(JSON.stringify({
+            user_audio_chunk: null,
+            text: null
+          }));
+          
+          // Converter audioBlob para base64 e enviar
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64Audio = (reader.result as string).split(',')[1];
+            ws.send(JSON.stringify({
+              user_audio_chunk: base64Audio,
+              text: null
+            }));
+            
+            // Sinalizar fim do áudio
+            ws.send(JSON.stringify({
+              user_audio_chunk: null,
+              text: null
+            }));
+          };
+          reader.readAsDataURL(audioBlob);
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            if (data.audio_event && data.audio_event.audio_base_64) {
+              // Converter base64 para Uint8Array
+              const binaryString = atob(data.audio_event.audio_base_64);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              audioChunks.push(bytes);
+            }
+            
+            if (data.audio_event && data.audio_event.event_id === 'audio_stream_end') {
+              // Combinar todos os chunks de áudio
+              const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+              const combinedAudio = new Uint8Array(totalLength);
+              let offset = 0;
+              for (const chunk of audioChunks) {
+                combinedAudio.set(chunk, offset);
+                offset += chunk.length;
+              }
+              
+              audioResponse = new Blob([combinedAudio], { type: 'audio/mpeg' });
+              ws.close();
+            }
+          } catch (error) {
+            console.error('Erro ao processar mensagem WebSocket:', error);
           }
-        })
+        };
+        
+        ws.onclose = () => {
+          console.log('Conexão WebSocket fechada');
+          resolve(audioResponse);
+        };
+        
+        ws.onerror = (error) => {
+          console.error('Erro WebSocket:', error);
+          reject(new Error('Erro na conexão WebSocket'));
+        };
+        
+        // Timeout de 30 segundos
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.close();
+            reject(new Error('Timeout na conexão com o agente'));
+          }
+        }, 30000);
       });
       
-      if (!response.ok) {
-        throw new Error(`Erro na geração de áudio: ${response.status}`);
-      }
-      
-      return await response.blob();
-      
     } catch (error) {
-      console.error('Erro ao gerar áudio:', error);
+      console.error('Erro ao conectar com agente ElevenLabs:', error);
       return null;
     }
   };
