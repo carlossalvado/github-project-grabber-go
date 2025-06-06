@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,11 +9,13 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { elevenLabsService } from '@/services/elevenLabsService';
+import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { messages, addMessage, updateMessage } = useLocalCache();
+  const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -168,12 +169,14 @@ const ChatTextAudioPage = () => {
     });
 
     try {
-      // Generate AI response
-      const responseText = `Você disse: "${messageText}". Esta é uma resposta de exemplo.`;
+      // Send to n8n webhook and get response
+      const responseText = await sendToN8n(messageText, user.email);
+      
+      // Generate audio for the response
       const responseAudioBlob = await elevenLabsService.generateSpeech(responseText);
       const responseAudioUrl = elevenLabsService.createAudioUrl(responseAudioBlob);
 
-      // Add AI response
+      // Add AI response with audio
       addMessage({
         type: 'assistant',
         audioBlob: responseAudioBlob,
@@ -184,7 +187,12 @@ const ChatTextAudioPage = () => {
 
     } catch (error: any) {
       console.error('Error generating response:', error);
-      toast.error(`Erro ao gerar resposta: ${error.message}`);
+      // Fallback response in case of error
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageText}"`,
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setIsLoading(false);
     }
@@ -393,16 +401,16 @@ const ChatTextAudioPage = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
-          disabled={isLoading || isRecording}
+          disabled={isLoading || isRecording || n8nLoading}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-white"
           onClick={handleSendMessage}
-          disabled={!input.trim() || isLoading || isRecording}
+          disabled={!input.trim() || isLoading || isRecording || n8nLoading}
         >
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+          {isLoading || n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
       </div>
     </div>

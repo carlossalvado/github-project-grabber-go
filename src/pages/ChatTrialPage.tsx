@@ -13,6 +13,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 
 interface ModernMessage {
   id: string;
@@ -32,6 +33,7 @@ const ChatUltimatePage = () => {
   const { userSubscription } = useSubscription();
   const { plan } = useUserCache();
   const navigate = useNavigate();
+  const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
@@ -101,6 +103,7 @@ const ChatUltimatePage = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = input;
     setInput('');
     setIsLoading(true);
 
@@ -109,19 +112,34 @@ const ChatUltimatePage = () => {
       inputRef.current.blur();
     }
 
-    // Simulate typing delay for contact response
-    setTimeout(() => {
+    try {
+      // Send to n8n webhook and get response
+      const responseText = await sendToN8n(messageContent, user?.email);
+      
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
-        content: `Olá! Recebi sua mensagem: "${userMessage.content}"`,
+        content: responseText,
         sender: 'contact',
         timestamp: new Date(),
         type: 'text'
       };
       
       setMessages(prev => [...prev, contactMessage]);
+      
+    } catch (error) {
+      // Fallback response in case of error
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageContent}"`,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

@@ -13,6 +13,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 
 interface ModernMessage {
   id: string;
@@ -32,6 +33,7 @@ const ChatPremiumPage = () => {
   const { userSubscription } = useSubscription();
   const { plan } = useUserCache();
   const navigate = useNavigate();
+  const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
@@ -101,6 +103,7 @@ const ChatPremiumPage = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = input;
     setInput('');
     setIsLoading(true);
 
@@ -109,19 +112,34 @@ const ChatPremiumPage = () => {
       inputRef.current.blur();
     }
 
-    // Simulate typing delay for contact response
-    setTimeout(() => {
+    try {
+      // Send to n8n webhook and get response
+      const responseText = await sendToN8n(messageContent, user?.email);
+      
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
-        content: `Olá! Recebi sua mensagem: "${userMessage.content}"`,
+        content: responseText,
         sender: 'contact',
         timestamp: new Date(),
         type: 'text'
       };
       
       setMessages(prev => [...prev, contactMessage]);
+      
+    } catch (error) {
+      // Fallback response in case of error
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageContent}"`,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -445,7 +463,7 @@ const ChatPremiumPage = () => {
               onKeyPress={handleKeyPress}
               placeholder="Send message ..."
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
-              disabled={isLoading}
+              disabled={isLoading || n8nLoading}
             />
           </div>
           
@@ -458,7 +476,7 @@ const ChatPremiumPage = () => {
                 ? 'text-purple-400 bg-gray-700' 
                 : 'text-gray-400 hover:bg-gray-700'
             }`}
-            disabled={isLoading}
+            disabled={isLoading || n8nLoading}
           >
             <Smile size={20} />
           </Button>
@@ -472,7 +490,7 @@ const ChatPremiumPage = () => {
                 ? 'text-purple-400 bg-gray-700' 
                 : 'text-gray-400 hover:bg-gray-700'
             }`}
-            disabled={isLoading}
+            disabled={isLoading || n8nLoading}
           >
             <Gift size={20} />
           </Button>
@@ -486,7 +504,7 @@ const ChatPremiumPage = () => {
                 ? 'text-red-400 hover:bg-red-900' 
                 : 'text-gray-400 hover:bg-gray-700'
             }`}
-            disabled={isLoading}
+            disabled={isLoading || n8nLoading}
           >
             <Mic size={20} />
           </Button>
@@ -495,7 +513,7 @@ const ChatPremiumPage = () => {
             onClick={handleSendMessage}
             size="icon"
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || n8nLoading}
           >
             <Send size={18} />
           </Button>

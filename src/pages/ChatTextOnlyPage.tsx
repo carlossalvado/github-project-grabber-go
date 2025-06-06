@@ -11,6 +11,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 
 interface ModernMessage {
   id: string;
@@ -29,6 +30,7 @@ interface ModernMessage {
 const ChatTextOnlyPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -375,71 +377,24 @@ const ChatTextOnlyPage = () => {
     }
 
     try {
-      console.log('Enviando mensagem de texto para n8n:', messageContent);
+      // Send to n8n webhook and get response
+      const responseText = await sendToN8n(messageContent, user?.email);
       
-      // Enviar mensagem para o webhook do n8n
-      const response = await fetch(textWebhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: messageContent,
-          timestamp: new Date().toISOString(),
-          user: user?.email || 'anonymous'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
-      }
-      
-      console.log('Resposta recebida do n8n');
-      
-      // Processar resposta do n8n
-      let responseText = '';
-      try {
-        const responseData = await response.json();
-        console.log('Resposta JSON do n8n:', responseData);
-        
-        if (responseData.message) {
-          responseText = responseData.message;
-        } else if (responseData.text) {
-          responseText = responseData.text;
-        } else if (responseData.response) {
-          responseText = responseData.response;
-        } else if (typeof responseData === 'string') {
-          responseText = responseData;
-        } else {
-          responseText = JSON.stringify(responseData);
-        }
-      } catch (jsonError) {
-        console.log('Resposta não é JSON, tratando como texto');
-        responseText = await response.text();
-      }
-      
-      if (responseText) {
-        const contactMessage: ModernMessage = {
-          id: (Date.now() + 1).toString(),
-          content: responseText,
-          sender: 'contact',
-          timestamp: new Date(),
-          type: 'text'
-        };
-        
-        setMessages(prev => [...prev, contactMessage]);
-      } else {
-        throw new Error('Resposta vazia do n8n');
-      }
-      
-    } catch (error) {
-      console.error('Erro ao enviar mensagem para n8n:', error);
-      toast.error(`Erro ao processar mensagem: ${error.message}`);
-      
-      // Fallback - resposta local em caso de erro
       const contactMessage: ModernMessage = {
         id: (Date.now() + 1).toString(),
-        content: `Desculpe, ocorreu um erro ao processar sua mensagem. Mensagem recebida: "${messageContent}"`,
+        content: responseText,
+        sender: 'contact',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, contactMessage]);
+      
+    } catch (error) {
+      // Fallback response in case of error
+      const contactMessage: ModernMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageContent}"`,
         sender: 'contact',
         timestamp: new Date(),
         type: 'text'
@@ -740,7 +695,7 @@ const ChatTextOnlyPage = () => {
               onKeyPress={handleKeyPress}
               placeholder="Digite sua mensagem..."
               className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
-              disabled={isLoading || isRecording || isProcessing}
+              disabled={isLoading || n8nLoading}
             />
           </div>
           
@@ -778,7 +733,7 @@ const ChatTextOnlyPage = () => {
             size="icon"
             onClick={handleSendMessage}
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
-            disabled={!input.trim() || isLoading || isRecording || isProcessing}
+            disabled={!input.trim() || isLoading || n8nLoading}
           >
             <Send size={18} />
           </Button>
