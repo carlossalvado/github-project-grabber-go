@@ -6,6 +6,7 @@ interface N8nResponse {
   message?: string;
   text?: string;
   response?: string;
+  output?: string;
   error?: string;
 }
 
@@ -39,17 +40,41 @@ export const useN8nWebhook = () => {
       // Processar resposta do n8n
       let responseText = '';
       try {
-        const responseData: N8nResponse = await response.json();
+        const responseData = await response.json();
         console.log('Resposta JSON do n8n:', responseData);
         
-        if (responseData.message) {
-          responseText = responseData.message;
-        } else if (responseData.text) {
-          responseText = responseData.text;
-        } else if (responseData.response) {
-          responseText = responseData.response;
-        } else if (typeof responseData === 'string') {
-          responseText = responseData as string;
+        // Se a resposta é um array, pega o primeiro item
+        if (Array.isArray(responseData) && responseData.length > 0) {
+          const firstItem = responseData[0];
+          if (firstItem.output) {
+            responseText = firstItem.output;
+          } else if (firstItem.message) {
+            responseText = firstItem.message;
+          } else if (firstItem.text) {
+            responseText = firstItem.text;
+          } else if (firstItem.response) {
+            responseText = firstItem.response;
+          } else {
+            responseText = JSON.stringify(firstItem);
+          }
+        } 
+        // Se não é array, trata como objeto
+        else if (responseData && typeof responseData === 'object') {
+          if (responseData.output) {
+            responseText = responseData.output;
+          } else if (responseData.message) {
+            responseText = responseData.message;
+          } else if (responseData.text) {
+            responseText = responseData.text;
+          } else if (responseData.response) {
+            responseText = responseData.response;
+          } else {
+            responseText = JSON.stringify(responseData);
+          }
+        }
+        // Se é string diretamente
+        else if (typeof responseData === 'string') {
+          responseText = responseData;
         } else {
           responseText = JSON.stringify(responseData);
         }
