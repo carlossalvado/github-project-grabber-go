@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -152,33 +151,38 @@ export const useElevenLabsAudio = () => {
         ws.onopen = () => {
           console.log('Conectado ao agente ElevenLabs');
           
-          // Enviar configuração inicial
-          ws.send(JSON.stringify({
-            user_audio_chunk: null,
-            text: null
-          }));
-          
-          // Converter audioBlob para base64 e enviar
+          // Converter audioBlob para ArrayBuffer e depois para base64
           const reader = new FileReader();
           reader.onload = () => {
-            const base64Audio = (reader.result as string).split(',')[1];
+            const arrayBuffer = reader.result as ArrayBuffer;
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Converter para base64
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+              const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            }
+            const base64Audio = btoa(binary);
+            
+            // Enviar áudio em formato correto
             ws.send(JSON.stringify({
-              user_audio_chunk: base64Audio,
-              text: null
+              user_audio_chunk: base64Audio
             }));
             
             // Sinalizar fim do áudio
             ws.send(JSON.stringify({
-              user_audio_chunk: null,
-              text: null
+              user_audio_chunk: ""
             }));
           };
-          reader.readAsDataURL(audioBlob);
+          reader.readAsArrayBuffer(audioBlob);
         };
         
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            console.log('Mensagem recebida do ElevenLabs:', data);
             
             if (data.audio_event && data.audio_event.audio_base_64) {
               // Converter base64 para Uint8Array
