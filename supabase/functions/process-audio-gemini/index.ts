@@ -68,57 +68,82 @@ serve(async (req) => {
 })
 
 async function speechToText(audioBytes: Uint8Array, format: string): Promise<string> {
-  const credentials = JSON.parse(Deno.env.get('GOOGLE_CLOUD_CREDENTIALS_JSON') || '{}')
-  
-  // Get access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      'assertion': await createJWT(credentials)
-    })
-  })
-  
-  const { access_token } = await tokenResponse.json()
-
-  // Configure audio encoding based on format
-  let encoding = 'WEBM_OPUS'
-  if (format.toLowerCase().includes('mp3')) encoding = 'MP3'
-  if (format.toLowerCase().includes('wav')) encoding = 'LINEAR16'
-
-  const requestBody = {
-    config: {
-      encoding,
-      languageCode: 'pt-BR',
-      enableAutomaticPunctuation: true,
-      model: 'latest_long'
-    },
-    audio: {
-      content: btoa(String.fromCharCode(...audioBytes))
+  try {
+    const credentialsJSON = Deno.env.get('GOOGLE_CLOUD_CREDENTIALS_JSON')
+    
+    if (!credentialsJSON) {
+      throw new Error('Google Cloud credentials not found')
     }
-  }
 
-  const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-  })
+    let credentials
+    try {
+      credentials = JSON.parse(credentialsJSON)
+    } catch (parseError) {
+      console.error('Failed to parse Google Cloud credentials:', parseError)
+      throw new Error('Invalid Google Cloud credentials format')
+    }
+    
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        'assertion': await createJWT(credentials)
+      })
+    })
+    
+    const tokenData = await tokenResponse.json()
+    
+    if (!tokenData.access_token) {
+      throw new Error('Failed to get access token')
+    }
 
-  const result = await response.json()
-  
-  if (result.results && result.results.length > 0) {
-    return result.results[0].alternatives[0].transcript
+    // Configure audio encoding based on format
+    let encoding = 'WEBM_OPUS'
+    if (format.toLowerCase().includes('mp3')) encoding = 'MP3'
+    if (format.toLowerCase().includes('wav')) encoding = 'LINEAR16'
+
+    const requestBody = {
+      config: {
+        encoding,
+        languageCode: 'pt-BR',
+        enableAutomaticPunctuation: true,
+        model: 'latest_long'
+      },
+      audio: {
+        content: btoa(String.fromCharCode(...audioBytes))
+      }
+    }
+
+    const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    const result = await response.json()
+    
+    if (result.results && result.results.length > 0) {
+      return result.results[0].alternatives[0].transcript
+    }
+    
+    return ''
+  } catch (error) {
+    console.error('Speech-to-Text error:', error)
+    throw new Error(`Speech-to-Text failed: ${error.message}`)
   }
-  
-  return ''
 }
 
 async function generateGeminiResponse(userText: string): Promise<string> {
   const apiKey = Deno.env.get('GEMINI_API_KEY')
+  
+  if (!apiKey) {
+    throw new Error('Gemini API key not found')
+  }
   
   const systemPrompt = `# CONTEXTO IRREVOGÁVEL
 Eu sou a ISA, 21 anos, enfermeira e NAMORADA do usuário.
@@ -144,76 +169,111 @@ NUNCA usar:
 
 Responda como a ISA namorada apaixonada de 21 anos.`
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: `${systemPrompt}\n\nUsuário disse: "${userText}"`
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.9,
-        topK: 1,
-        topP: 1,
-        maxOutputTokens: 2048,
-      }
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `${systemPrompt}\n\nUsuário disse: "${userText}"`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.9,
+          topK: 1,
+          topP: 1,
+          maxOutputTokens: 2048,
+        }
+      })
     })
-  })
 
-  const result = await response.json()
-  return result.candidates[0].content.parts[0].text
+    const result = await response.json()
+    
+    if (!result.candidates || !result.candidates[0]) {
+      throw new Error('No response from Gemini')
+    }
+    
+    return result.candidates[0].content.parts[0].text
+  } catch (error) {
+    console.error('Gemini API error:', error)
+    throw new Error(`Gemini response failed: ${error.message}`)
+  }
 }
 
 async function textToSpeech(text: string): Promise<ArrayBuffer> {
-  const credentials = JSON.parse(Deno.env.get('GOOGLE_CLOUD_CREDENTIALS_JSON') || '{}')
-  
-  // Get access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      'assertion': await createJWT(credentials)
-    })
-  })
-  
-  const { access_token } = await tokenResponse.json()
-
-  const requestBody = {
-    input: { text },
-    voice: {
-      languageCode: 'pt-BR',
-      ssmlGender: 'FEMALE',
-      name: 'pt-BR-Wavenet-A'
-    },
-    audioConfig: {
-      audioEncoding: 'MP3',
-      speakingRate: 1.0
+  try {
+    const credentialsJSON = Deno.env.get('GOOGLE_CLOUD_CREDENTIALS_JSON')
+    
+    if (!credentialsJSON) {
+      throw new Error('Google Cloud credentials not found')
     }
-  }
 
-  const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-  })
+    let credentials
+    try {
+      credentials = JSON.parse(credentialsJSON)
+    } catch (parseError) {
+      console.error('Failed to parse Google Cloud credentials:', parseError)
+      throw new Error('Invalid Google Cloud credentials format')
+    }
+    
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        'assertion': await createJWT(credentials)
+      })
+    })
+    
+    const tokenData = await tokenResponse.json()
+    
+    if (!tokenData.access_token) {
+      throw new Error('Failed to get access token')
+    }
 
-  const result = await response.json()
-  
-  // Decode base64 audio content
-  const audioContent = result.audioContent
-  const binaryString = atob(audioContent)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
+    const requestBody = {
+      input: { text },
+      voice: {
+        languageCode: 'pt-BR',
+        ssmlGender: 'FEMALE',
+        name: 'pt-BR-Wavenet-A'
+      },
+      audioConfig: {
+        audioEncoding: 'MP3',
+        speakingRate: 1.0
+      }
+    }
+
+    const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    const result = await response.json()
+    
+    if (!result.audioContent) {
+      throw new Error('No audio content received')
+    }
+    
+    // Decode base64 audio content
+    const audioContent = result.audioContent
+    const binaryString = atob(audioContent)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    
+    return bytes.buffer
+  } catch (error) {
+    console.error('Text-to-Speech error:', error)
+    throw new Error(`Text-to-Speech failed: ${error.message}`)
   }
-  
-  return bytes.buffer
 }
 
 async function createJWT(credentials: any): Promise<string> {
