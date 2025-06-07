@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useElevenLabsAudio } from '@/hooks/useElevenLabsAudio';
+import { useGoogleCloudAudio } from '@/hooks/useGoogleCloudAudio';
 import { AudioMessageBubble } from '@/components/AudioMessageBubble';
 
 const ChatTextAudioPage = () => {
@@ -19,7 +19,7 @@ const ChatTextAudioPage = () => {
   const { messages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Audio functionality
+  // Audio functionality with Google Cloud
   const {
     audioMessages,
     isRecording,
@@ -29,7 +29,7 @@ const ChatTextAudioPage = () => {
     stopRecording,
     playAudio,
     clearAudioMessages
-  } = useElevenLabsAudio();
+  } = useGoogleCloudAudio();
   
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);

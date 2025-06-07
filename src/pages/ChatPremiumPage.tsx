@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 import { useUserCache } from '@/hooks/useUserCache';
-import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -14,6 +14,7 @@ import GiftSelection from '@/components/GiftSelection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { useGoogleCloudAudio } from '@/hooks/useGoogleCloudAudio';
 
 interface ModernMessage {
   id: string;
@@ -37,11 +38,22 @@ const ChatPremiumPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const isMobile = useIsMobile();
+  
+  // Google Cloud Audio functionality
+  const {
+    audioMessages,
+    isRecording: isRecordingAudio,
+    isProcessing: isProcessingAudio,
+    recordingTime,
+    startRecording: startGoogleCloudRecording,
+    stopRecording: stopGoogleCloudRecording,
+    playAudio: playGoogleCloudAudio,
+    clearAudioMessages: clearGoogleCloudAudioMessages
+  } = useGoogleCloudAudio();
   
   const contactName = "Charlotte";
   const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
@@ -89,7 +101,7 @@ const ChatPremiumPage = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, audioMessages]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -158,7 +170,11 @@ const ChatPremiumPage = () => {
   };
 
   const toggleRecording = () => {
-    setIsRecording(!isRecording);
+    if (isRecordingAudio) {
+      stopGoogleCloudRecording();
+    } else {
+      startGoogleCloudRecording();
+    }
   };
 
   const handleEmoticonClick = () => {
@@ -431,10 +447,44 @@ const ChatPremiumPage = () => {
                 {isLoading && isMobile && <MobileLoadingIndicator />}
               </>
             )}
+            
+            {audioMessages.map((audioMessage) => (
+              <AudioMessageBubble
+                key={audioMessage.id}
+                message={audioMessage}
+                onPlayAudio={playGoogleCloudAudio}
+                agentAvatar={contactAvatar}
+                agentName={contactName}
+                userEmail={user?.email}
+              />
+            ))}
+
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
+
+      {/* Recording Indicator for Google Cloud Audio */}
+      {isRecordingAudio && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-full flex flex-col items-center justify-center">
+          <div className="animate-pulse mb-2">
+            <Mic size={48} className="text-red-500" />
+          </div>
+          <div className="text-white font-medium">
+            {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+          </div>
+        </div>
+      )}
+
+      {/* Processing Indicator for Google Cloud Audio */}
+      {isProcessingAudio && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-lg flex flex-col items-center justify-center">
+          <Loader2 className="animate-spin mb-2" size={32} />
+          <div className="text-white font-medium">
+            Processando com Gemini...
+          </div>
+        </div>
+      )}
 
       {/* Emoticon Selector */}
       {showEmoticonSelector && (
@@ -452,7 +502,7 @@ const ChatPremiumPage = () => {
         />
       )}
 
-      {/* Input area */}
+      {/* Input area with Google Cloud Audio integration */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
@@ -500,11 +550,11 @@ const ChatPremiumPage = () => {
             size="icon"
             onClick={toggleRecording}
             className={`flex-shrink-0 ${
-              isRecording 
+              isRecordingAudio 
                 ? 'text-red-400 hover:bg-red-900' 
                 : 'text-gray-400 hover:bg-gray-700'
             }`}
-            disabled={isLoading || n8nLoading}
+            disabled={isLoading || n8nLoading || isProcessingAudio}
           >
             <Mic size={20} />
           </Button>
