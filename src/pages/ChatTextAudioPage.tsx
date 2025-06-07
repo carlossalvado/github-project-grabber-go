@@ -11,6 +11,7 @@ import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useElevenLabsAudio } from '@/hooks/useElevenLabsAudio';
 import { useGoogleCloudAudio } from '@/hooks/useGoogleCloudAudio';
+import { useGeminiAudio } from '@/hooks/useGeminiAudio';
 import { AudioMessageBubble } from '@/components/AudioMessageBubble';
 
 const ChatTextAudioPage = () => {
@@ -19,7 +20,7 @@ const ChatTextAudioPage = () => {
   const { messages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Audio functionality with Google Cloud
+  // Gemini Audio functionality
   const {
     audioMessages,
     isRecording,
@@ -29,7 +30,7 @@ const ChatTextAudioPage = () => {
     stopRecording,
     playAudio,
     clearAudioMessages
-  } = useGoogleCloudAudio();
+  } = useGeminiAudio();
   
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -87,9 +88,13 @@ const ChatTextAudioPage = () => {
   };
 
   const handleAudioMessage = () => {
+    console.log('🎤 [CHAT] Botão de áudio clicado, isRecording:', isRecording);
+    
     if (isRecording) {
+      console.log('🛑 [CHAT] Parando gravação...');
       stopRecording();
     } else {
+      console.log('🎤 [CHAT] Iniciando gravação...');
       startRecording();
     }
   };
@@ -228,7 +233,7 @@ const ChatTextAudioPage = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-lg flex flex-col items-center justify-center">
           <Loader2 className="animate-spin mb-2" size={32} />
           <div className="text-white font-medium">
-            Processando áudio...
+            Processando com Gemini...
           </div>
         </div>
       )}

@@ -9,6 +9,8 @@ interface AudioMessage {
   type: 'user' | 'assistant';
   audioBlob?: Blob;
   audioUrl?: string;
+  transcription?: string;
+  response?: string;
   timestamp: string;
   isPlaying?: boolean;
 }
@@ -37,6 +39,11 @@ export const AudioMessageBubble: React.FC<AudioMessageBubbleProps> = ({
     });
   };
 
+  const handlePlayClick = () => {
+    console.log('🔊 [AUDIO BUBBLE] Clique para reproduzir áudio:', message.id);
+    onPlayAudio(message);
+  };
+
   return (
     <div className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
       {!isUserMessage && (
@@ -58,13 +65,24 @@ export const AudioMessageBubble: React.FC<AudioMessageBubbleProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className={`h-8 w-8 ${isUserMessage ? 'text-white' : 'text-white'}`}
-              onClick={() => onPlayAudio(message)}
+              className={`h-8 w-8 ${isUserMessage ? 'text-white hover:bg-purple-500' : 'text-white hover:bg-gray-600'}`}
+              onClick={handlePlayClick}
+              disabled={!message.audioUrl}
             >
               {message.isPlaying ? <Pause size={18} /> : <Play size={18} />}
             </Button>
             <Mic size={16} className="opacity-70" />
-            <span className="text-xs opacity-70">Mensagem de áudio</span>
+            <div className="flex flex-col">
+              <span className="text-xs opacity-70">Mensagem de áudio</span>
+              {message.transcription && (
+                <span className="text-xs opacity-90 mt-1">{message.transcription}</span>
+              )}
+              {message.response && !isUserMessage && (
+                <span className="text-xs mt-1 bg-black bg-opacity-20 rounded px-2 py-1">
+                  {message.response}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
