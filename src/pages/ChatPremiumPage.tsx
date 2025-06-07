@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -11,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
+import { AudioMessageBubble } from '@/components/AudioMessageBubble';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
