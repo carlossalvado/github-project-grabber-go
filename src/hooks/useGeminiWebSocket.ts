@@ -186,13 +186,13 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
       const data = await response.json();
       console.log('🔊 [GEMINI WS] Resposta de áudio recebida:', data);
       
-      // Adicionar resposta da assistente
+      // Adicionar resposta da assistente COM ÁUDIO
       const assistantMessage = {
         id: crypto.randomUUID(),
         type: 'assistant' as const,
         content: data.response || 'Resposta de áudio processada',
         timestamp: new Date(),
-        audioData: data.audioResponse
+        audioData: data.audioResponse // Usar audioResponse em vez de audioData
       };
       
       console.log('🎵 [GEMINI WS] Adicionando resposta de áudio da assistente:', assistantMessage);

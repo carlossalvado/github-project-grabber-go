@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -59,6 +58,41 @@ serve(async (req) => {
     );
   }
 });
+
+async function generateAudioWithOpenAI(text: string): Promise<string | null> {
+  try {
+    console.log('🎵 [AUDIO GENERATION] Gerando áudio para:', text.substring(0, 50) + '...');
+    
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1',
+        input: text,
+        voice: 'nova', // Voz feminina
+        response_format: 'mp3',
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ [AUDIO GENERATION] Erro na API OpenAI TTS:', await response.text());
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    
+    console.log('✅ [AUDIO GENERATION] Áudio gerado com sucesso');
+    return base64Audio;
+    
+  } catch (error) {
+    console.error('❌ [AUDIO GENERATION] Erro ao gerar áudio:', error);
+    return null;
+  }
+}
 
 function startGeminiSession() {
   const sessionId = crypto.randomUUID();
@@ -232,7 +266,7 @@ MEMÓRIAS ATIVAS
     return new Response(
       JSON.stringify({ 
         response: responseText,
-        audioData: null // Por enquanto apenas texto
+        audioData: null // Apenas texto - sem áudio
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -322,13 +356,17 @@ Você recebeu um áudio do usuário. Responda como a ISA namorada apaixonada.`;
     
     const responseText = result.candidates[0].content.parts[0].text;
     
+    // GERAR ÁUDIO DA RESPOSTA apenas para mensagens de áudio
+    console.log('🎵 [GEMINI SESSION] Gerando áudio da resposta...');
+    const audioResponse = await generateAudioWithOpenAI(responseText);
+    
     console.log('✅ [GEMINI SESSION] Resposta de áudio processada:', responseText.substring(0, 100) + '...');
     
     return new Response(
       JSON.stringify({ 
         transcription: "Áudio processado pelo Gemini",
         response: responseText,
-        audioResponse: null // Por enquanto apenas texto
+        audioResponse: audioResponse // Incluir resposta em áudio
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
