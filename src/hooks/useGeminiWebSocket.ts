@@ -36,14 +36,12 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
     audioData?: string;
   }>>([]);
   
-  const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
   const startSession = useCallback(async (apiKey: string) => {
     try {
       console.log('🚀 [GEMINI WS] Iniciando sessão com Gemini...');
       
-      // Conectar via WebSocket simulado usando fetch para Supabase Edge Function
       const response = await fetch('/functions/v1/gemini-websocket-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,6 +153,7 @@ NUNCA usar:
       }
 
       const data = await response.json();
+      console.log('📨 [GEMINI WS] Dados recebidos:', data);
       
       // Adicionar resposta da assistente
       const assistantMessage = {
@@ -164,9 +163,11 @@ NUNCA usar:
         timestamp: new Date(),
         audioData: data.audioData
       };
+      
+      console.log('💬 [GEMINI WS] Adicionando mensagem da assistente:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
       
-      console.log('✅ [GEMINI WS] Resposta recebida');
+      console.log('✅ [GEMINI WS] Resposta processada e exibida');
       
     } catch (error: any) {
       console.error('❌ [GEMINI WS] Erro ao enviar mensagem:', error);
@@ -182,6 +183,15 @@ NUNCA usar:
 
     try {
       console.log('🎤 [GEMINI WS] Enviando dados de áudio:', audioData.byteLength, 'bytes');
+      
+      // Adicionar mensagem de áudio do usuário primeiro
+      const userAudioMessage = {
+        id: crypto.randomUUID(),
+        type: 'user' as const,
+        content: '[Mensagem de áudio]',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userAudioMessage]);
       
       // Converter ArrayBuffer para base64
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
@@ -201,18 +211,21 @@ NUNCA usar:
       }
 
       const data = await response.json();
+      console.log('🔊 [GEMINI WS] Resposta de áudio recebida:', data);
       
       // Adicionar resposta da assistente
       const assistantMessage = {
         id: crypto.randomUUID(),
         type: 'assistant' as const,
-        content: data.transcription || 'Áudio processado',
+        content: data.response || 'Resposta de áudio processada',
         timestamp: new Date(),
         audioData: data.audioResponse
       };
+      
+      console.log('🎵 [GEMINI WS] Adicionando resposta de áudio da assistente:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
       
-      console.log('✅ [GEMINI WS] Áudio processado');
+      console.log('✅ [GEMINI WS] Áudio processado e resposta exibida');
       
     } catch (error: any) {
       console.error('❌ [GEMINI WS] Erro ao enviar áudio:', error);

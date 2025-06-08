@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -74,6 +73,7 @@ const ChatTextAudioPageNew = () => {
 
   // Scroll to bottom when messages change
   useEffect(() => {
+    console.log('📱 [CHAT] Mensagens atualizadas:', messages.length);
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -160,6 +160,7 @@ const ChatTextAudioPageNew = () => {
   const handleSendMessage = async () => {
     if (!input.trim() || !isConnected) return;
     
+    console.log('📤 [CHAT] Enviando mensagem:', input);
     const messageText = input.trim();
     setInput('');
     sendTextMessage(messageText);
@@ -175,6 +176,7 @@ const ChatTextAudioPageNew = () => {
       console.log('🛑 [AUDIO] Parando gravação...');
       const audioData = await stopRecording();
       if (audioData) {
+        console.log('🎤 [CHAT] Enviando áudio para Gemini...');
         sendAudioData(audioData);
       }
     } else {
@@ -184,8 +186,12 @@ const ChatTextAudioPageNew = () => {
   };
 
   const handlePlayMessage = async (audioData?: string) => {
-    if (!audioData) return;
+    if (!audioData) {
+      console.log('❌ [AUDIO] Nenhum dado de áudio disponível');
+      return;
+    }
     
+    console.log('🔊 [AUDIO] Reproduzindo áudio...');
     if (isPlaying) {
       stopAudio();
     } else {
@@ -320,58 +326,62 @@ const ChatTextAudioPageNew = () => {
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
-          {messages.map((message) => {
-            const isUserMessage = message.type === 'user';
-            
-            return (
-              <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
-                {!isUserMessage && (
-                  <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                    <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                    <AvatarFallback className="bg-purple-600 text-white">
-                      {agentData.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
+          <div className="space-y-4">
+            {messages.map((message) => {
+              const isUserMessage = message.type === 'user';
+              
+              console.log('🎨 [CHAT] Renderizando mensagem:', message);
+              
+              return (
+                <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+                  {!isUserMessage && (
+                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+                      <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                      <AvatarFallback className="bg-purple-600 text-white">
+                        {agentData.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
 
-                <div className="max-w-[70%] space-y-1">
-                  <div className={`px-4 py-3 rounded-2xl shadow-md ${
-                    isUserMessage 
-                      ? 'bg-purple-600 text-white rounded-br-none' 
-                      : 'bg-gray-700 text-white rounded-bl-none'
-                  }`}>
-                    <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
-                    
-                    {/* Controle de áudio para respostas da assistente */}
-                    {!isUserMessage && message.audioData && (
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-600">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-white hover:bg-gray-600"
-                          onClick={() => handlePlayMessage(message.audioData)}
-                        >
-                          <Volume2 size={14} />
-                        </Button>
-                        <span className="text-xs opacity-70">Áudio disponível</span>
-                      </div>
-                    )}
+                  <div className="max-w-[70%] space-y-1">
+                    <div className={`px-4 py-3 rounded-2xl shadow-md ${
+                      isUserMessage 
+                        ? 'bg-purple-600 text-white rounded-br-none' 
+                        : 'bg-gray-700 text-white rounded-bl-none'
+                    }`}>
+                      <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+                      
+                      {/* Controle de áudio para respostas da assistente */}
+                      {!isUserMessage && message.audioData && (
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-600">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-white hover:bg-gray-600"
+                            onClick={() => handlePlayMessage(message.audioData)}
+                          >
+                            <Volume2 size={14} />
+                          </Button>
+                          <span className="text-xs opacity-70">Clique para ouvir a resposta</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
+                      {formatTime(message.timestamp)}
+                    </div>
                   </div>
-                  <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
-                    {formatTime(message.timestamp)}
-                  </div>
+
+                  {isUserMessage && (
+                    <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                      <AvatarFallback className="bg-blue-600 text-white">
+                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                 </div>
-
-                {isUserMessage && (
-                  <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-                    <AvatarFallback className="bg-blue-600 text-white">
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
           
           <div ref={messagesEndRef} />
         </ScrollArea>
