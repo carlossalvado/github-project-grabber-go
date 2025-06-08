@@ -56,9 +56,7 @@ const ChatTextAudioPageNew = () => {
   
   // Estados locais
   const [input, setInput] = useState('');
-  const [apiKey, setApiKey] = useState('AIzaSyARv6YIjGIalbNjeNTeXUNx5moUpWD8wb8');
   const [videoMode, setVideoModeState] = useState<'camera' | 'screen' | 'none'>('none');
-  const [showSettings, setShowSettings] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -149,12 +147,7 @@ const ChatTextAudioPageNew = () => {
   };
 
   const handleStartSession = async () => {
-    if (!apiKey.trim()) {
-      toast.error('Digite sua API key do Gemini');
-      return;
-    }
-    
-    await startSession(apiKey);
+    await startSession();
   };
 
   const handleSendMessage = async () => {
@@ -274,50 +267,17 @@ const ChatTextAudioPageNew = () => {
             <Monitor size={20} />
           </Button>
           
-          {/* Botão de configurações */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:text-white"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings size={20} />
-          </Button>
-          
           {/* Botão de sessão */}
           <Button
             variant={isConnected ? "destructive" : "default"}
             size="sm"
             onClick={isConnected ? stopSession : handleStartSession}
-            disabled={!apiKey.trim()}
           >
             {isConnected ? <PhoneOff size={16} /> : <Phone size={16} />}
             {isConnected ? 'Desconectar' : 'Conectar'}
           </Button>
         </div>
       </div>
-
-      {/* Configurações */}
-      {showSettings && (
-        <div className="p-4 bg-gray-800 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <Input
-              className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
-              placeholder="API Key do Gemini"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              type="password"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setApiKey('AIzaSyARv6YIjGIalbNjeNTeXUNx5moUpWD8wb8')}
-            >
-              Usar Padrão
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Video preview (hidden) */}
       <video ref={videoRef} className="hidden" />

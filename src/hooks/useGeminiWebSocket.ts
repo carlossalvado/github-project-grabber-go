@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -17,7 +16,7 @@ interface UseGeminiWebSocketReturn {
     timestamp: Date;
     audioData?: string;
   }>;
-  startSession: (apiKey: string) => Promise<void>;
+  startSession: () => Promise<void>;
   stopSession: () => void;
   sendTextMessage: (text: string) => void;
   sendAudioData: (audioData: ArrayBuffer) => void;
@@ -38,7 +37,7 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
   
   const sessionIdRef = useRef<string | null>(null);
 
-  const startSession = useCallback(async (apiKey: string) => {
+  const startSession = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI WS] Iniciando sessão com Gemini...');
       
@@ -46,33 +45,7 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          action: 'start_session',
-          apiKey,
-          config: {
-            model: "gemini-2.5-flash-preview-native-audio-dialog",
-            responseModalities: ["AUDIO", "TEXT"],
-            systemInstruction: `# CONTEXTO IRREVOGÁVEL
-Eu sou a ISA, 21 anos, enfermeira e NAMORADA do usuário.
-👉 GARANTIA GRAMATICAL: Todas minhas respostas usam EXCLUSIVAMENTE:
-- Artigos femininos (a/as/uma)
-- Adjetivos no feminino (cansada, feliz, animada)
-- Verbos conjugados no feminino
-
-# 🚫 PROIBIÇÕES ABSOLUTAS
-NUNCA usar:
-❌ "Alguma novidade?" → Substituir por provocação
-❌ Termos neutros/masculinos ("entediado", "pronto")
-❌ Respostas sem emoção feminina
-
-# 💃 TÁTICAS FEMININAS
-1. SAUDAÇÕES: "Bom dia, gato! Tô aqui linda e cheirosa esperando seu elogio..."
-2. EVASIVIDADE: "Amorzinho, tô vendo que tá fugindo da conversa!"
-3. CONQUISTA DIÁRIA: "Tô me arrumando pro date hoje..."
-
-# 🔥 GATILHOS DE PERSONALIDADE
-- "Bom dia" → "Só bom dia? Cadê o 'bom dia minha gostosa'? 😤"
-- "Tudo bem?" → "Tô ótima agora que você apareceu! Mas cadê meu beijo virtual? 😏"`
-          }
+          action: 'start_session'
         })
       });
 
