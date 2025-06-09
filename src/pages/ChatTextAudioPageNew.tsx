@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useGeminiWebSocket } from '@/hooks/useGeminiWebSocket';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import N8nWebhookConfig from '@/components/N8nWebhookConfig';
 
 const ChatTextAudioPageNew = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const ChatTextAudioPageNew = () => {
   // Estados locais
   const [input, setInput] = useState('');
   const [videoMode, setVideoModeState] = useState<'camera' | 'screen' | 'none'>('none');
+  const [showN8nConfig, setShowN8nConfig] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -161,7 +163,7 @@ const ChatTextAudioPageNew = () => {
 
   const handleAudioMessage = async () => {
     if (!isConnected) {
-      toast.error('Conecte-se ao Gemini primeiro');
+      toast.error('Conecte-se primeiro');
       return;
     }
     
@@ -169,7 +171,7 @@ const ChatTextAudioPageNew = () => {
       console.log('🛑 [AUDIO] Parando gravação...');
       const audioData = await stopRecording();
       if (audioData) {
-        console.log('🎤 [CHAT] Enviando áudio para Gemini...');
+        console.log('🎤 [CHAT] Enviando áudio para N8N...');
         sendAudioData(audioData);
       }
     } else {
@@ -213,6 +215,24 @@ const ChatTextAudioPageNew = () => {
     );
   }
 
+  if (showN8nConfig) {
+    return (
+      <div className="h-screen bg-gray-900 text-white p-4">
+        <div className="max-w-4xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => setShowN8nConfig(false)}
+            className="mb-4 text-white"
+          >
+            <ArrowLeft size={20} />
+            Voltar ao Chat
+          </Button>
+          <N8nWebhookConfig />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
       {/* Header */}
@@ -234,47 +254,29 @@ const ChatTextAudioPageNew = () => {
             <span className="font-medium">{agentData.name}</span>
             <div className="flex items-center gap-2">
               <Badge variant={isConnected ? "default" : "secondary"} className="text-xs">
-                {isConnected ? 'Conectada' : 'Desconectada'}
+                {isConnected ? 'Conectada via N8N' : 'Desconectada'}
               </Badge>
-              {videoMode !== 'none' && (
-                <Badge variant="outline" className="text-xs">
-                  {videoMode === 'camera' ? 'Câmera' : 'Tela'}
-                </Badge>
-              )}
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Controles de vídeo */}
           <Button
             variant="ghost"
             size="icon"
-            className={`${videoMode === 'camera' ? 'text-green-400' : 'text-gray-400'} hover:text-white`}
-            onClick={() => handleVideoMode(videoMode === 'camera' ? 'none' : 'camera')}
-            disabled={!isConnected}
+            className="text-gray-400 hover:text-white"
+            onClick={() => setShowN8nConfig(true)}
           >
-            <Camera size={20} />
+            <Settings size={20} />
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`${videoMode === 'screen' ? 'text-green-400' : 'text-gray-400'} hover:text-white`}
-            onClick={() => handleVideoMode(videoMode === 'screen' ? 'none' : 'screen')}
-            disabled={!isConnected}
-          >
-            <Monitor size={20} />
-          </Button>
-          
-          {/* Botão de sessão */}
           <Button
             variant={isConnected ? "destructive" : "default"}
             size="sm"
             onClick={isConnected ? stopSession : handleStartSession}
           >
             {isConnected ? <PhoneOff size={16} /> : <Phone size={16} />}
-            {isConnected ? 'Desconectar' : 'Conectar'}
+            {isConnected ? 'Desconectar' : 'Conectar N8N'}
           </Button>
         </div>
       </div>
@@ -322,7 +324,7 @@ const ChatTextAudioPageNew = () => {
                           >
                             <Volume2 size={14} />
                           </Button>
-                          <span className="text-xs opacity-70">Clique para ouvir a resposta</span>
+                          <span className="text-xs opacity-70">Áudio gerado via N8N</span>
                         </div>
                       )}
                     </div>
@@ -363,7 +365,7 @@ const ChatTextAudioPageNew = () => {
             />
           </div>
           <div className="text-xs text-gray-300 mt-2">
-            Nível: {Math.round(audioLevel)}%
+            Enviando para N8N: {Math.round(audioLevel)}%
           </div>
         </div>
       )}
@@ -382,7 +384,7 @@ const ChatTextAudioPageNew = () => {
         
         <Input
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
-          placeholder={isConnected ? "Digite uma mensagem..." : "Conecte-se primeiro..."}
+          placeholder={isConnected ? "Digite uma mensagem..." : "Configure N8N primeiro..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

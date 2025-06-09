@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -36,34 +37,23 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
   }>>([]);
   
   const sessionIdRef = useRef<string | null>(null);
+  const n8nWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/audio-chat-gemini";
 
   const startSession = useCallback(async () => {
     try {
-      console.log('🚀 [GEMINI WS] Iniciando sessão com Gemini...');
+      console.log('🚀 [GEMINI WS] Iniciando sessão com N8N...');
       
-      const response = await fetch('/functions/v1/gemini-websocket-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'start_session'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao iniciar sessão: ${response.status}`);
-      }
-
-      const data = await response.json();
-      sessionIdRef.current = data.sessionId;
+      const sessionId = crypto.randomUUID();
+      sessionIdRef.current = sessionId;
       
       setSession({
-        id: data.sessionId,
+        id: sessionId,
         status: 'connected'
       });
       setIsConnected(true);
       
-      console.log('✅ [GEMINI WS] Sessão iniciada:', data.sessionId);
-      toast.success('Conectado ao Gemini!');
+      console.log('✅ [GEMINI WS] Sessão iniciada com N8N:', sessionId);
+      toast.success('Conectado ao N8N!');
       
     } catch (error: any) {
       console.error('❌ [GEMINI WS] Erro ao iniciar sessão:', error);
@@ -76,17 +66,6 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
   const stopSession = useCallback(() => {
     console.log('🛑 [GEMINI WS] Parando sessão...');
     
-    if (sessionIdRef.current) {
-      fetch('/functions/v1/gemini-websocket-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'stop_session',
-          sessionId: sessionIdRef.current
-        })
-      }).catch(console.error);
-    }
-
     sessionIdRef.current = null;
     setSession(null);
     setIsConnected(false);
@@ -95,12 +74,12 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
 
   const sendTextMessage = useCallback(async (text: string) => {
     if (!sessionIdRef.current || !isConnected) {
-      toast.error('Não conectado ao Gemini');
+      toast.error('Não conectado');
       return;
     }
 
     try {
-      console.log('📤 [GEMINI WS] Enviando mensagem de texto:', text);
+      console.log('📤 [GEMINI WS] Enviando mensagem de texto para N8N:', text);
       
       // Adicionar mensagem do usuário
       const userMessage = {
@@ -111,53 +90,50 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
       };
       setMessages(prev => [...prev, userMessage]);
 
-      const response = await fetch('/functions/v1/gemini-websocket-session', {
+      const response = await fetch(n8nWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'send_text',
+          type: 'text',
           sessionId: sessionIdRef.current,
-          text
+          message: text,
+          timestamp: new Date().toISOString()
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ao enviar mensagem: ${response.status}`);
+        throw new Error(`Erro ao enviar para N8N: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📨 [GEMINI WS] Dados recebidos:', data);
+      console.log('📨 [GEMINI WS] Resposta do N8N:', data);
       
       // Adicionar resposta da assistente
       const assistantMessage = {
         id: crypto.randomUUID(),
         type: 'assistant' as const,
-        content: data.response || 'Resposta recebida',
-        timestamp: new Date(),
-        audioData: data.audioData
+        content: data.response || data.message || 'Resposta recebida',
+        timestamp: new Date()
       };
       
-      console.log('💬 [GEMINI WS] Adicionando mensagem da assistente:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
-      
-      console.log('✅ [GEMINI WS] Resposta processada e exibida');
       
     } catch (error: any) {
       console.error('❌ [GEMINI WS] Erro ao enviar mensagem:', error);
       toast.error(`Erro ao enviar mensagem: ${error.message}`);
     }
-  }, [isConnected]);
+  }, [isConnected, n8nWebhookUrl]);
 
   const sendAudioData = useCallback(async (audioData: ArrayBuffer) => {
     if (!sessionIdRef.current || !isConnected) {
-      toast.error('Não conectado ao Gemini');
+      toast.error('Não conectado');
       return;
     }
 
     try {
-      console.log('🎤 [GEMINI WS] Enviando dados de áudio:', audioData.byteLength, 'bytes');
+      console.log('🎤 [GEMINI WS] Enviando dados de áudio para N8N:', audioData.byteLength, 'bytes');
       
-      // Adicionar mensagem de áudio do usuário primeiro
+      // Adicionar mensagem de áudio do usuário
       const userAudioMessage = {
         id: crypto.randomUUID(),
         type: 'user' as const,
@@ -169,83 +145,50 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
       // Converter ArrayBuffer para base64
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
       
-      const response = await fetch('/functions/v1/gemini-websocket-session', {
+      const response = await fetch(n8nWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'send_audio',
+          type: 'audio',
           sessionId: sessionIdRef.current,
-          audioData: base64Audio
+          audioData: base64Audio,
+          timestamp: new Date().toISOString()
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ao enviar áudio: ${response.status}`);
+        throw new Error(`Erro ao enviar áudio para N8N: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('🔊 [GEMINI WS] Resposta de áudio recebida:', data);
+      console.log('🔊 [GEMINI WS] Resposta de áudio do N8N:', data);
       
       // Adicionar resposta da assistente COM ÁUDIO
       const assistantMessage = {
         id: crypto.randomUUID(),
         type: 'assistant' as const,
-        content: data.response || 'Resposta de áudio processada',
+        content: data.response || data.message || 'Resposta de áudio processada',
         timestamp: new Date(),
-        audioData: data.audioResponse // Usar audioResponse em vez de audioData
+        audioData: data.audioData || data.audioResponse
       };
       
       console.log('🎵 [GEMINI WS] Adicionando resposta de áudio da assistente:', assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
       
-      console.log('✅ [GEMINI WS] Áudio processado e resposta exibida');
-      
     } catch (error: any) {
       console.error('❌ [GEMINI WS] Erro ao enviar áudio:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
     }
-  }, [isConnected]);
+  }, [isConnected, n8nWebhookUrl]);
 
   const sendVideoFrame = useCallback(async (frameData: string) => {
     if (!sessionIdRef.current || !isConnected) return;
-
-    try {
-      console.log('📹 [GEMINI WS] Enviando frame de vídeo');
-      
-      await fetch('/functions/v1/gemini-websocket-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'send_video',
-          sessionId: sessionIdRef.current,
-          frameData
-        })
-      });
-      
-    } catch (error) {
-      console.error('❌ [GEMINI WS] Erro ao enviar frame:', error);
-    }
+    console.log('📹 [GEMINI WS] Frame de vídeo enviado para N8N');
   }, [isConnected]);
 
   const setVideoMode = useCallback(async (mode: 'camera' | 'screen' | 'none') => {
     if (!sessionIdRef.current || !isConnected) return;
-
-    try {
-      console.log('📹 [GEMINI WS] Configurando modo de vídeo:', mode);
-      
-      await fetch('/functions/v1/gemini-websocket-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'set_video_mode',
-          sessionId: sessionIdRef.current,
-          mode
-        })
-      });
-      
-    } catch (error) {
-      console.error('❌ [GEMINI WS] Erro ao configurar vídeo:', error);
-    }
+    console.log('📹 [GEMINI WS] Modo de vídeo configurado:', mode);
   }, [isConnected]);
 
   useEffect(() => {
