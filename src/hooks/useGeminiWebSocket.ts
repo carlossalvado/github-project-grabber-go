@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -37,7 +36,7 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
   }>>([]);
   
   const sessionIdRef = useRef<string | null>(null);
-  const n8nWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/audio-chat-gemini";
+  const n8nWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
 
   const startSession = useCallback(async () => {
     try {
