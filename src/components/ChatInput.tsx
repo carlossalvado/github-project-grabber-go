@@ -2,11 +2,14 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Mic, MicOff, Send, Smile, Gift } from 'lucide-react';
+import { Mic, MicOff, Send, Smile, Gift, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
+  onSendAudioMessage?: (message: { content: string; audioData?: string }) => void;
   disabled?: boolean;
   hasAudioFeature?: boolean;
   onEmoticonClick?: () => void;
@@ -18,7 +21,8 @@ interface ChatInputProps {
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
-  onSendMessage, 
+  onSendMessage,
+  onSendAudioMessage,
   disabled = false,
   hasAudioFeature = false,
   onEmoticonClick,
@@ -28,10 +32,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
   enableN8nIntegration = false,
   userEmail = 'anonymous'
 }) => {
-  const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
+  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
+
+  // Gravação de áudio para N8N
+  const {
+    isRecording,
+    recordingTime,
+    startRecording,
+    stopRecording,
+    audioLevel
+  } = useWebAudioRecorder();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +106,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           }, 500);
         }
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao enviar mensagem para n8n:', error);
         toast.error(`Erro ao processar mensagem: ${error.message}`);
         
@@ -117,18 +130,92 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onChange?.(e.target.value);
   };
   
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     if (!hasAudioFeature) {
       toast.error("Recurso disponível apenas para assinantes");
       return;
     }
     
-    setIsRecording(!isRecording);
-    // Aqui poderia ser implementada a funcionalidade de gravação de áudio
+    if (isRecording) {
+      console.log('🛑 [AUDIO] Parando gravação...');
+      const audioData = await stopRecording();
+      if (audioData && onSendAudioMessage) {
+        console.log('🎤 [CHAT INPUT] Enviando áudio para N8N...');
+        await sendAudioToN8n(audioData);
+      }
+    } else {
+      console.log('🎤 [AUDIO] Iniciando gravação...');
+      await startRecording();
+    }
+  };
+
+  const sendAudioToN8n = async (audioData: ArrayBuffer) => {
+    if (!onSendAudioMessage) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Converter ArrayBuffer para base64
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
+      
+      const response = await fetch(audioWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'audio',
+          audioData: base64Audio,
+          timestamp: new Date().toISOString(),
+          user: userEmail
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao enviar áudio para N8N: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('🔊 [AUDIO] Resposta de áudio do N8N:', data);
+      
+      // Enviar mensagem de áudio
+      onSendAudioMessage({
+        content: data.response || data.message || 'Resposta de áudio processada',
+        audioData: data.audioData || data.audioResponse
+      });
+      
+    } catch (error: any) {
+      console.error('❌ [AUDIO] Erro ao enviar áudio:', error);
+      toast.error(`Erro ao processar áudio: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
   return (
-    <div className="bg-white border-t border-gray-100 px-2 py-3">
+    <div className="bg-white border-t border-gray-100 px-2 py-3 relative">
+      {/* Recording Indicator */}
+      {isRecording && (
+        <div className="absolute top-0 left-0 right-0 bg-red-50 border-b border-red-200 p-2 flex items-center justify-center gap-2">
+          <div className="animate-pulse">
+            <Mic size={16} className="text-red-500" />
+          </div>
+          <span className="text-sm text-red-600 font-medium">
+            Gravando: {formatRecordingTime(recordingTime)}
+          </span>
+          <div className="w-16 h-1 bg-red-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-red-500 transition-all duration-100"
+              style={{ width: `${audioLevel}%` }}
+            />
+          </div>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} className="flex items-end space-x-2">
         <div className="flex items-center gap-1">
           <Button 
@@ -137,7 +224,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             variant="ghost" 
             className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
             onClick={onEmoticonClick}
-            disabled={isLoading}
+            disabled={isLoading || isRecording}
           >
             <Smile size={20} />
           </Button>
@@ -148,7 +235,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             variant="ghost" 
             className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
             onClick={onGiftClick}
-            disabled={isLoading}
+            disabled={isLoading || isRecording}
           >
             <Gift size={20} />
           </Button>
@@ -158,7 +245,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           ref={textareaRef}
           value={value}
           onChange={handleChange}
-          placeholder="Digite sua mensagem..."
+          placeholder={isRecording ? "Gravando áudio..." : "Digite sua mensagem..."}
           className="min-h-12 resize-none flex-1 rounded-full px-4 focus-visible:ring-gray-400"
           disabled={disabled || isRecording || isLoading}
           onKeyDown={(e) => {
