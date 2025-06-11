@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heart, ArrowRight, Sparkles, MessageCircle, User, Save } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const PersonalizePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
   const [selectedPersonality, setSelectedPersonality] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -20,11 +19,6 @@ const PersonalizePage = () => {
   const [nickname, setNickname] = useState('');
   const [userData, setUserData] = useState<any>(null);
   const [aiAgents, setAiAgents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-
-  // Verificar se veio da página de perfil
-  const isFromProfile = location.state?.from === 'profile';
 
   useEffect(() => {
     // Recuperar dados do usuário e plano do cache
@@ -33,14 +27,6 @@ const PersonalizePage = () => {
       try {
         const data = JSON.parse(cachedUserData);
         setUserData(data);
-        
-        // Se vier do perfil, carregar dados existentes
-        if (isFromProfile && data.personality) {
-          setSelectedPersonality(data.personality);
-          setSelectedInterests(data.interests || []);
-          setSelectedAvatar(data.selectedAvatar || '');
-          setNickname(data.nickname || '');
-        }
       } catch (error) {
         console.error('Erro ao recuperar dados do usuário:', error);
       }
@@ -48,12 +34,7 @@ const PersonalizePage = () => {
 
     // Buscar avatares do Supabase
     fetchAvatars();
-    
-    // Se vier do perfil, buscar dados salvos do usuário
-    if (isFromProfile && user) {
-      fetchUserSelectedAgent();
-    }
-  }, [isFromProfile, user]);
+  }, []);
 
   const fetchAvatars = async () => {
     try {
@@ -68,73 +49,11 @@ const PersonalizePage = () => {
         return;
       }
 
-      console.log('Agentes carregados:', data);
       setAiAgents(data || []);
     } catch (error) {
       console.error('Erro ao buscar avatares:', error);
       toast.error('Erro ao carregar avatares');
     }
-  };
-
-  const fetchUserSelectedAgent = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('user_selected_agent')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erro ao buscar agente selecionado:', error);
-        return;
-      }
-
-      if (data) {
-        setSelectedAvatar(data.agent_id);
-        setNickname(data.nickname);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar agente selecionado:', error);
-    }
-  };
-
-  useEffect(() => {
-    // Recuperar dados do usuário e plano do cache
-    const cachedUserData = localStorage.getItem('userData');
-    if (cachedUserData) {
-      try {
-        const data = JSON.parse(cachedUserData);
-        setUserData(data);
-        
-        // Se vier do perfil, carregar dados existentes
-        if (isFromProfile && data.personality) {
-          setSelectedPersonality(data.personality);
-          setSelectedInterests(data.interests || []);
-          setSelectedAvatar(data.selectedAvatar || '');
-          setNickname(data.nickname || '');
-        }
-      } catch (error) {
-        console.error('Erro ao recuperar dados do usuário:', error);
-      }
-    }
-
-    // Buscar avatares do Supabase
-    fetchAvatars();
-    
-    // Se vier do perfil, buscar dados salvos do usuário
-    if (isFromProfile && user) {
-      fetchUserSelectedAgent();
-    }
-  }, [isFromProfile, user]);
-
-  const handleImageError = (agentId: string) => {
-    setImageErrors(prev => ({ ...prev, [agentId]: true }));
-  };
-
-  const handleImageLoad = (agentId: string) => {
-    setImageErrors(prev => ({ ...prev, [agentId]: false }));
   };
 
   const personalities = [
@@ -173,33 +92,31 @@ const PersonalizePage = () => {
     );
   };
 
-  const handleSave = async () => {
+  const handleContinue = async () => {
     if (!selectedPersonality || !selectedAvatar || !nickname.trim()) {
       toast.error('Por favor, complete todas as seleções');
       return;
     }
 
-    setIsLoading(true);
+    // Salvar personalização no cache
+    const personalizationData = {
+      personality: selectedPersonality,
+      interests: selectedInterests,
+      selectedAvatar,
+      nickname: nickname.trim(),
+      personalizationCompleted: true
+    };
+    
+    // Atualizar dados do usuário no cache
+    const updatedUserData = {
+      ...userData,
+      ...personalizationData
+    };
+    localStorage.setItem('userData', JSON.stringify(updatedUserData));
 
-    try {
-      // Salvar personalização no cache
-      const personalizationData = {
-        personality: selectedPersonality,
-        interests: selectedInterests,
-        selectedAvatar,
-        nickname: nickname.trim(),
-        personalizationCompleted: true
-      };
-      
-      // Atualizar dados do usuário no cache
-      const updatedUserData = {
-        ...userData,
-        ...personalizationData
-      };
-      localStorage.setItem('userData', JSON.stringify(updatedUserData));
-
-      // Salvar no Supabase se possível
-      if (user && selectedAvatar) {
+    // Salvar no Supabase se possível
+    if (user && selectedAvatar) {
+      try {
         const { error } = await supabase
           .from('user_selected_agent')
           .upsert({
@@ -213,30 +130,18 @@ const PersonalizePage = () => {
 
         if (error) {
           console.error('Erro ao salvar agente selecionado:', error);
-          toast.error('Erro ao salvar dados');
-          return;
         }
+      } catch (error) {
+        console.error('Erro ao salvar no Supabase:', error);
       }
-
-      toast.success('Dados salvos com sucesso!');
-      
-      // Se vier do perfil, voltar para o perfil
-      if (isFromProfile) {
-        navigate('/profile');
-      } else {
-        // Se for durante o cadastro, ir para o plano
-        const selectedPlanId = localStorage.getItem('selectedPlanId');
-        if (selectedPlanId) {
-          navigate(`/plan/${selectedPlanId}`);
-        } else {
-          navigate('/home');
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao salvar:', error);
-      toast.error('Erro ao salvar dados');
-    } finally {
-      setIsLoading(false);
+    }
+    
+    // Recuperar o plano selecionado e redirecionar para o card único
+    const selectedPlanId = localStorage.getItem('selectedPlanId');
+    if (selectedPlanId) {
+      navigate(`/plan/${selectedPlanId}`);
+    } else {
+      navigate('/home');
     }
   };
 
@@ -329,12 +234,12 @@ const PersonalizePage = () => {
             </div>
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent mb-4">
-            {isFromProfile ? 'Editar Personalização' : 'Personalize sua Experiência'}
+            Personalize sua Experiência
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            {isFromProfile ? 'Atualize suas preferências' : 'Ajude-nos a criar a companhia virtual perfeita para você'}
+            Ajude-nos a criar a companhia virtual perfeita para você
           </p>
-          {userData?.selectedPlan && !isFromProfile && (
+          {userData?.selectedPlan && (
             <div className="mt-4 inline-block px-4 py-2 bg-pink-500/20 rounded-full border border-pink-500/30">
               <span className="text-pink-300 font-medium">
                 Plano selecionado: {userData.selectedPlan.name}
@@ -370,21 +275,11 @@ const PersonalizePage = () => {
                     onClick={() => setSelectedAvatar(agent.id)}
                   >
                     <CardContent className="p-4 text-center">
-                      <div className="w-16 h-16 rounded-full mx-auto mb-2 overflow-hidden bg-slate-600 flex items-center justify-center">
-                        {imageErrors[agent.id] ? (
-                          <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 flex items-center justify-center">
-                            <User className="w-8 h-8 text-slate-400" />
-                          </div>
-                        ) : (
-                          <img
-                            src={agent.avatar_url}
-                            alt={agent.name}
-                            className="w-full h-full object-cover"
-                            onError={() => handleImageError(agent.id)}
-                            onLoad={() => handleImageLoad(agent.id)}
-                          />
-                        )}
-                      </div>
+                      <img
+                        src={agent.avatar_url}
+                        alt={agent.name}
+                        className="w-16 h-16 rounded-full mx-auto mb-2 object-cover"
+                      />
                       <h3 className="text-sm font-semibold text-white mb-1">
                         {agent.name}
                       </h3>
@@ -488,30 +383,16 @@ const PersonalizePage = () => {
             </CardContent>
           </Card>
 
-          {/* Action Button */}
+          {/* Continue Button */}
           <div className="text-center">
             <Button
-              onClick={handleSave}
-              disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0 || isLoading}
+              onClick={handleContinue}
+              disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
             >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Salvando...
-                </div>
-              ) : isFromProfile ? (
-                <>
-                  <Save className="w-5 h-5 mr-2" />
-                  Salvar Alterações
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Continuar para o Plano
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </>
-              )}
+              <Sparkles className="w-5 h-5 mr-2" />
+              Continuar para o Plano
+              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
         </div>
