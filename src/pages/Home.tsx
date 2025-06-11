@@ -10,6 +10,22 @@ const Home = () => {
   const { user, loading: authLoading } = useAuth();
   const { userSubscription, plans, loading: subscriptionLoading } = useSubscription();
   const navigate = useNavigate();
+
+  // Redirecionar usuários logados para o perfil
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/profile', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  // Se estiver carregando ou usuário logado, mostrar loading
+  if (authLoading || user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
@@ -107,80 +123,32 @@ const Home = () => {
             </div>
           </div>
 
-          {/* User Status */}
+          {/* User Status - Only show for non-logged users */}
           <div className="mb-12">
-            {user ? (
-              <div className="space-y-6">
-                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
-                  <div className="flex items-center justify-center mb-4">
-                    <div className="w-16 h-16 bg-pink-500 rounded-full flex items-center justify-center">
-                      <span className="text-2xl text-white font-bold">
-                        {user.email?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xl text-white mb-2">Bem-vindo de volta!</p>
-                  <p className="text-slate-400 mb-6">{user.email}</p>
+            <div className="space-y-6">
+              <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
+                <h2 className="text-2xl font-bold text-white mb-4">Comece Sua Jornada</h2>
+                <p className="text-slate-400 mb-6">
+                  Crie sua conta e descubra conversas que vão além do comum
+                </p>
+                
+                <div className="space-y-3">
+                  <Button 
+                    onClick={() => navigate('/signup')}
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 text-lg rounded-xl"
+                  >
+                    Criar Conta Grátis
+                  </Button>
                   
-                  {userSubscription ? (
-                    <div className="bg-slate-700 border border-slate-600 p-4 rounded-xl mb-6">
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <Sparkles className="w-5 h-5 text-pink-500" />
-                        <span className="font-semibold text-pink-500">{userSubscription.plan_name}</span>
-                      </div>
-                      <p className="text-sm text-slate-400">Status: {userSubscription.status}</p>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-700 border border-slate-600 p-4 rounded-xl mb-6">
-                      <p className="text-slate-400">Nenhum plano ativo</p>
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={() => navigate('/modern-chat')}
-                      className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 text-lg rounded-xl"
-                    >
-                      <MessageCircle className="w-5 h-5 mr-2" />
-                      Continuar Conversando
-                    </Button>
-                    
-                    <Button 
-                      onClick={() => navigate('/personalize')}
-                      className="w-full bg-transparent border-2 border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white py-3 rounded-xl"
-                    >
-                      <Heart className="w-5 h-5 mr-2" />
-                      Personalizar Experiência
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={() => navigate('/login')}
+                    className="w-full bg-transparent border-2 border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white py-3 rounded-xl"
+                  >
+                    Fazer Login
+                  </Button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 max-w-lg mx-auto">
-                  <h2 className="text-2xl font-bold text-white mb-4">Comece Sua Jornada</h2>
-                  <p className="text-slate-400 mb-6">
-                    Crie sua conta e descubra conversas que vão além do comum
-                  </p>
-                  
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={() => navigate('/signup')}
-                      className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 text-lg rounded-xl"
-                    >
-                      Criar Conta Grátis
-                    </Button>
-                    
-                    <Button 
-                      onClick={() => navigate('/login')}
-                      className="w-full bg-transparent border-2 border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white py-3 rounded-xl"
-                    >
-                      Fazer Login
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Plans Section */}
@@ -288,3 +256,5 @@ const Home = () => {
 };
 
 export default Home;
+
+</edits_to_apply>

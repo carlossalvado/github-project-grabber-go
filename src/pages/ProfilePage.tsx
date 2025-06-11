@@ -82,7 +82,8 @@ const ProfilePage = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    // Redirecionar para home após logout
+    navigate('/', { replace: true });
   };
 
   const getCurrentPlan = () => {

@@ -23,7 +23,8 @@ const LoginPage = () => {
     try {
       await signIn(email, password);
       toast.success('Login realizado com sucesso!');
-      navigate('/home');
+      // Redirecionar diretamente para o perfil
+      navigate('/profile', { replace: true });
     } catch (error: any) {
       toast.error('Erro ao fazer login: ' + error.message);
     } finally {
