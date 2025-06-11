@@ -36,7 +36,7 @@ export const useGeminiWebSocket = (): UseGeminiWebSocketReturn => {
   }>>([]);
   
   const sessionIdRef = useRef<string | null>(null);
-  const n8nWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
+  const n8nWebhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
 
   const startSession = useCallback(async () => {
     try {

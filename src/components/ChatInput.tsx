@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,8 +33,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const textWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/d973werwer9-ohasd-5-pijaswerwerd54-asd4245645";
-  const audioWebhookUrl = "https://dfghjkl9hj4567890.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
+  const textWebhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const audioWebhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
 
   // Gravação de áudio para N8N
   const {
