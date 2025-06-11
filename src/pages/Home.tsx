@@ -256,5 +256,3 @@ const Home = () => {
 };
 
 export default Home;
-
-</edits_to_apply>
