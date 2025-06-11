@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ const PersonalizePage = () => {
   const [userData, setUserData] = useState<any>(null);
   const [aiAgents, setAiAgents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   // Verificar se veio da página de perfil
   const isFromProfile = location.state?.from === 'profile';
@@ -96,6 +98,43 @@ const PersonalizePage = () => {
     } catch (error) {
       console.error('Erro ao buscar agente selecionado:', error);
     }
+  };
+
+  useEffect(() => {
+    // Recuperar dados do usuário e plano do cache
+    const cachedUserData = localStorage.getItem('userData');
+    if (cachedUserData) {
+      try {
+        const data = JSON.parse(cachedUserData);
+        setUserData(data);
+        
+        // Se vier do perfil, carregar dados existentes
+        if (isFromProfile && data.personality) {
+          setSelectedPersonality(data.personality);
+          setSelectedInterests(data.interests || []);
+          setSelectedAvatar(data.selectedAvatar || '');
+          setNickname(data.nickname || '');
+        }
+      } catch (error) {
+        console.error('Erro ao recuperar dados do usuário:', error);
+      }
+    }
+
+    // Buscar avatares do Supabase
+    fetchAvatars();
+    
+    // Se vier do perfil, buscar dados salvos do usuário
+    if (isFromProfile && user) {
+      fetchUserSelectedAgent();
+    }
+  }, [isFromProfile, user]);
+
+  const handleImageError = (agentId: string) => {
+    setImageErrors(prev => ({ ...prev, [agentId]: true }));
+  };
+
+  const handleImageLoad = (agentId: string) => {
+    setImageErrors(prev => ({ ...prev, [agentId]: false }));
   };
 
   const personalities = [
@@ -331,19 +370,20 @@ const PersonalizePage = () => {
                     onClick={() => setSelectedAvatar(agent.id)}
                   >
                     <CardContent className="p-4 text-center">
-                      <div className="w-16 h-16 rounded-full mx-auto mb-2 overflow-hidden bg-slate-600">
-                        <img
-                          src={agent.avatar_url}
-                          alt={agent.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            console.error('Erro ao carregar imagem:', agent.avatar_url);
-                            e.currentTarget.style.display = 'none';
-                          }}
-                          onLoad={() => {
-                            console.log('Imagem carregada com sucesso:', agent.avatar_url);
-                          }}
-                        />
+                      <div className="w-16 h-16 rounded-full mx-auto mb-2 overflow-hidden bg-slate-600 flex items-center justify-center">
+                        {imageErrors[agent.id] ? (
+                          <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 flex items-center justify-center">
+                            <User className="w-8 h-8 text-slate-400" />
+                          </div>
+                        ) : (
+                          <img
+                            src={agent.avatar_url}
+                            alt={agent.name}
+                            className="w-full h-full object-cover"
+                            onError={() => handleImageError(agent.id)}
+                            onLoad={() => handleImageLoad(agent.id)}
+                          />
+                        )}
                       </div>
                       <h3 className="text-sm font-semibold text-white mb-1">
                         {agent.name}
