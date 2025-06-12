@@ -59,7 +59,7 @@ const ChatTextAudioPage = () => {
         // Buscar o agente selecionado pelo usuário
         const { data: selectedAgent, error: selectedError } = await supabase
           .from('user_selected_agent')
-          .select('agent_id, nickname')
+          .select('agent_id')
           .eq('user_id', user.id)
           .single();
 
@@ -83,7 +83,7 @@ const ChatTextAudioPage = () => {
 
           if (agent) {
             setAgentData({
-              name: selectedAgent.nickname || agent.name,
+              name: agent.name,
               avatar_url: agent.avatar_url
             });
           }
