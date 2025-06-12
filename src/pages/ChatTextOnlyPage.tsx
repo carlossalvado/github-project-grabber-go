@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { supabase } from '@/integrations/supabase/client';
 
 const ChatTextOnlyPage = () => {
   const navigate = useNavigate();
@@ -17,14 +18,58 @@ const ChatTextOnlyPage = () => {
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
   const [input, setInput] = useState('');
+  const [agentData, setAgentData] = useState({
+    name: 'Isa',
+    avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
+  });
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Agent data with working image URL
-  const agentData = {
-    name: 'Isa',
-    avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
-  };
+  // Buscar dados do agente selecionado pelo usuário
+  useEffect(() => {
+    const fetchAgentData = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Buscar o agente selecionado pelo usuário
+        const { data: selectedAgent, error: selectedError } = await supabase
+          .from('user_selected_agent')
+          .select('agent_id, nickname')
+          .eq('user_id', user.id)
+          .single();
+
+        if (selectedError) {
+          console.error('Erro ao buscar agente selecionado:', selectedError);
+          return;
+        }
+
+        if (selectedAgent) {
+          // Buscar dados completos do agente
+          const { data: agent, error: agentError } = await supabase
+            .from('ai_agents')
+            .select('name, avatar_url')
+            .eq('id', selectedAgent.agent_id)
+            .single();
+
+          if (agentError) {
+            console.error('Erro ao buscar dados do agente:', agentError);
+            return;
+          }
+
+          if (agent) {
+            setAgentData({
+              name: selectedAgent.nickname || agent.name,
+              avatar_url: agent.avatar_url
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do agente:', error);
+      }
+    };
+
+    fetchAgentData();
+  }, [user?.id]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
