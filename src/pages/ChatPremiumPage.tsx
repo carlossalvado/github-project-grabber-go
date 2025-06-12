@@ -12,6 +12,7 @@ import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { supabase } from '@/integrations/supabase/client';
+import ProfileImageModal from '@/components/ProfileImageModal';
 
 const ChatPremiumPage = () => {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ const ChatPremiumPage = () => {
   } = useWebAudioRecorder();
   
   const [input, setInput] = useState('');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [agentData, setAgentData] = useState({
     name: 'Isa Premium',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -163,6 +165,10 @@ const ChatPremiumPage = () => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
+  const handleAvatarClick = () => {
+    setIsProfileModalOpen(true);
+  };
+
   if (!user) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -184,7 +190,7 @@ const ChatPremiumPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <Avatar className="border-2 border-purple-500">
+          <Avatar className="border-2 border-purple-500 cursor-pointer" onClick={handleAvatarClick}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
@@ -216,7 +222,7 @@ const ChatPremiumPage = () => {
               return (
                 <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
                   {!isUserMessage && (
-                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 border border-purple-500/50">
+                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 border border-purple-500/50 cursor-pointer" onClick={handleAvatarClick}>
                       <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
                       <AvatarFallback className="bg-purple-600 text-white">
                         {agentData.name.charAt(0)}
@@ -309,6 +315,14 @@ const ChatPremiumPage = () => {
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
       </div>
+
+      {/* Profile Image Modal */}
+      <ProfileImageModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        imageUrl={agentData.avatar_url}
+        agentName={agentData.name}
+      />
     </div>
   );
 };
