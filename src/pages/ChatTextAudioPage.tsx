@@ -43,10 +43,10 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const n8nAudioWebhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
 
-  // Agent data
+  // Agent data with working image URL
   const agentData = {
     name: 'Isa',
-    avatar_url: 'https://i.imgur.com/nV9pbvg.jpg'
+    avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   };
 
   // Scroll to bottom when messages change

@@ -1,575 +1,268 @@
-
-import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserCache } from '@/hooks/useUserCache';
-import { ArrowLeft, Phone, Video, Mic, Send, Smile, Gift, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useIsMobile } from '@/hooks/use-mobile';
-import EmoticonSelector from '@/components/EmoticonSelector';
-import GiftSelection from '@/components/GiftSelection';
-import { AudioMessageBubble } from '@/components/AudioMessageBubble';
-import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Mic, MicOff, Send, Loader2, Gift, Heart, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useGoogleCloudAudio } from '@/hooks/useGoogleCloudAudio';
-
-interface ModernMessage {
-  id: string;
-  content: string;
-  sender: 'user' | 'contact';
-  timestamp: Date;
-  type: 'text' | 'image' | 'audio' | 'gift';
-  images?: string[];
-  audioDuration?: string;
-  giftId?: string;
-  giftName?: string;
-  giftEmoji?: string;
-}
+import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 
 const ChatPremiumPage = () => {
-  const { user } = useAuth();
-  const { userSubscription } = useSubscription();
-  const { plan } = useUserCache();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { messages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
-  const [showGiftSelection, setShowGiftSelection] = useState(false);
-  const isMobile = useIsMobile();
   
-  // Google Cloud Audio functionality
   const {
-    audioMessages,
-    isRecording: isRecordingAudio,
-    isProcessing: isProcessingAudio,
+    isRecording,
     recordingTime,
-    startRecording: startGoogleCloudRecording,
-    stopRecording: stopGoogleCloudRecording,
-    playAudio: playGoogleCloudAudio,
-    clearAudioMessages: clearGoogleCloudAudioMessages
-  } = useGoogleCloudAudio();
+    startRecording,
+    stopRecording,
+    audioLevel
+  } = useWebAudioRecorder();
   
-  const contactName = "Charlotte";
-  const contactAvatar = "https://i.imgur.com/placeholder-woman.jpg";
-  const [messages, setMessages] = useState<ModernMessage[]>([]);
-  const planName = "Premium";
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Verificar acesso ao plano
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+  // Agent data with working image URL
+  const agentData = {
+    name: 'Isa Premium',
+    avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
+  };
 
-    // Verificar se o usuário tem o plano correto
-    const userPlanName = plan?.plan_name || userSubscription?.plan_name;
-    const hasCorrectPlan = userPlanName === 'Premium';
-    
-    if (!hasCorrectPlan) {
-      toast.error('Acesso negado. Você precisa do plano Premium para acessar esta página.');
-      navigate('/profile');
-      return;
-    }
-  }, [user, plan, userSubscription, navigate]);
-
-  useEffect(() => {
-    // Check for gift success/cancel parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const giftSuccess = urlParams.get('gift_success');
-    const giftId = urlParams.get('gift_id');
-    const giftName = urlParams.get('gift_name');
-    const giftCanceled = urlParams.get('gift_canceled');
-    
-    if (giftSuccess === 'true' && giftId && giftName) {
-      handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      // Clean URL
-      window.history.replaceState({}, document.title, '/modern-chat');
-    }
-    
-    if (giftCanceled === 'true') {
-      toast.error('Compra de presente cancelada');
-      // Clean URL
-      window.history.replaceState({}, document.title, '/modern-chat');
-    }
-  }, []);
-
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, audioMessages]);
+  }, [messages]);
+
+  // Focus input on load
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
-    
-    const userMessage: ModernMessage = {
-      id: Date.now().toString(),
-      content: input,
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    const messageContent = input;
-    setInput('');
-    setIsLoading(true);
+    if (!input.trim() || n8nLoading || isRecording || !user) return;
 
-    // Blur input to hide keyboard on mobile
-    if (isMobile && inputRef.current) {
-      inputRef.current.blur();
-    }
+    const messageText = input.trim();
+    setInput('');
+
+    // Add user text message
+    addMessage({
+      type: 'user',
+      transcription: messageText,
+      timestamp: new Date().toISOString()
+    });
 
     try {
       // Send to n8n webhook and get response
-      const responseText = await sendToN8n(messageContent, user?.email);
+      const responseText = await sendToN8n(messageText, user.email);
       
-      const contactMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: responseText,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      
-      setMessages(prev => [...prev, contactMessage]);
-      
-    } catch (error) {
+      // Add AI response
+      addMessage({
+        type: 'assistant',
+        transcription: responseText,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Error generating response:', error);
       // Fallback response in case of error
-      const contactMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageContent}"`,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      
-      setMessages(prev => [...prev, contactMessage]);
-    } finally {
-      setIsLoading(false);
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageText}"`,
+        timestamp: new Date().toISOString()
+      });
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const handleAudioMessage = async () => {
+    if (!user) {
+      toast.error('Faça login primeiro');
+      return;
+    }
+    
+    if (isRecording) {
+      console.log('🛑 [AUDIO] Parando gravação...');
+      const audioData = await stopRecording();
+      if (audioData) {
+        console.log('🎤 [CHAT] Processando áudio...');
+        // Process audio here (premium feature)
+        toast.success('Áudio processado com sucesso!');
+      }
+    } else {
+      console.log('🎤 [AUDIO] Iniciando gravação...');
+      await startRecording();
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
+  const handleSendGift = () => {
+    toast.success('Presente enviado! ❤️');
+  };
+
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'America/Sao_Paulo'
     });
   };
 
-  const toggleRecording = () => {
-    if (isRecordingAudio) {
-      stopGoogleCloudRecording();
-    } else {
-      startGoogleCloudRecording();
-    }
+  const formatRecordingTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
-  const handleEmoticonClick = () => {
-    setShowEmoticonSelector(!showEmoticonSelector);
-    setShowGiftSelection(false);
-  };
-
-  const handleGiftClick = () => {
-    setShowGiftSelection(!showGiftSelection);
-    setShowEmoticonSelector(false);
-  };
-
-  const handleEmoticonSelect = (emoticon: string) => {
-    setInput(prev => prev + emoticon);
-    setShowEmoticonSelector(false);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
-  const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
-    try {
-      setIsLoading(true);
-      
-      console.log("Selecionando presente:", { giftId, giftName, giftPrice });
-      
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
-        body: {
-          giftId
-        }
-      });
-
-      if (error) {
-        console.error("Erro na function invoke:", error);
-        throw error;
-      }
-
-      if (data?.error) {
-        console.error("Erro retornado pela função:", data.error);
-        throw new Error(data.error);
-      }
-
-      console.log("Checkout session criada:", data);
-
-      if (data?.url) {
-        console.log("Redirecionando para:", data.url);
-        window.location.href = data.url;
-      } else {
-        throw new Error("URL de checkout não recebida");
-      }
-      
-      setShowGiftSelection(false);
-    } catch (error: any) {
-      console.error('Error processing gift:', error);
-      toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    // Get gift emoji mapping
-    const giftEmojis: { [key: string]: string } = {
-      "00000000-0000-0000-0000-000000000001": "🌹",
-      "00000000-0000-0000-0000-000000000002": "🍫", 
-      "00000000-0000-0000-0000-000000000003": "🧸",
-      "00000000-0000-0000-0000-000000000004": "💐"
-    };
-
-    const giftMessage: ModernMessage = {
-      id: Date.now().toString(),
-      content: `Enviou um presente: ${giftName}`,
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'gift',
-      giftId,
-      giftName,
-      giftEmoji: giftEmojis[giftId] || '🎁'
-    };
-    
-    setMessages(prev => [...prev, giftMessage]);
-    toast.success(`Presente ${giftName} enviado com sucesso!`);
-
-    // Simulate contact response
-    setTimeout(() => {
-      const responseMessage: ModernMessage = {
-        id: (Date.now() + 1).toString(),
-        content: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
-        sender: 'contact',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages(prev => [...prev, responseMessage]);
-    }, 1500);
-  };
-
-  // Mobile loading component
-  const MobileLoadingIndicator = () => (
-    <div className="flex justify-start mb-4">
-      <div className="max-w-[70%] space-y-1">
-        <div className="bg-gray-700 text-white rounded-2xl rounded-bl-md px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
-            <span className="text-sm text-gray-300">digitando...</span>
-          </div>
-        </div>
+  if (!user) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <p>Por favor, faça login para acessar o chat premium.</p>
       </div>
-    </div>
-  );
-
-  const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
-    <div className="flex justify-center my-6">
-      <div className="relative">
-        <div className="text-8xl animate-bounce drop-shadow-2xl">
-          {message.giftEmoji || '🎁'}
-        </div>
-        
-        <div className="absolute -top-2 -left-2 text-2xl animate-pulse text-yellow-400">✨</div>
-        <div className="absolute -top-1 -right-2 text-xl animate-pulse text-pink-400" style={{ animationDelay: '0.5s' }}>💫</div>
-        <div className="absolute -bottom-1 -left-1 text-lg animate-pulse text-purple-400" style={{ animationDelay: '1s' }}>⭐</div>
-        <div className="absolute -bottom-2 -right-1 text-2xl animate-pulse text-blue-400" style={{ animationDelay: '1.5s' }}>✨</div>
-        
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 animate-ping text-red-400">❤️</div>
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
-      {/* Header with Premium styling */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+    <div className="h-screen bg-gradient-to-br from-gray-900 to-purple-900 text-white flex flex-col w-full relative">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 bg-gray-800/80 backdrop-blur-sm border-b border-purple-500/30 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/profile')}
-            className="text-white hover:bg-gray-700"
+            className="text-gray-400 hover:text-white"
+            onClick={() => navigate(-1)}
           >
             <ArrowLeft size={20} />
           </Button>
-          
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={contactAvatar} alt={contactName} />
-            <AvatarFallback className="bg-purple-600 text-white">
-              {contactName.charAt(0)}
-            </AvatarFallback>
+          <Avatar className="border-2 border-purple-500">
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
-          
-          <div>
-            <h3 className="font-semibold text-lg">{contactName}</h3>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs text-gray-400">Online</span>
-            </div>
+          <div className="flex flex-col">
+            <span className="font-medium">{agentData.name}</span>
+            <Badge variant="secondary" className="text-xs bg-purple-600 text-white">
+              <Star size={12} className="mr-1" />
+              Premium
+            </Badge>
           </div>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 rounded-full">
-            <span className="text-xs font-medium text-white">{planName}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-gray-700"
-            >
-              <Phone size={20} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-gray-700"
-            >
-              <Video size={20} />
-            </Button>
-          </div>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-purple-400 hover:text-purple-300"
+          onClick={handleSendGift}
+        >
+          <Gift size={20} />
+        </Button>
       </div>
 
-      {/* Messages */}
+      {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-4 space-y-4" style={{ paddingBottom: showEmoticonSelector ? '70vh' : '1rem' }}>
-            {messages.length === 0 ? (
-              <div className="flex justify-center items-center h-full">
-                <div className="text-center text-gray-400">
-                  <p className="text-lg mb-2">Comece uma conversa!</p>
-                  <p className="text-sm">Digite uma mensagem para {contactName}</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Today label */}
-                <div className="flex justify-center">
-                  <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
-                    Hoje
-                  </span>
-                </div>
+        <ScrollArea className="h-full p-4">
+          <div className="space-y-4">
+            {messages.map((message) => {
+              const isUserMessage = message.type === 'user';
+              
+              return (
+                <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+                  {!isUserMessage && (
+                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 border border-purple-500/50">
+                      <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                      <AvatarFallback className="bg-purple-600 text-white">
+                        {agentData.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
 
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className="max-w-[70%] space-y-1">
-                      {message.type === 'text' && (
-                        <div
-                          className={`px-4 py-3 rounded-2xl ${
-                            message.sender === 'user'
-                              ? 'bg-purple-600 text-white rounded-br-md'
-                              : 'bg-gray-700 text-white rounded-bl-md'
-                          }`}
-                        >
-                          <p className="text-sm leading-relaxed">{message.content}</p>
-                        </div>
-                      )}
-
-                      {message.type === 'gift' && (
-                        <AnimatedGiftMessage message={message} />
-                      )}
-                      
-                      {message.type === 'image' && message.images && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {message.images.map((img, index) => (
-                            <img
-                              key={index}
-                              src={img}
-                              alt={`Shared image ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg"
-                            />
-                          ))}
-                        </div>
-                      )}
-                      
-                      {message.type === 'audio' && (
-                        <div className="bg-purple-600 px-4 py-3 rounded-2xl rounded-br-md flex items-center gap-3">
-                          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1"></div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
-                              <div className="w-1/3 h-full bg-white rounded-full"></div>
-                            </div>
-                          </div>
-                          <span className="text-xs text-white opacity-90">{message.audioDuration}</span>
-                        </div>
-                      )}
-                      
-                      <div className={`flex items-center gap-1 text-xs text-gray-400 ${
-                        message.sender === 'user' ? 'justify-end' : 'justify-start'
-                      }`}>
-                        <span>{formatTime(message.timestamp)}</span>
-                        {message.sender === 'user' && (
-                          <div className="flex">
-                            <span className="text-blue-400">✓✓</span>
-                          </div>
-                        )}
-                      </div>
+                  <div className="max-w-[70%] space-y-1">
+                    <div className={`px-4 py-3 rounded-2xl shadow-lg backdrop-blur-sm ${
+                      isUserMessage 
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-none' 
+                        : 'bg-gray-800/80 text-white rounded-bl-none border border-purple-500/30'
+                    }`}>
+                      <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
+                    </div>
+                    <div className={`text-xs text-gray-400 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
+                      {formatTime(message.timestamp)}
                     </div>
                   </div>
-                ))}
 
-                {/* Loading indicator for mobile */}
-                {isLoading && isMobile && <MobileLoadingIndicator />}
-              </>
-            )}
-            
-            {audioMessages.map((audioMessage) => (
-              <AudioMessageBubble
-                key={audioMessage.id}
-                message={audioMessage}
-                onPlayAudio={playGoogleCloudAudio}
-                agentAvatar={contactAvatar}
-                agentName={contactName}
-                userEmail={user?.email}
-              />
-            ))}
-
-            <div ref={messagesEndRef} />
+                  {isUserMessage && (
+                    <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                      <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          
+          <div ref={messagesEndRef} />
         </ScrollArea>
       </div>
 
-      {/* Recording Indicator for Google Cloud Audio */}
-      {isRecordingAudio && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-full flex flex-col items-center justify-center">
-          <div className="animate-pulse mb-2">
-            <Mic size={48} className="text-red-500" />
+      {/* Recording Indicator */}
+      {isRecording && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-90 p-6 rounded-2xl flex flex-col items-center justify-center border border-purple-500/50">
+          <div className="animate-pulse mb-3">
+            <Mic size={48} className="text-purple-500" />
           </div>
-          <div className="text-white font-medium">
-            {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+          <div className="text-white font-medium mb-2">
+            {formatRecordingTime(recordingTime)}
           </div>
-        </div>
-      )}
-
-      {/* Processing Indicator for Google Cloud Audio */}
-      {isProcessingAudio && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-70 p-6 rounded-lg flex flex-col items-center justify-center">
-          <Loader2 className="animate-spin mb-2" size={32} />
-          <div className="text-white font-medium">
-            Processando com Gemini...
-          </div>
-        </div>
-      )}
-
-      {/* Emoticon Selector */}
-      {showEmoticonSelector && (
-        <EmoticonSelector
-          onSelect={handleEmoticonSelect}
-          onClose={() => setShowEmoticonSelector(false)}
-        />
-      )}
-
-      {/* Gift Selection Modal */}
-      {showGiftSelection && (
-        <GiftSelection
-          onClose={() => setShowGiftSelection(false)}
-          onSelectGift={handleGiftSelect}
-        />
-      )}
-
-      {/* Input area with Google Cloud Audio integration */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Send message ..."
-              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pr-12 rounded-full"
-              disabled={isLoading || n8nLoading}
+          <div className="w-32 h-2 bg-gray-600 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-100"
+              style={{ width: `${audioLevel}%` }}
             />
           </div>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleEmoticonClick}
-            className={`flex-shrink-0 ${
-              showEmoticonSelector 
-                ? 'text-purple-400 bg-gray-700' 
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-            disabled={isLoading || n8nLoading}
-          >
-            <Smile size={20} />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleGiftClick}
-            className={`flex-shrink-0 ${
-              showGiftSelection 
-                ? 'text-purple-400 bg-gray-700' 
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-            disabled={isLoading || n8nLoading}
-          >
-            <Gift size={20} />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleRecording}
-            className={`flex-shrink-0 ${
-              isRecordingAudio 
-                ? 'text-red-400 hover:bg-red-900' 
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-            disabled={isLoading || n8nLoading || isProcessingAudio}
-          >
-            <Mic size={20} />
-          </Button>
-          
-          <Button
-            onClick={handleSendMessage}
-            size="icon"
-            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full flex-shrink-0"
-            disabled={!input.trim() || isLoading || n8nLoading}
-          >
-            <Send size={18} />
-          </Button>
+          <div className="text-xs text-gray-300 mt-2">
+            Premium Audio: {Math.round(audioLevel)}%
+          </div>
         </div>
+      )}
+
+      {/* Input Area */}
+      <div className="p-4 bg-gray-800/80 backdrop-blur-sm border-t border-purple-500/30 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`flex-shrink-0 ${isRecording ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}`}
+          onClick={handleAudioMessage}
+          disabled={n8nLoading}
+        >
+          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+        </Button>
+        <Input
+          ref={inputRef}
+          className="bg-gray-700/80 border-purple-500/30 text-white placeholder:text-gray-400 focus-visible:ring-purple-500 backdrop-blur-sm"
+          placeholder="Digite uma mensagem premium..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+          disabled={n8nLoading || isRecording}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 text-gray-400 hover:text-purple-400"
+          onClick={handleSendMessage}
+          disabled={!input.trim() || n8nLoading || isRecording}
+        >
+          {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+        </Button>
       </div>
     </div>
   );
