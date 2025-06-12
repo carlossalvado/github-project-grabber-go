@@ -5,20 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heart, ArrowRight, Sparkles, MessageCircle, User } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles, MessageCircle, User, Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useUserCache } from '@/hooks/useUserCache';
 
 const PersonalizePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { hasPlanActive } = useUserCache();
   const [selectedPersonality, setSelectedPersonality] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [nickname, setNickname] = useState('');
   const [userData, setUserData] = useState<any>(null);
   const [aiAgents, setAiAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Verificar se o usuário tem plano ativo
+  const hasActivePlan = hasPlanActive();
 
   useEffect(() => {
     // Recuperar dados do usuário e plano do cache
@@ -34,6 +40,8 @@ const PersonalizePage = () => {
 
     // Buscar avatares do Supabase
     fetchAvatars();
+    // Carregar dados de personalização existentes se houver
+    loadExistingPersonalization();
   }, []);
 
   const fetchAvatars = async () => {
@@ -53,6 +61,34 @@ const PersonalizePage = () => {
     } catch (error) {
       console.error('Erro ao buscar avatares:', error);
       toast.error('Erro ao carregar avatares');
+    }
+  };
+
+  const loadExistingPersonalization = async () => {
+    if (!user) return;
+
+    try {
+      // Buscar agente selecionado
+      const { data: agentData, error: agentError } = await supabase
+        .from('user_selected_agent')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (agentData && !agentError) {
+        setSelectedAvatar(agentData.agent_id);
+        setNickname(agentData.nickname);
+      }
+
+      // Carregar outros dados de personalização do cache se existirem
+      const cachedData = localStorage.getItem('userData');
+      if (cachedData) {
+        const data = JSON.parse(cachedData);
+        if (data.personality) setSelectedPersonality(data.personality);
+        if (data.interests) setSelectedInterests(data.interests);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar personalização existente:', error);
     }
   };
 
@@ -90,6 +126,63 @@ const PersonalizePage = () => {
         ? prev.filter(i => i !== interest)
         : [...prev, interest]
     );
+  };
+
+  const savePersonalization = async () => {
+    if (!selectedPersonality || !selectedAvatar || !nickname.trim()) {
+      toast.error('Por favor, complete todas as seleções');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Salvar agente selecionado no Supabase
+      if (user && selectedAvatar) {
+        const { error } = await supabase
+          .from('user_selected_agent')
+          .upsert({
+            user_id: user.id,
+            agent_id: selectedAvatar,
+            nickname: nickname.trim(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (error) {
+          console.error('Erro ao salvar agente selecionado:', error);
+          toast.error('Erro ao salvar personalização');
+          return;
+        }
+      }
+
+      // Salvar personalização no cache
+      const personalizationData = {
+        personality: selectedPersonality,
+        interests: selectedInterests,
+        selectedAvatar,
+        nickname: nickname.trim(),
+        personalizationCompleted: true
+      };
+      
+      // Atualizar dados do usuário no cache
+      const updatedUserData = {
+        ...userData,
+        ...personalizationData
+      };
+      localStorage.setItem('userData', JSON.stringify(updatedUserData));
+
+      toast.success('Personalização salva com sucesso!');
+      
+      // Voltar para o perfil
+      navigate('/profile');
+    } catch (error) {
+      console.error('Erro ao salvar personalização:', error);
+      toast.error('Erro ao salvar personalização');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinue = async () => {
@@ -383,17 +476,28 @@ const PersonalizePage = () => {
             </CardContent>
           </Card>
 
-          {/* Continue Button */}
+          {/* Action Buttons */}
           <div className="text-center">
-            <Button
-              onClick={handleContinue}
-              disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Continuar para o Plano
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+            {hasActivePlan ? (
+              <Button
+                onClick={savePersonalization}
+                disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0 || loading}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleContinue}
+                disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Continuar para o Plano
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
