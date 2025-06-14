@@ -33,8 +33,8 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognitionClass();
 
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = 'pt-BR';
     recognition.maxAlternatives = 1;
 
@@ -45,12 +45,29 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     };
 
     recognition.onresult = (event) => {
-      const result = event.results[0];
-      if (result.isFinal) {
-        const finalTranscript = result[0].transcript;
-        setTranscript(finalTranscript);
-        setConfidence(result[0].confidence || 0);
-        console.log('✅ [LOCAL SPEECH] Transcrição:', finalTranscript);
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const resultText = result[0].transcript;
+        
+        if (result.isFinal) {
+          finalTranscript += resultText;
+          setConfidence(result[0].confidence || 0);
+          console.log('✅ [LOCAL SPEECH] Transcrição final:', resultText);
+        } else {
+          interimTranscript += resultText;
+          console.log('🔄 [LOCAL SPEECH] Transcrição provisória:', resultText);
+        }
+      }
+
+      if (finalTranscript) {
+        setTranscript(prev => {
+          const newTranscript = prev + finalTranscript;
+          console.log('📝 [LOCAL SPEECH] Transcrição acumulada:', newTranscript);
+          return newTranscript;
+        });
       }
     };
 
@@ -62,12 +79,15 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
       if (event.error === 'not-allowed') {
         toast.error('Permissão do microfone negada');
       } else if (event.error === 'no-speech') {
-        toast.error('Nenhuma fala detectada');
+        console.log('⚠️ [LOCAL SPEECH] Nenhuma fala detectada - continuando...');
+        // Não mostrar erro para no-speech, é normal durante pausas
+      } else {
+        toast.error(`Erro de reconhecimento: ${event.error}`);
       }
     };
 
     recognition.onend = () => {
-      console.log('🛑 [LOCAL SPEECH] Transcrição finalizada');
+      console.log('🛑 [LOCAL SPEECH] Reconhecimento finalizado');
       setIsListening(false);
     };
 
@@ -84,7 +104,9 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
       const recognition = initializeRecognition();
       if (recognition) {
         recognitionRef.current = recognition;
+        setTranscript(''); // Limpar transcrição anterior
         recognition.start();
+        console.log('🎙️ [LOCAL SPEECH] Iniciando reconhecimento...');
       }
     } catch (error) {
       console.error('❌ [LOCAL SPEECH] Erro ao iniciar:', error);
@@ -96,6 +118,7 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
+      console.log('⏹️ [LOCAL SPEECH] Parando reconhecimento...');
     }
   }, []);
 
@@ -103,6 +126,7 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     setTranscript('');
     setConfidence(0);
     setError(null);
+    console.log('🔄 [LOCAL SPEECH] Transcrição resetada');
   }, []);
 
   return {
