@@ -8,7 +8,7 @@ interface UseLocalSpeechTranscriptionReturn {
   confidence: number;
   isSupported: boolean;
   startListening: () => void;
-  stopListening: () => void;
+  stopListening: () => Promise<string>;
   resetTranscript: () => void;
   error: string | null;
 }
@@ -20,6 +20,7 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
   const [error, setError] = useState<string | null>(null);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const finalTranscriptRef = useRef<string>('');
 
   const isSupported = typeof window !== 'undefined' && 
     ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
@@ -45,29 +46,31 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     };
 
     recognition.onresult = (event) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
+      let finalText = '';
+      let interimText = '';
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         const resultText = result[0].transcript;
         
         if (result.isFinal) {
-          finalTranscript += resultText;
+          finalText += resultText;
           setConfidence(result[0].confidence || 0);
           console.log('✅ [LOCAL SPEECH] Transcrição final:', resultText);
         } else {
-          interimTranscript += resultText;
+          interimText += resultText;
           console.log('🔄 [LOCAL SPEECH] Transcrição provisória:', resultText);
         }
       }
 
-      if (finalTranscript) {
-        setTranscript(prev => {
-          const newTranscript = prev + finalTranscript;
-          console.log('📝 [LOCAL SPEECH] Transcrição acumulada:', newTranscript);
-          return newTranscript;
-        });
+      // Atualizar o texto acumulado
+      if (finalText) {
+        finalTranscriptRef.current += finalText;
+        setTranscript(finalTranscriptRef.current);
+        console.log('📝 [LOCAL SPEECH] Texto acumulado:', finalTranscriptRef.current);
+      } else if (interimText) {
+        // Mostrar texto provisório sem acumular
+        setTranscript(finalTranscriptRef.current + interimText);
       }
     };
 
@@ -80,7 +83,6 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
         toast.error('Permissão do microfone negada');
       } else if (event.error === 'no-speech') {
         console.log('⚠️ [LOCAL SPEECH] Nenhuma fala detectada - continuando...');
-        // Não mostrar erro para no-speech, é normal durante pausas
       } else {
         toast.error(`Erro de reconhecimento: ${event.error}`);
       }
@@ -104,7 +106,8 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
       const recognition = initializeRecognition();
       if (recognition) {
         recognitionRef.current = recognition;
-        setTranscript(''); // Limpar transcrição anterior
+        finalTranscriptRef.current = '';
+        setTranscript('');
         recognition.start();
         console.log('🎙️ [LOCAL SPEECH] Iniciando reconhecimento...');
       }
@@ -114,18 +117,31 @@ export const useLocalSpeechTranscription = (): UseLocalSpeechTranscriptionReturn
     }
   }, [isSupported, initializeRecognition]);
 
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      console.log('⏹️ [LOCAL SPEECH] Parando reconhecimento...');
-    }
+  const stopListening = useCallback((): Promise<string> => {
+    return new Promise((resolve) => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = () => {
+          console.log('🛑 [LOCAL SPEECH] Reconhecimento finalizado');
+          setIsListening(false);
+          const finalText = finalTranscriptRef.current;
+          console.log('🎯 [LOCAL SPEECH] Texto final capturado:', finalText);
+          resolve(finalText);
+        };
+        
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+        console.log('⏹️ [LOCAL SPEECH] Parando reconhecimento...');
+      } else {
+        resolve(finalTranscriptRef.current);
+      }
+    });
   }, []);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
     setConfidence(0);
     setError(null);
+    finalTranscriptRef.current = '';
     console.log('🔄 [LOCAL SPEECH] Transcrição resetada');
   }, []);
 

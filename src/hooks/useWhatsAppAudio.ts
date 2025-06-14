@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebAudioRecorder } from './useWebAudioRecorder';
@@ -48,13 +47,17 @@ export const useWhatsAppAudio = () => {
       console.log('🎤 [WHATSAPP] Iniciando gravação e transcrição...');
       resetTranscript();
       
-      // Aguardar um pouco antes de iniciar a transcrição
-      await startRecording();
-      
-      // Aguardar 200ms para o microfone estar pronto
-      setTimeout(() => {
-        startListening();
-      }, 200);
+      // Iniciar gravação e transcrição em paralelo
+      await Promise.all([
+        startRecording(),
+        new Promise(resolve => {
+          // Aguardar 300ms para o microfone estar pronto
+          setTimeout(() => {
+            startListening();
+            resolve(void 0);
+          }, 300);
+        })
+      ]);
       
     } catch (error) {
       console.error('❌ [WHATSAPP] Erro ao iniciar:', error);
@@ -64,29 +67,8 @@ export const useWhatsAppAudio = () => {
 
   // Finalizar gravação e processar mensagem
   const finishAudioMessage = useCallback(async () => {
-    console.log('🔍 [WHATSAPP] Verificando condições:', {
-      isRecording,
-      transcript: transcript.trim(),
-      transcriptLength: transcript.trim().length
-    });
-
     if (!isRecording) {
       toast.error('Nenhuma gravação em andamento');
-      return;
-    }
-
-    // Parar transcrição primeiro para capturar qualquer texto pendente
-    stopListening();
-    
-    // Aguardar um pouco para processar últimas transcrições
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const finalTranscript = transcript.trim();
-    console.log('📝 [WHATSAPP] Transcrição final:', finalTranscript);
-
-    if (!finalTranscript) {
-      toast.error('Nenhuma transcrição disponível. Tente falar mais claramente.');
-      await stopRecording(); // Parar gravação mesmo sem transcrição
       return;
     }
 
@@ -94,8 +76,17 @@ export const useWhatsAppAudio = () => {
       setIsProcessingResponse(true);
       console.log('🎤 [WHATSAPP] Finalizando gravação...');
       
+      // Parar transcrição e aguardar o texto final
+      const finalTranscript = await stopListening();
+      console.log('📝 [WHATSAPP] Transcrição final recebida:', finalTranscript);
+
       // Parar gravação
       const audioBuffer = await stopRecording();
+
+      if (!finalTranscript || finalTranscript.trim().length === 0) {
+        toast.error('Nenhuma transcrição capturada. Tente falar mais claramente.');
+        return;
+      }
 
       if (!audioBuffer) {
         throw new Error('Erro ao obter dados de áudio');
@@ -109,7 +100,7 @@ export const useWhatsAppAudio = () => {
       const userMessage: WhatsAppMessage = {
         id: crypto.randomUUID(),
         type: 'user',
-        content: finalTranscript,
+        content: finalTranscript.trim(),
         timestamp: new Date(),
         audioUrl: userAudioUrl,
         duration: recordingTime
@@ -120,7 +111,7 @@ export const useWhatsAppAudio = () => {
 
       // Gerar resposta com Polly
       console.log('🤖 [WHATSAPP] Gerando resposta da IA...');
-      const responseText = `Recebi sua mensagem: "${finalTranscript}". Esta é uma resposta de exemplo gerada pelo Amazon Polly com voz Vitória em português brasileiro.`;
+      const responseText = `Recebi sua mensagem: "${finalTranscript.trim()}". Esta é uma resposta de exemplo gerada pelo Amazon Polly com voz Vitória em português brasileiro.`;
       
       const responseAudioData = await generateSpeech(responseText);
       
@@ -143,7 +134,7 @@ export const useWhatsAppAudio = () => {
     } finally {
       setIsProcessingResponse(false);
     }
-  }, [isRecording, transcript, recordingTime, stopRecording, stopListening, generateSpeech, resetTranscript]);
+  }, [isRecording, recordingTime, stopRecording, stopListening, generateSpeech, resetTranscript]);
 
   // Reproduzir áudio específico
   const playMessageAudio = useCallback(async (messageId: string) => {
