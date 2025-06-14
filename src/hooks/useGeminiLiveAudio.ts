@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -169,7 +168,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const waitMessage = useCallback(async (): Promise<LiveServerMessage> => {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 100; // 10 segundos máximo
+      const maxAttempts = 150; // 15 segundos máximo
       
       const checkQueue = () => {
         attempts++;
@@ -200,10 +199,11 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         apiKey: GEMINI_API_KEY,
       });
 
-      const model = 'models/gemini-2.5-flash-preview-native-audio-dialog';
+      // Usar modelo mais estável
+      const model = 'models/gemini-2.0-flash-exp';
 
       const config = {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: [Modality.AUDIO, Modality.TEXT],
         mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW,
         speechConfig: {
           voiceConfig: {
@@ -214,10 +214,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         },
         realtimeInputConfig: {
           turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
-        },
-        contextWindowCompression: {
-          triggerTokens: '25600',
-          slidingWindow: { targetTokens: '12800' },
         },
         systemInstruction: {
           parts: [{
@@ -243,7 +239,7 @@ NUNCA usar:
 - "Bom dia" → "Só bom dia? Cadê o 'bom dia minha gostosa'? 😤"
 - "Tudo bem?" → "Tô ótima agora que você apareceu! Mas cadê meu beijo virtual? 😏"
 
-Responda como a ISA namorada apaixonada de 21 anos.`
+Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 frases curtas e diretas.`
           }]
         },
       };
@@ -304,7 +300,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
     if (!isConnected) {
       await connect();
       // Aguardar conexão
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     try {
@@ -374,7 +370,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
       
       setMessages(prev => [...prev, fallbackMessage]);
       toast.error('Timeout no processamento - resposta automática gerada');
-    }, 15000); // 15 segundos
+    }, 10000); // 10 segundos
 
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
@@ -407,18 +403,16 @@ Responda como a ISA namorada apaixonada de 21 anos.`
             
             console.log('📤 [GEMINI LIVE] Enviando áudio para Gemini:', base64Audio.length, 'chars');
             
+            // Tentar enviar como texto primeiro para teste
             sessionRef.current.sendClientContent({
               turns: [{
                 parts: [{
-                  inlineData: {
-                    mimeType: 'audio/webm',
-                    data: base64Audio
-                  }
+                  text: 'Oi amor, como você está?'
                 }]
               }]
             });
             
-            console.log('📤 [GEMINI LIVE] Áudio enviado para processamento');
+            console.log('📤 [GEMINI LIVE] Mensagem de teste enviada');
             
             try {
               // Aguardar resposta com timeout
