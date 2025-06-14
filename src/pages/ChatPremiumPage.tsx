@@ -5,28 +5,37 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mic, MicOff, Send, Loader2, Gift, Heart, Star } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Send, Loader2, Gift, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
+import { useWhatsAppAudio } from '@/hooks/useWhatsAppAudio';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import WhatsAppAudioBubble from '@/components/WhatsAppAudioBubble';
+import WhatsAppRecordingIndicator from '@/components/WhatsAppRecordingIndicator';
 
 const ChatPremiumPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { messages, addMessage } = useLocalCache();
+  const { messages: textMessages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
+  // Hook WhatsApp para mensagens de áudio premium
   const {
+    messages: audioMessages,
     isRecording,
+    isListening,
+    isProcessingResponse,
     recordingTime,
-    startRecording,
-    stopRecording,
-    audioLevel
-  } = useWebAudioRecorder();
+    audioLevel,
+    transcript,
+    startAudioMessage,
+    finishAudioMessage,
+    playMessageAudio,
+    clearMessages: clearAudioMessages
+  } = useWhatsAppAudio();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -86,7 +95,7 @@ const ChatPremiumPage = () => {
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [textMessages, audioMessages]);
 
   // Focus input on load
   useEffect(() => {
@@ -135,16 +144,9 @@ const ChatPremiumPage = () => {
     }
     
     if (isRecording) {
-      console.log('🛑 [AUDIO] Parando gravação...');
-      const audioData = await stopRecording();
-      if (audioData) {
-        console.log('🎤 [CHAT] Processando áudio...');
-        // Process audio here (premium feature)
-        toast.success('Áudio processado com sucesso!');
-      }
+      await finishAudioMessage();
     } else {
-      console.log('🎤 [AUDIO] Iniciando gravação...');
-      await startRecording();
+      await startAudioMessage();
     }
   };
 
@@ -202,21 +204,32 @@ const ChatPremiumPage = () => {
             </Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-purple-400 hover:text-purple-300"
-          onClick={() => toast.success('Presente enviado! ❤️')}
-        >
-          <Gift size={20} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={clearAudioMessages}
+          >
+            Limpar Áudios
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={() => toast.success('Presente enviado! ❤️')}
+          >
+            <Gift size={20} />
+          </Button>
+        </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           <div className="space-y-4">
-            {messages.map((message) => {
+            {/* Text Messages */}
+            {textMessages.map((message) => {
               const isUserMessage = message.type === 'user';
               
               return (
@@ -253,32 +266,33 @@ const ChatPremiumPage = () => {
                 </div>
               );
             })}
+
+            {/* Premium Audio Messages (WhatsApp Style) */}
+            {audioMessages.map(message => (
+              <WhatsAppAudioBubble
+                key={message.id}
+                message={message}
+                onPlayAudio={playMessageAudio}
+                agentAvatar={agentData.avatar_url}
+                agentName={agentData.name}
+                userEmail={user.email}
+              />
+            ))}
           </div>
           
           <div ref={messagesEndRef} />
         </ScrollArea>
       </div>
 
-      {/* Recording Indicator */}
-      {isRecording && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-90 p-6 rounded-2xl flex flex-col items-center justify-center border border-purple-500/50">
-          <div className="animate-pulse mb-3">
-            <Mic size={48} className="text-purple-500" />
-          </div>
-          <div className="text-white font-medium mb-2">
-            {formatRecordingTime(recordingTime)}
-          </div>
-          <div className="w-32 h-2 bg-gray-600 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-100"
-              style={{ width: `${audioLevel}%` }}
-            />
-          </div>
-          <div className="text-xs text-gray-300 mt-2">
-            Premium Audio: {Math.round(audioLevel)}%
-          </div>
-        </div>
-      )}
+      {/* Premium WhatsApp Recording Indicator */}
+      <WhatsAppRecordingIndicator
+        isRecording={isRecording}
+        isListening={isListening}
+        isProcessing={isProcessingResponse}
+        recordingTime={recordingTime}
+        audioLevel={audioLevel}
+        transcript={transcript}
+      />
 
       {/* Input Area */}
       <div className="p-4 bg-gray-800/80 backdrop-blur-sm border-t border-purple-500/30 flex items-center gap-2">
@@ -287,7 +301,7 @@ const ChatPremiumPage = () => {
           size="icon"
           className={`flex-shrink-0 ${isRecording ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}`}
           onClick={handleAudioMessage}
-          disabled={n8nLoading}
+          disabled={n8nLoading || isProcessingResponse}
         >
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </Button>
@@ -303,14 +317,14 @@ const ChatPremiumPage = () => {
               handleSendMessage();
             }
           }}
-          disabled={n8nLoading || isRecording}
+          disabled={n8nLoading || isRecording || isProcessingResponse}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-purple-400"
           onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || isRecording}
+          disabled={!input.trim() || n8nLoading || isRecording || isProcessingResponse}
         >
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>

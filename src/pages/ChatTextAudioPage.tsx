@@ -4,35 +4,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, MicOff, Send, Loader2, Volume2 } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useAudioMessage } from '@/hooks/useAudioMessage';
+import { useWhatsAppAudio } from '@/hooks/useWhatsAppAudio';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import AudioMessageBubble from '@/components/AudioMessageBubble';
-import AudioRecordingIndicator from '@/components/AudioRecordingIndicator';
+import WhatsAppAudioBubble from '@/components/WhatsAppAudioBubble';
+import WhatsAppRecordingIndicator from '@/components/WhatsAppRecordingIndicator';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { messages, addMessage } = useLocalCache();
+  const { messages: textMessages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Hook de áudio
+  // Hook WhatsApp para mensagens de áudio
   const {
-    audioMessages,
+    messages: audioMessages,
     isRecording,
-    isProcessing,
+    isListening,
+    isProcessingResponse,
     recordingTime,
     audioLevel,
-    startRecording,
-    sendAudioMessage,
+    transcript,
+    startAudioMessage,
+    finishAudioMessage,
     playMessageAudio,
-    setAudioMessages
-  } = useAudioMessage();
+    clearMessages: clearAudioMessages
+  } = useWhatsAppAudio();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -93,7 +95,7 @@ const ChatTextAudioPage = () => {
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, audioMessages]);
+  }, [textMessages, audioMessages]);
 
   // Focus input on load
   useEffect(() => {
@@ -142,9 +144,9 @@ const ChatTextAudioPage = () => {
     }
     
     if (isRecording) {
-      await sendAudioMessage();
+      await finishAudioMessage();
     } else {
-      await startRecording();
+      await startAudioMessage();
     }
   };
 
@@ -235,7 +237,7 @@ const ChatTextAudioPage = () => {
           variant="ghost"
           size="sm"
           className="text-gray-400 hover:text-white"
-          onClick={() => setAudioMessages([])}
+          onClick={clearAudioMessages}
         >
           Limpar Áudios
         </Button>
@@ -245,11 +247,11 @@ const ChatTextAudioPage = () => {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           {/* Text Messages */}
-          {messages.map(renderTextMessage)}
+          {textMessages.map(renderTextMessage)}
           
-          {/* Audio Messages */}
+          {/* Audio Messages (WhatsApp Style) */}
           {audioMessages.map(message => (
-            <AudioMessageBubble
+            <WhatsAppAudioBubble
               key={message.id}
               message={message}
               onPlayAudio={playMessageAudio}
@@ -263,12 +265,14 @@ const ChatTextAudioPage = () => {
         </ScrollArea>
       </div>
 
-      {/* Recording Indicator */}
-      <AudioRecordingIndicator
+      {/* WhatsApp Recording Indicator */}
+      <WhatsAppRecordingIndicator
         isRecording={isRecording}
+        isListening={isListening}
+        isProcessing={isProcessingResponse}
         recordingTime={recordingTime}
         audioLevel={audioLevel}
-        isProcessing={isProcessing}
+        transcript={transcript}
       />
 
       {/* Input Area */}
@@ -278,7 +282,7 @@ const ChatTextAudioPage = () => {
           size="icon"
           className={`flex-shrink-0 ${isRecording ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
           onClick={handleAudioToggle}
-          disabled={n8nLoading || isProcessing}
+          disabled={n8nLoading || isProcessingResponse}
         >
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </Button>
@@ -289,14 +293,14 @@ const ChatTextAudioPage = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
-          disabled={n8nLoading || isRecording || isProcessing}
+          disabled={n8nLoading || isRecording || isProcessingResponse}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-white"
           onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || isRecording || isProcessing}
+          disabled={!input.trim() || n8nLoading || isRecording || isProcessingResponse}
         >
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
