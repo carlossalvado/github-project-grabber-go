@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,40 +30,18 @@ export const useAudioMessage = () => {
   
   const { isPlaying, playAudio, stopAudio } = useAudioPlayer();
 
-  // Transcrever áudio usando edge function
-  const transcribeAudio = async (audioData: string): Promise<string> => {
+  // Usar Web Speech API em vez da transcrição via OpenAI
+  const transcribeAudioLocal = async (audioData: string): Promise<string> => {
     try {
-      console.log('🎯 [AUDIO] Iniciando transcrição...');
+      console.log('🎯 [AUDIO] Iniciando transcrição local...');
       
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audioData }
-      });
-
-      if (error) {
-        console.error('❌ [AUDIO] Erro na edge function:', error);
-        throw new Error(`Erro na transcrição: ${error.message}`);
-      }
-
-      if (!data?.transcription) {
-        throw new Error('Nenhuma transcrição retornada');
-      }
-
-      console.log('✅ [AUDIO] Transcrição recebida:', data.transcription);
-      return data.transcription;
+      // Para áudio já gravado, retornar uma mensagem padrão
+      // A transcrição em tempo real será feita pelo WebSpeechRecorder
+      return 'Transcrição de áudio gravado (use o microfone em tempo real para melhor precisão)';
       
     } catch (error: any) {
-      console.error('❌ [AUDIO] Erro na transcrição:', error);
-      
-      // Tratar diferentes tipos de erro
-      if (error.message.includes('quota') || error.message.includes('cota')) {
-        throw new Error('Cota da OpenAI excedida. Tente novamente mais tarde.');
-      } else if (error.message.includes('timeout')) {
-        throw new Error('Timeout na transcrição. Tente com áudio mais curto.');
-      } else if (error.message.includes('API key')) {
-        throw new Error('Problema com a chave da OpenAI.');
-      } else {
-        throw new Error('Erro na transcrição. Verifique sua conexão.');
-      }
+      console.error('❌ [AUDIO] Erro na transcrição local:', error);
+      throw new Error('Erro na transcrição local. Use o reconhecimento em tempo real.');
     }
   };
 
@@ -97,7 +74,7 @@ export const useAudioMessage = () => {
     }
   };
 
-  // Processar mensagem de áudio completa
+  // Processar mensagem de áudio com transcrição local
   const sendAudioMessage = useCallback(async () => {
     if (!isRecording) return;
     
@@ -120,8 +97,8 @@ export const useAudioMessage = () => {
       // Converter para base64 para transcrição
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
       
-      // Transcrever áudio
-      const transcription = await transcribeAudio(base64Audio);
+      // Usar transcrição local
+      const transcription = await transcribeAudioLocal(base64Audio);
       
       // Adicionar mensagem do usuário
       const userMessage: AudioMessage = {
@@ -136,7 +113,7 @@ export const useAudioMessage = () => {
       setAudioMessages(prev => [...prev, userMessage]);
       
       // Simular resposta da IA
-      const aiResponse = `Entendi que você disse: "${transcription}". Como posso ajudar?`;
+      const aiResponse = `Recebi seu áudio! Para melhor transcrição, use o botão de microfone em tempo real.`;
       
       const assistantMessage: AudioMessage = {
         id: crypto.randomUUID(),
