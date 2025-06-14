@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,16 +6,15 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mic, MicOff, Send, Loader2, Gift, Star } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Send, Loader2, Gift, Star, Wifi, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useWhatsAppAudio } from '@/hooks/useWhatsAppAudio';
+import { useGeminiLiveAudio } from '@/hooks/useGeminiLiveAudio';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import WhatsAppAudioBubble from '@/components/WhatsAppAudioBubble';
-import WhatsAppRecordingIndicator from '@/components/WhatsAppRecordingIndicator';
+import GeminiAudioBubble from '@/components/GeminiAudioBubble';
 
 const ChatPremiumPage = () => {
   const navigate = useNavigate();
@@ -22,20 +22,20 @@ const ChatPremiumPage = () => {
   const { messages: textMessages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Hook WhatsApp para mensagens de áudio premium
+  // Hook Gemini Live Audio Premium
   const {
     messages: audioMessages,
     isRecording,
-    isListening,
-    isProcessingResponse,
+    isConnected,
+    isProcessing,
     recordingTime,
-    audioLevel,
-    transcript,
-    startAudioMessage,
-    finishAudioMessage,
+    startRecording,
+    stopRecording,
     playMessageAudio,
-    clearMessages: clearAudioMessages
-  } = useWhatsAppAudio();
+    clearMessages: clearAudioMessages,
+    connect,
+    disconnect
+  } = useGeminiLiveAudio();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -102,6 +102,12 @@ const ChatPremiumPage = () => {
     inputRef.current?.focus();
   }, []);
 
+  // Auto-connect on mount
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
+
   const handleSendMessage = async () => {
     if (!input.trim() || n8nLoading || isRecording || !user) return;
 
@@ -144,14 +150,10 @@ const ChatPremiumPage = () => {
     }
     
     if (isRecording) {
-      await finishAudioMessage();
+      await stopRecording();
     } else {
-      await startAudioMessage();
+      await startRecording();
     }
-  };
-
-  const handleSendGift = () => {
-    toast.success('Presente enviado! ❤️');
   };
 
   const formatTime = (date: string) => {
@@ -197,11 +199,23 @@ const ChatPremiumPage = () => {
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <span className="font-medium">{agentData.name}</span>
-            <Badge variant="secondary" className="text-xs bg-purple-600 text-white">
-              <Star size={12} className="mr-1" />
-              Premium
-            </Badge>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{agentData.name}</span>
+              <Badge variant="secondary" className="text-xs bg-purple-600 text-white">
+                <Star size={12} className="mr-1" />
+                Premium
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1">
+              {isConnected ? (
+                <Wifi size={12} className="text-green-500" />
+              ) : (
+                <WifiOff size={12} className="text-red-500" />
+              )}
+              <span className="text-xs text-gray-400">
+                {isConnected ? 'Gemini Live' : 'Desconectado'}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -267,9 +281,9 @@ const ChatPremiumPage = () => {
               );
             })}
 
-            {/* Premium Audio Messages (WhatsApp Style) */}
+            {/* Premium Gemini Audio Messages */}
             {audioMessages.map(message => (
-              <WhatsAppAudioBubble
+              <GeminiAudioBubble
                 key={message.id}
                 message={message}
                 onPlayAudio={playMessageAudio}
@@ -284,15 +298,25 @@ const ChatPremiumPage = () => {
         </ScrollArea>
       </div>
 
-      {/* Premium WhatsApp Recording Indicator */}
-      <WhatsAppRecordingIndicator
-        isRecording={isRecording}
-        isListening={isListening}
-        isProcessing={isProcessingResponse}
-        recordingTime={recordingTime}
-        audioLevel={audioLevel}
-        transcript={transcript}
-      />
+      {/* Premium Recording Indicator */}
+      {(isRecording || isProcessing) && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/90 backdrop-blur-sm p-6 rounded-2xl flex flex-col items-center justify-center border border-purple-500/50 min-w-80">
+          <div className={cn(
+            "mb-3",
+            isRecording ? "animate-pulse" : ""
+          )}>
+            <Mic size={48} className={isRecording ? "text-purple-500" : "text-blue-500"} />
+          </div>
+          
+          <div className="text-white font-medium mb-2">
+            {isRecording ? formatRecordingTime(recordingTime) : 'Processando...'}
+          </div>
+          
+          <div className="text-xs text-purple-300">
+            {isRecording ? 'Gravando Premium com Gemini Live' : 'Aguardando resposta'}
+          </div>
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="p-4 bg-gray-800/80 backdrop-blur-sm border-t border-purple-500/30 flex items-center gap-2">
@@ -301,7 +325,7 @@ const ChatPremiumPage = () => {
           size="icon"
           className={`flex-shrink-0 ${isRecording ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}`}
           onClick={handleAudioMessage}
-          disabled={n8nLoading || isProcessingResponse}
+          disabled={n8nLoading || isProcessing || !isConnected}
         >
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </Button>
@@ -317,14 +341,14 @@ const ChatPremiumPage = () => {
               handleSendMessage();
             }
           }}
-          disabled={n8nLoading || isRecording || isProcessingResponse}
+          disabled={n8nLoading || isRecording || isProcessing}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-purple-400"
           onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || isRecording || isProcessingResponse}
+          disabled={!input.trim() || n8nLoading || isRecording || isProcessing}
         >
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
