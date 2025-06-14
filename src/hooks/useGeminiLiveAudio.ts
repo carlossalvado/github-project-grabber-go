@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -145,7 +146,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           const assistantMessages = newMessages.filter(m => m.type === 'assistant');
           if (assistantMessages.length > 0) {
             const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-            const lastAssistantIndex = newMessages.indexOf(lastAssistantMessage);
+            const lastAssistantIndex = newMessages.lastIndexOf(lastAssistantMessage);
             if (lastAssistantIndex !== -1) {
               newMessages[lastAssistantIndex] = {
                 ...newMessages[lastAssistantIndex],
@@ -168,12 +169,15 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const waitMessage = useCallback(async (): Promise<LiveServerMessage> => {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 300; // 30 segundos máximo
+      const maxAttempts = 100; // 10 segundos máximo
       
       const checkQueue = () => {
         attempts++;
+        console.log(`🔍 [GEMINI LIVE] Verificando fila (tentativa ${attempts}/${maxAttempts})`);
+        
         const message = responseQueueRef.current.shift();
         if (message) {
+          console.log('📨 [GEMINI LIVE] Mensagem encontrada na fila:', message);
           handleModelTurn(message);
           resolve(message);
         } else if (attempts >= maxAttempts) {
@@ -253,6 +257,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
             toast.success('Conectado ao Gemini Live!');
           },
           onmessage: (message: LiveServerMessage) => {
+            console.log('📨 [GEMINI LIVE] Mensagem recebida:', message);
             responseQueueRef.current.push(message);
           },
           onerror: (e: ErrorEvent) => {
@@ -299,7 +304,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
     if (!isConnected) {
       await connect();
       // Aguardar conexão
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     try {
@@ -356,10 +361,20 @@ Responda como a ISA namorada apaixonada de 21 anos.`
 
     // Configurar timeout para evitar processamento infinito
     processTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ [GEMINI LIVE] Timeout no processamento');
+      console.log('⏰ [GEMINI LIVE] Timeout no processamento - criando resposta fallback');
       setIsProcessing(false);
-      toast.error('Timeout no processamento do áudio');
-    }, 30000); // 30 segundos
+      
+      // Criar resposta fallback se o Gemini não responder
+      const fallbackMessage: GeminiAudioMessage = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: 'Oi amor! Desculpa, tive um probleminha aqui... mas tô te ouvindo! Fala de novo pra mim? 😘',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, fallbackMessage]);
+      toast.error('Timeout no processamento - resposta automática gerada');
+    }, 15000); // 15 segundos
 
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
@@ -390,6 +405,8 @@ Responda como a ISA namorada apaixonada de 21 anos.`
             const arrayBuffer = await audioBlob.arrayBuffer();
             const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
             
+            console.log('📤 [GEMINI LIVE] Enviando áudio para Gemini:', base64Audio.length, 'chars');
+            
             sessionRef.current.sendClientContent({
               turns: [{
                 parts: [{
@@ -408,7 +425,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
               await waitMessage();
             } catch (error) {
               console.error('❌ [GEMINI LIVE] Erro ao aguardar resposta:', error);
-              toast.error('Erro ao processar áudio. Tente novamente.');
+              // Não mostrar erro aqui, o timeout já cuidará disso
             }
           }
           
