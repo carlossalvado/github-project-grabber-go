@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { useGeminiLiveAudio } from '@/hooks/useGeminiLiveAudio';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import GeminiAudioBubble from '@/components/GeminiAudioBubble';
+import { cn } from '@/lib/utils';
 
 const ChatPremiumPage = () => {
   const navigate = useNavigate();

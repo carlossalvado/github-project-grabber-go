@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -132,15 +131,19 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         const wavBuffer = convertToWav(audioPartsRef.current, part.inlineData.mimeType || 'audio/pcm;rate=24000');
         const base64Audio = btoa(String.fromCharCode(...wavBuffer));
         
-        // Atualizar a última mensagem da assistente com o áudio
+        // Atualizar a última mensagem da assistente com o áudio - usando reverse() e find() para compatibilidade
         setMessages(prev => {
           const newMessages = [...prev];
-          const lastAssistantIndex = newMessages.findLastIndex(m => m.type === 'assistant');
-          if (lastAssistantIndex !== -1) {
-            newMessages[lastAssistantIndex] = {
-              ...newMessages[lastAssistantIndex],
-              audioData: base64Audio
-            };
+          const assistantMessages = newMessages.filter(m => m.type === 'assistant');
+          if (assistantMessages.length > 0) {
+            const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+            const lastAssistantIndex = newMessages.indexOf(lastAssistantMessage);
+            if (lastAssistantIndex !== -1) {
+              newMessages[lastAssistantIndex] = {
+                ...newMessages[lastAssistantIndex],
+                audioData: base64Audio
+              };
+            }
           }
           return newMessages;
         });
