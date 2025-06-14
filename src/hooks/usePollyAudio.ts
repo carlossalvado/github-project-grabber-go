@@ -23,8 +23,15 @@ export const usePollyAudio = (): UsePollyAudioReturn => {
       });
 
       if (error) {
-        console.error('❌ [POLLY] Erro:', error);
-        toast.error('Erro ao gerar áudio');
+        console.error('❌ [POLLY] Erro da função:', error);
+        // Fallback: retornar null sem quebrar o fluxo
+        console.log('⚠️ [POLLY] Usando fallback - mensagem sem áudio');
+        return null;
+      }
+
+      if (data?.error) {
+        console.error('❌ [POLLY] Erro no response:', data.error);
+        console.log('⚠️ [POLLY] Usando fallback - mensagem sem áudio');
         return null;
       }
 
@@ -33,10 +40,11 @@ export const usePollyAudio = (): UsePollyAudioReturn => {
         return data.audioData;
       }
 
+      console.log('⚠️ [POLLY] Nenhum audioData retornado');
       return null;
     } catch (error: any) {
       console.error('❌ [POLLY] Erro na geração:', error);
-      toast.error('Erro ao processar síntese de voz');
+      console.log('⚠️ [POLLY] Usando fallback - mensagem sem áudio');
       return null;
     } finally {
       setIsProcessing(false);

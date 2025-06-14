@@ -3,7 +3,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Mic } from 'lucide-react';
+import { Play, Pause, Mic, VolumeX } from 'lucide-react';
 import { WhatsAppMessage } from '@/hooks/useWhatsAppAudio';
 
 interface WhatsAppAudioBubbleProps {
@@ -33,9 +33,12 @@ const WhatsAppAudioBubble: React.FC<WhatsAppAudioBubbleProps> = ({
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '0:00';
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
+
+  // Verificar se tem áudio disponível
+  const hasAudio = (isUser && message.audioUrl) || (!isUser && message.audioData);
 
   return (
     <div className={cn(
@@ -73,8 +76,11 @@ const WhatsAppAudioBubble: React.FC<WhatsAppAudioBubbleProps> = ({
                   : 'text-gray-700 hover:bg-gray-300'
               )}
               onClick={() => onPlayAudio(message.id)}
+              disabled={!hasAudio}
             >
-              {message.isPlaying ? (
+              {!hasAudio ? (
+                <VolumeX size={16} />
+              ) : message.isPlaying ? (
                 <Pause size={16} />
               ) : (
                 <Play size={16} />
@@ -91,12 +97,13 @@ const WhatsAppAudioBubble: React.FC<WhatsAppAudioBubbleProps> = ({
                     key={i}
                     className={cn(
                       'w-1 bg-current rounded-full transition-all duration-75',
-                      message.isPlaying 
+                      message.isPlaying && hasAudio
                         ? `h-${Math.floor(Math.random() * 4) + 2} animate-pulse`
                         : 'h-2 opacity-50'
                     )}
                     style={{
-                      animationDelay: `${i * 50}ms`
+                      animationDelay: `${i * 50}ms`,
+                      height: !hasAudio ? '8px' : undefined
                     }}
                   />
                 ))}
@@ -114,6 +121,11 @@ const WhatsAppAudioBubble: React.FC<WhatsAppAudioBubbleProps> = ({
             isUser ? 'border-white' : 'border-gray-400'
           )}>
             <p className="text-sm opacity-90">{message.content}</p>
+            {!hasAudio && (
+              <p className="text-xs opacity-60 mt-1">
+                {isUser ? 'Áudio gravado' : 'Áudio não disponível'}
+              </p>
+            )}
           </div>
         </div>
         

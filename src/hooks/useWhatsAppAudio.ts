@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebAudioRecorder } from './useWebAudioRecorder';
@@ -21,6 +22,7 @@ export const useWhatsAppAudio = () => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false);
+  const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
   
   const {
     isRecording,
@@ -113,6 +115,7 @@ export const useWhatsAppAudio = () => {
       console.log('🤖 [WHATSAPP] Gerando resposta da IA...');
       const responseText = `Recebi sua mensagem: "${finalTranscript.trim()}". Esta é uma resposta de exemplo gerada pelo Amazon Polly com voz Vitória em português brasileiro.`;
       
+      // Tentar gerar áudio com Polly (com fallback)
       const responseAudioData = await generateSpeech(responseText);
       
       const assistantMessage: WhatsAppMessage = {
@@ -125,6 +128,10 @@ export const useWhatsAppAudio = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
       console.log('✅ [WHATSAPP] Resposta da IA adicionada');
+      
+      if (!responseAudioData) {
+        toast.info('Resposta gerada sem áudio (erro no Polly)');
+      }
       
       resetTranscript();
       
@@ -141,40 +148,84 @@ export const useWhatsAppAudio = () => {
     const message = messages.find(m => m.id === messageId);
     if (!message) return;
 
+    console.log('🔊 [WHATSAPP] Tentando reproduzir áudio da mensagem:', messageId);
+
+    // Parar qualquer áudio que esteja tocando
+    if (currentlyPlayingId) {
+      stopAudio();
+      setCurrentlyPlayingId(null);
+      setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+      
+      // Se clicou no mesmo áudio que estava tocando, apenas parar
+      if (currentlyPlayingId === messageId) {
+        return;
+      }
+    }
+
     // Para mensagens do usuário, usar audioUrl
     if (message.type === 'user' && message.audioUrl) {
-      setMessages(prev => prev.map(m => ({
-        ...m,
-        isPlaying: m.id === messageId ? !m.isPlaying : false
+      console.log('🎵 [WHATSAPP] Reproduzindo áudio do usuário');
+      setCurrentlyPlayingId(messageId);
+      setMessages(prev => prev.map(m => ({ 
+        ...m, 
+        isPlaying: m.id === messageId 
       })));
 
-      if (message.isPlaying) {
-        stopAudio();
-      } else {
+      try {
         const audio = new Audio(message.audioUrl);
-        audio.play();
+        audio.onended = () => {
+          setCurrentlyPlayingId(null);
+          setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+        };
+        audio.onerror = () => {
+          console.error('❌ [WHATSAPP] Erro ao reproduzir áudio do usuário');
+          setCurrentlyPlayingId(null);
+          setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+          toast.error('Erro ao reproduzir áudio');
+        };
+        await audio.play();
+      } catch (error) {
+        console.error('❌ [WHATSAPP] Erro ao reproduzir áudio do usuário:', error);
+        setCurrentlyPlayingId(null);
+        setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+        toast.error('Erro ao reproduzir áudio');
       }
       return;
     }
 
     // Para mensagens da IA, usar audioData (base64)
     if (message.type === 'assistant' && message.audioData) {
-      setMessages(prev => prev.map(m => ({
-        ...m,
-        isPlaying: m.id === messageId ? !m.isPlaying : false
+      console.log('🎵 [WHATSAPP] Reproduzindo áudio da IA');
+      setCurrentlyPlayingId(messageId);
+      setMessages(prev => prev.map(m => ({ 
+        ...m, 
+        isPlaying: m.id === messageId 
       })));
 
-      if (message.isPlaying) {
-        stopAudio();
-      } else {
+      try {
         await playAudio(message.audioData);
+        // O áudio player já gerencia o estado final
+        setCurrentlyPlayingId(null);
+        setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+      } catch (error) {
+        console.error('❌ [WHATSAPP] Erro ao reproduzir áudio da IA:', error);
+        setCurrentlyPlayingId(null);
+        setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
+        toast.error('Erro ao reproduzir áudio');
       }
+      return;
     }
-  }, [messages, playAudio, stopAudio]);
+
+    // Se chegou aqui, não tem áudio disponível
+    console.log('⚠️ [WHATSAPP] Nenhum áudio disponível para esta mensagem');
+    toast.info('Áudio não disponível para esta mensagem');
+  }, [messages, playAudio, stopAudio, currentlyPlayingId]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-  }, []);
+    setCurrentlyPlayingId(null);
+    stopAudio();
+  }, [stopAudio]);
 
   return {
     messages,
