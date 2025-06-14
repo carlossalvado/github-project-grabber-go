@@ -9,10 +9,11 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useAudioMessage } from '@/hooks/useAudioMessage';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import AudioMessageBubble from '@/components/AudioMessageBubble';
+import AudioRecordingIndicator from '@/components/AudioRecordingIndicator';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -20,17 +21,18 @@ const ChatTextAudioPage = () => {
   const { messages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Gravação de áudio para N8N
+  // Hook de áudio
   const {
+    audioMessages,
     isRecording,
+    isProcessing,
     recordingTime,
+    audioLevel,
     startRecording,
-    stopRecording,
-    audioLevel
-  } = useWebAudioRecorder();
-  
-  // Reprodução de áudio
-  const { isPlaying, playAudio, stopAudio } = useAudioPlayer();
+    sendAudioMessage,
+    playMessageAudio,
+    setAudioMessages
+  } = useAudioMessage();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -38,17 +40,9 @@ const ChatTextAudioPage = () => {
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
-  const [audioMessages, setAudioMessages] = useState<Array<{
-    id: string;
-    type: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-    audioData?: string;
-  }>>([]);
   
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const n8nAudioWebhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/aud6345345io-chggsdfat-gemi465ni-gdgfg456";
 
   // Buscar dados do agente selecionado pelo usuário
   useEffect(() => {
@@ -141,86 +135,16 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  const handleAudioMessage = async () => {
+  const handleAudioToggle = async () => {
     if (!user) {
       toast.error('Faça login primeiro');
       return;
     }
     
     if (isRecording) {
-      console.log('🛑 [AUDIO] Parando gravação...');
-      const audioData = await stopRecording();
-      if (audioData) {
-        console.log('🎤 [CHAT] Enviando áudio para N8N...');
-        await sendAudioToN8n(audioData);
-      }
+      await sendAudioMessage();
     } else {
-      console.log('🎤 [AUDIO] Iniciando gravação...');
       await startRecording();
-    }
-  };
-
-  const sendAudioToN8n = async (audioData: ArrayBuffer) => {
-    try {
-      // Adicionar mensagem de áudio do usuário
-      const userAudioMessage = {
-        id: crypto.randomUUID(),
-        type: 'user' as const,
-        content: '[Mensagem de áudio]',
-        timestamp: new Date()
-      };
-      setAudioMessages(prev => [...prev, userAudioMessage]);
-      
-      // Converter ArrayBuffer para base64
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
-      
-      const response = await fetch(n8nAudioWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'audio',
-          audioData: base64Audio,
-          timestamp: new Date().toISOString(),
-          user: user.email
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao enviar áudio para N8N: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('🔊 [AUDIO] Resposta de áudio do N8N:', data);
-      
-      // Adicionar resposta da assistente COM ÁUDIO
-      const assistantMessage = {
-        id: crypto.randomUUID(),
-        type: 'assistant' as const,
-        content: data.response || data.message || 'Resposta de áudio processada',
-        timestamp: new Date(),
-        audioData: data.audioData || data.audioResponse
-      };
-      
-      console.log('🎵 [AUDIO] Adicionando resposta de áudio da assistente:', assistantMessage);
-      setAudioMessages(prev => [...prev, assistantMessage]);
-      
-    } catch (error: any) {
-      console.error('❌ [AUDIO] Erro ao enviar áudio:', error);
-      toast.error(`Erro ao processar áudio: ${error.message}`);
-    }
-  };
-
-  const handlePlayAudio = async (audioData?: string) => {
-    if (!audioData) {
-      console.log('❌ [AUDIO] Nenhum dado de áudio disponível');
-      return;
-    }
-    
-    console.log('🔊 [AUDIO] Reproduzindo áudio...');
-    if (isPlaying) {
-      stopAudio();
-    } else {
-      await playAudio(audioData);
     }
   };
 
@@ -236,12 +160,6 @@ const ChatTextAudioPage = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const formatRecordingTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
   const handleAvatarClick = () => {
@@ -272,65 +190,6 @@ const ChatTextAudioPage = () => {
           </div>
           <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
             {formatTime(message.timestamp)}
-          </div>
-        </div>
-
-        {isUserMessage && (
-          <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-            <AvatarFallback className="bg-blue-600 text-white">
-              {user.email?.charAt(0).toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-        )}
-      </div>
-    );
-  };
-
-  const renderAudioMessage = (message: {
-    id: string;
-    type: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-    audioData?: string;
-  }) => {
-    const isUserMessage = message.type === 'user';
-    
-    return (
-      <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
-        {!isUserMessage && (
-          <Avatar className="h-8 w-8 mr-2 flex-shrink-0 cursor-pointer" onClick={handleAvatarClick}>
-            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-            <AvatarFallback className="bg-purple-600 text-white">
-              {agentData.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-        )}
-
-        <div className="max-w-[70%] space-y-1">
-          <div className={`px-4 py-3 rounded-2xl shadow-md ${
-            isUserMessage 
-              ? 'bg-purple-600 text-white rounded-br-none' 
-              : 'bg-gray-700 text-white rounded-bl-none'
-          }`}>
-            <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
-            
-            {/* Controle de áudio para respostas da assistente */}
-            {!isUserMessage && message.audioData && (
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-600">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-white hover:bg-gray-600"
-                  onClick={() => handlePlayAudio(message.audioData)}
-                >
-                  <Volume2 size={14} />
-                </Button>
-                <span className="text-xs opacity-70">Áudio gerado via N8N</span>
-              </div>
-            )}
-          </div>
-          <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
-            {formatTime(message.timestamp.toISOString())}
           </div>
         </div>
 
@@ -389,32 +248,28 @@ const ChatTextAudioPage = () => {
           {messages.map(renderTextMessage)}
           
           {/* Audio Messages */}
-          {audioMessages.map(renderAudioMessage)}
+          {audioMessages.map(message => (
+            <AudioMessageBubble
+              key={message.id}
+              message={message}
+              onPlayAudio={playMessageAudio}
+              agentAvatar={agentData.avatar_url}
+              agentName={agentData.name}
+              userEmail={user.email}
+            />
+          ))}
           
           <div ref={messagesEndRef} />
         </ScrollArea>
       </div>
 
       {/* Recording Indicator */}
-      {isRecording && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-80 p-6 rounded-2xl flex flex-col items-center justify-center">
-          <div className="animate-pulse mb-3">
-            <Mic size={48} className="text-red-500" />
-          </div>
-          <div className="text-white font-medium mb-2">
-            {formatRecordingTime(recordingTime)}
-          </div>
-          <div className="w-32 h-2 bg-gray-600 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-red-500 transition-all duration-100"
-              style={{ width: `${audioLevel}%` }}
-            />
-          </div>
-          <div className="text-xs text-gray-300 mt-2">
-            Enviando para N8N: {Math.round(audioLevel)}%
-          </div>
-        </div>
-      )}
+      <AudioRecordingIndicator
+        isRecording={isRecording}
+        recordingTime={recordingTime}
+        audioLevel={audioLevel}
+        isProcessing={isProcessing}
+      />
 
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
@@ -422,8 +277,8 @@ const ChatTextAudioPage = () => {
           variant="ghost"
           size="icon"
           className={`flex-shrink-0 ${isRecording ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
-          onClick={handleAudioMessage}
-          disabled={n8nLoading}
+          onClick={handleAudioToggle}
+          disabled={n8nLoading || isProcessing}
         >
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </Button>
@@ -434,14 +289,14 @@ const ChatTextAudioPage = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
-          disabled={n8nLoading || isRecording}
+          disabled={n8nLoading || isRecording || isProcessing}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-white"
           onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || isRecording}
+          disabled={!input.trim() || n8nLoading || isRecording || isProcessing}
         >
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
