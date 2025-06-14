@@ -311,12 +311,49 @@ export type Database = {
           },
         ]
       }
+      user_trials: {
+        Row: {
+          created_at: string
+          id: string
+          trial_active: boolean
+          trial_end: string
+          trial_start: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          trial_active?: boolean
+          trial_end?: string
+          trial_start?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          trial_active?: boolean
+          trial_end?: string
+          trial_start?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_trial_active: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      start_trial: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       message_status:

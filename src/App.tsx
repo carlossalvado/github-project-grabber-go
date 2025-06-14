@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedTrialRoute from "./components/ProtectedTrialRoute";
 import NavBar from "./components/NavBar";
 
 // Páginas
@@ -140,12 +140,13 @@ const App = () => (
                 } 
               />
               
+              {/* Rota protegida especificamente para trial */}
               <Route 
                 path="/chat-trial" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedTrialRoute>
                     <ChatTrialPage />
-                  </ProtectedRoute>
+                  </ProtectedTrialRoute>
                 } 
               />
               

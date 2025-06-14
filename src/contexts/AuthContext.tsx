@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -8,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, planType?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -55,11 +54,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Erro ao buscar agente:', agentError);
       }
 
-      console.log('Dados buscados do Supabase:', { profileData, agentData });
+      // Buscar dados do trial
+      const { data: trialData, error: trialError } = await supabase
+        .from('user_trials')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (trialError && trialError.code !== 'PGRST116') {
+        console.error('Erro ao buscar trial:', trialError);
+      }
+
+      console.log('Dados buscados do Supabase:', { profileData, agentData, trialData });
 
       return {
         profile: profileData,
-        agent: agentData
+        agent: agentData,
+        trial: trialData
       };
     } catch (error) {
       console.error('Erro geral ao buscar dados:', error);
@@ -68,11 +79,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Função para salvar no cache
-  const saveToCache = (type: 'profile' | 'agent' | 'plan', data: any) => {
+  const saveToCache = (type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
     try {
       const timestamp = Date.now();
       const cacheKey = type === 'profile' ? 'sweet-ai-user-profile' : 
                       type === 'agent' ? 'sweet-ai-user-agent' : 
+                      type === 'trial' ? 'sweet-ai-trial-data' :
                       'sweet-ai-user-plan';
       
       const dataWithTimestamp = { ...data, cached_at: timestamp };
@@ -88,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('sweet-ai-user-profile');
     localStorage.removeItem('sweet-ai-user-agent');
     localStorage.removeItem('sweet-ai-user-plan');
+    localStorage.removeItem('sweet-ai-trial-data');
     console.log('Cache limpo');
   };
 
@@ -114,6 +127,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           saveToCache('agent', {
             agent_id: supabaseData.agent.agent_id,
             nickname: supabaseData.agent.nickname
+          });
+        }
+
+        // Se há trial ativo, salvar no cache
+        if (supabaseData.trial) {
+          const now = new Date();
+          const trialEnd = new Date(supabaseData.trial.trial_end);
+          const isActive = supabaseData.trial.trial_active && trialEnd > now;
+          
+          saveToCache('trial', {
+            ...supabaseData.trial,
+            isActive,
+            hoursRemaining: isActive ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0
           });
         }
       } else {
@@ -172,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, planType?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -194,8 +220,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: data.user.id,
         full_name: fullName,
         email: email,
-        plan_name: null,
-        plan_active: false
+        plan_name: planType || null,
+        plan_active: planType ? true : false
       });
 
       // Salvar no Supabase
@@ -204,6 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .upsert({
           id: data.user.id,
           full_name: fullName,
+          plan_name: planType || null,
+          plan_active: planType ? true : false,
           updated_at: new Date().toISOString()
         });
 
@@ -211,6 +239,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Erro ao salvar perfil no Supabase:', profileError);
       } else {
         console.log('Perfil salvo no Supabase com sucesso');
+      }
+
+      // Se for plano trial, iniciar o trial
+      if (planType === 'trial') {
+        try {
+          const { error: trialError } = await supabase.rpc('start_trial', {
+            user_uuid: data.user.id
+          });
+
+          if (trialError) {
+            console.error('Erro ao iniciar trial:', trialError);
+          } else {
+            console.log('Trial iniciado com sucesso');
+            // Salvar trial no cache
+            const trialEnd = new Date(Date.now() + 72 * 60 * 60 * 1000);
+            saveToCache('trial', {
+              user_id: data.user.id,
+              trial_start: new Date().toISOString(),
+              trial_end: trialEnd.toISOString(),
+              trial_active: true,
+              isActive: true,
+              hoursRemaining: 72
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao processar trial:', error);
+        }
       }
     }
   };

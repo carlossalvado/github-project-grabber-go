@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { useTrialManager } from '@/hooks/useTrialManager';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 
@@ -18,17 +20,28 @@ const ChatTrialPage = () => {
   const { user } = useAuth();
   const { messages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
+  const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
   
   const [input, setInput] = useState('');
   const [messageCount, setMessageCount] = useState(0);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [agentData, setAgentData] = useState({
-    name: 'Isa Trial',
+    name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const maxTrialMessages = 10;
+
+  // Verificar se o trial expirou
+  useEffect(() => {
+    if (!trialLoading && !isTrialActive && user) {
+      toast.error('Seu trial de 72 horas expirou! Faça upgrade para continuar conversando.');
+      setTimeout(() => {
+        navigate('/');
+      }, 3000);
+    }
+  }, [isTrialActive, trialLoading, user, navigate]);
 
   // Buscar dados do agente selecionado pelo usuário
   useEffect(() => {
@@ -91,7 +104,7 @@ const ChatTrialPage = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || n8nLoading || !user) return;
+    if (!input.trim() || n8nLoading || !user || !isTrialActive) return;
 
     if (messageCount >= maxTrialMessages) {
       toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
@@ -148,6 +161,35 @@ const ChatTrialPage = () => {
     );
   }
 
+  if (trialLoading) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="animate-spin" size={20} />
+          <p>Verificando status do trial...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isTrialActive) {
+    return (
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Trial Expirado</h2>
+          <p className="text-gray-300 mb-6">Seu trial de 72 horas expirou. Faça upgrade para continuar!</p>
+          <Button
+            onClick={() => navigate('/')}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            Escolher Plano
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full">
       {/* Header */}
@@ -169,7 +211,7 @@ const ChatTrialPage = () => {
             <span className="font-medium">{agentData.name}</span>
             <Badge variant="secondary" className="text-xs bg-orange-600 text-white">
               <Clock size={12} className="mr-1" />
-              Trial - {remainingMessages} mensagens restantes
+              Trial - {hoursRemaining}h restantes
             </Badge>
           </div>
         </div>
@@ -177,21 +219,21 @@ const ChatTrialPage = () => {
           variant="ghost"
           size="sm"
           className="text-orange-400 hover:text-orange-300"
-          onClick={() => navigate('/plans')}
+          onClick={() => navigate('/')}
         >
           Fazer Upgrade
         </Button>
       </div>
 
       {/* Trial Warning */}
-      {remainingMessages <= 3 && (
+      {(hoursRemaining <= 12 || remainingMessages <= 3) && (
         <div className="bg-orange-600/20 border-b border-orange-500/30 p-3 text-center">
           <p className="text-orange-300 text-sm">
-            ⚠️ Você tem {remainingMessages} mensagens restantes no seu trial. 
+            ⚠️ {hoursRemaining <= 12 ? `${hoursRemaining} horas restantes no seu trial` : `${remainingMessages} mensagens restantes`}. 
             <Button 
               variant="link" 
               className="text-orange-400 underline p-0 ml-1"
-              onClick={() => navigate('/plans')}
+              onClick={() => navigate('/')}
             >
               Faça upgrade agora!
             </Button>
@@ -252,7 +294,7 @@ const ChatTrialPage = () => {
           ref={inputRef}
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-orange-500"
           placeholder={
-            remainingMessages > 0 
+            isTrialActive && remainingMessages > 0 
               ? "Digite uma mensagem..." 
               : "Trial expirado - Faça upgrade para continuar"
           }
@@ -264,14 +306,14 @@ const ChatTrialPage = () => {
               handleSendMessage();
             }
           }}
-          disabled={n8nLoading || remainingMessages <= 0}
+          disabled={n8nLoading || !isTrialActive || remainingMessages <= 0}
         />
         <Button
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-orange-400"
           onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || remainingMessages <= 0}
+          disabled={!input.trim() || n8nLoading || !isTrialActive || remainingMessages <= 0}
         >
           {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>

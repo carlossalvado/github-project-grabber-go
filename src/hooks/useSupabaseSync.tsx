@@ -6,7 +6,7 @@ export const useSupabaseSync = () => {
   const { user } = useAuth();
 
   // Salvar dados no Supabase
-  const saveToSupabase = async (type: 'profile' | 'agent' | 'plan', data: any) => {
+  const saveToSupabase = async (type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
     if (!user) return false;
 
     try {
@@ -58,6 +58,18 @@ export const useSupabaseSync = () => {
 
           if (planError) {
             console.error('Erro ao salvar plano:', planError);
+            return false;
+          }
+          break;
+
+        case 'trial':
+          // Usar a função RPC para iniciar o trial
+          const { error: trialError } = await supabase.rpc('start_trial', {
+            user_uuid: user.id
+          });
+
+          if (trialError) {
+            console.error('Erro ao iniciar trial:', trialError);
             return false;
           }
           break;

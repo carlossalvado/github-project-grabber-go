@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -48,20 +47,31 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      await signUp(email, password, fullName);
+      // Determinar o tipo de plano
+      const planType = selectedPlan?.name?.toLowerCase().includes('trial') ? 'trial' : selectedPlan?.name?.toLowerCase();
+      
+      await signUp(email, password, fullName, planType);
       
       // Salvar dados do usuário no cache
       const userData = {
         email,
         fullName,
         selectedPlan,
+        planType,
         signupCompleted: true
       };
       localStorage.setItem('userData', JSON.stringify(userData));
       
       toast.success('Conta criada com sucesso!');
-      // Redirecionar para a página de personalização
-      navigate('/personalize');
+      
+      // Redirecionar baseado no tipo de plano
+      if (planType === 'trial') {
+        // Para trial, ir diretamente para personalização e depois chat-trial
+        navigate('/personalize?redirect=chat-trial');
+      } else {
+        // Para outros planos, ir para personalização normal
+        navigate('/personalize');
+      }
     } catch (error: any) {
       toast.error('Erro ao criar conta: ' + error.message);
     } finally {
@@ -323,7 +333,10 @@ const SignupPage = () => {
 
                   <div className="mt-6 p-4 bg-pink-500/10 rounded-lg border border-pink-500/20">
                     <p className="text-pink-300 text-sm text-center">
-                      ✨ Após criar sua conta, você será direcionado para personalizar sua experiência!
+                      ✨ {selectedPlan.name?.toLowerCase().includes('trial') 
+                        ? 'Após criar sua conta, você será direcionado para o chat trial por 72 horas!'
+                        : 'Após criar sua conta, você será direcionado para personalizar sua experiência!'
+                      }
                     </p>
                   </div>
                 </CardContent>
