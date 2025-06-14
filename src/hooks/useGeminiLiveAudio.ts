@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -52,8 +51,8 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const currentlyPlayingRef = useRef<string | null>(null);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Você precisa substituir esta chave por uma válida
-  const GEMINI_API_KEY = "SUA_CHAVE_GEMINI_AQUI";
+  // Chave API do Gemini configurada
+  const GEMINI_API_KEY = "AIzaSyCD5n-_1SlwW9lR7eil9nREFDfZOh05e58";
 
   const convertToWav = useCallback((rawData: string[], mimeType: string) => {
     const options = {
@@ -192,10 +191,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI LIVE] Conectando ao Gemini Live...');
-      
-      if (!GEMINI_API_KEY || GEMINI_API_KEY === "SUA_CHAVE_GEMINI_AQUI") {
-        throw new Error('Chave de API do Gemini não configurada');
-      }
       
       const ai = new GoogleGenAI({
         apiKey: GEMINI_API_KEY,
