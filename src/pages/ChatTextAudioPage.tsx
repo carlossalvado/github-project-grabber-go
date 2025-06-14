@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import AudioMessageBubble from '@/components/AudioMessageBubble';
 import AudioRecordingIndicator from '@/components/AudioRecordingIndicator';
+import WebSpeechRecorder from '@/components/WebSpeechRecorder';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ const ChatTextAudioPage = () => {
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showWebSpeech, setShowWebSpeech] = useState(false);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -148,6 +150,10 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  const handleWebSpeechTranscript = (transcript: string) => {
+    setInput(transcript);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -231,15 +237,35 @@ const ChatTextAudioPage = () => {
           </Avatar>
           <span className="font-medium">{agentData.name}</span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-gray-400 hover:text-white"
-          onClick={() => setAudioMessages([])}
-        >
-          Limpar Áudios
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showWebSpeech ? "default" : "ghost"}
+            size="sm"
+            className="text-gray-400 hover:text-white"
+            onClick={() => setShowWebSpeech(!showWebSpeech)}
+          >
+            Voz Real-time
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-gray-400 hover:text-white"
+            onClick={() => setAudioMessages([])}
+          >
+            Limpar Áudios
+          </Button>
+        </div>
       </div>
+
+      {/* Web Speech Recorder */}
+      {showWebSpeech && (
+        <div className="bg-gray-800 border-b border-gray-700 p-4">
+          <WebSpeechRecorder
+            onTranscriptChange={handleWebSpeechTranscript}
+            className="w-full"
+          />
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">

@@ -13,6 +13,7 @@ import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useWebAudioRecorder } from '@/hooks/useWebAudioRecorder';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import WebSpeechRecorder from '@/components/WebSpeechRecorder';
 
 const ChatPremiumPage = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const ChatPremiumPage = () => {
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showWebSpeech, setShowWebSpeech] = useState(false);
   const [agentData, setAgentData] = useState({
     name: 'Isa Premium',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -148,6 +150,10 @@ const ChatPremiumPage = () => {
     }
   };
 
+  const handleWebSpeechTranscript = (transcript: string) => {
+    setInput(transcript);
+  };
+
   const handleSendGift = () => {
     toast.success('Presente enviado! ❤️');
   };
@@ -202,15 +208,35 @@ const ChatPremiumPage = () => {
             </Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-purple-400 hover:text-purple-300"
-          onClick={() => toast.success('Presente enviado! ❤️')}
-        >
-          <Gift size={20} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showWebSpeech ? "default" : "ghost"}
+            size="sm"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={() => setShowWebSpeech(!showWebSpeech)}
+          >
+            Voz Real-time
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={() => toast.success('Presente enviado! ❤️')}
+          >
+            <Gift size={20} />
+          </Button>
+        </div>
       </div>
+
+      {/* Web Speech Recorder */}
+      {showWebSpeech && (
+        <div className="bg-gray-800/80 backdrop-blur-sm border-b border-purple-500/30 p-4">
+          <WebSpeechRecorder
+            onTranscriptChange={handleWebSpeechTranscript}
+            className="w-full"
+          />
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden">
