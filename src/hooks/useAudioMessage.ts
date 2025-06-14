@@ -31,31 +31,6 @@ export const useAudioMessage = () => {
   
   const { isPlaying, playAudio, stopAudio } = useAudioPlayer();
 
-  // Salvar áudio no Supabase Storage
-  const saveAudioToStorage = async (audioBlob: Blob): Promise<string> => {
-    if (!user) throw new Error('User not authenticated');
-    
-    const fileName = `${user.id}/${Date.now()}_audio.webm`;
-    
-    const { data, error } = await supabase.storage
-      .from('chat_audio')
-      .upload(fileName, audioBlob, {
-        contentType: 'audio/webm'
-      });
-
-    if (error) {
-      console.error('Erro ao salvar áudio:', error);
-      throw error;
-    }
-
-    // Obter URL pública do áudio
-    const { data: urlData } = supabase.storage
-      .from('chat_audio')
-      .getPublicUrl(fileName);
-
-    return urlData.publicUrl;
-  };
-
   // Transcrever áudio usando edge function
   const transcribeAudio = async (audioData: string): Promise<string> => {
     try {
@@ -71,7 +46,7 @@ export const useAudioMessage = () => {
       }
 
       if (!data?.transcription) {
-        throw new Error('Transcrição vazia retornada');
+        throw new Error('Nenhuma transcrição retornada');
       }
 
       console.log('✅ [AUDIO] Transcrição recebida:', data.transcription);
@@ -81,35 +56,44 @@ export const useAudioMessage = () => {
       console.error('❌ [AUDIO] Erro na transcrição:', error);
       
       // Tratar diferentes tipos de erro
-      if (error.message.includes('quota')) {
-        throw new Error('Cota da API excedida. Tente novamente mais tarde.');
-      } else if (error.message.includes('rate limit')) {
-        throw new Error('Muitas requisições. Aguarde um momento.');
+      if (error.message.includes('quota') || error.message.includes('cota')) {
+        throw new Error('Cota da OpenAI excedida. Tente novamente mais tarde.');
       } else if (error.message.includes('timeout')) {
         throw new Error('Timeout na transcrição. Tente com áudio mais curto.');
+      } else if (error.message.includes('API key')) {
+        throw new Error('Problema com a chave da OpenAI.');
       } else {
         throw new Error('Erro na transcrição. Verifique sua conexão.');
       }
     }
   };
 
-  // Sintetizar voz usando Amazon Polly
-  const synthesizeSpeech = async (text: string): Promise<string> => {
+  // Salvar áudio no Supabase Storage
+  const saveAudioToStorage = async (audioBlob: Blob): Promise<string | undefined> => {
     try {
-      const { data, error } = await supabase.functions.invoke('polly-synthesize', {
-        body: { text }
-      });
+      if (!user) return undefined;
+      
+      const fileName = `${user.id}/${Date.now()}_audio.webm`;
+      
+      const { data, error } = await supabase.storage
+        .from('chat_audio')
+        .upload(fileName, audioBlob, {
+          contentType: 'audio/webm'
+        });
 
       if (error) {
-        console.error('Erro na síntese de voz:', error);
-        throw error;
+        console.error('⚠️ [AUDIO] Erro ao salvar áudio:', error);
+        return undefined;
       }
 
-      return data.audioData;
+      const { data: urlData } = supabase.storage
+        .from('chat_audio')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
     } catch (error) {
-      console.error('Erro na síntese de voz:', error);
-      // Falhar silenciosamente na síntese, mas continuar com texto
-      return '';
+      console.warn('⚠️ [AUDIO] Não foi possível salvar áudio:', error);
+      return undefined;
     }
   };
 
@@ -127,16 +111,11 @@ export const useAudioMessage = () => {
         throw new Error('Erro ao obter dados de áudio');
       }
 
-      // Converter para blob e salvar no storage
+      // Converter para blob
       const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' });
       
-      let audioUrl: string | undefined;
-      try {
-        audioUrl = await saveAudioToStorage(audioBlob);
-      } catch (error) {
-        console.warn('⚠️ [AUDIO] Não foi possível salvar áudio no storage:', error);
-        // Continuar sem salvar no storage
-      }
+      // Salvar no storage (opcional)
+      const audioUrl = await saveAudioToStorage(audioBlob);
       
       // Converter para base64 para transcrição
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
@@ -156,33 +135,14 @@ export const useAudioMessage = () => {
       
       setAudioMessages(prev => [...prev, userMessage]);
       
-      // Simular resposta da IA (integrar com sua IA aqui)
+      // Simular resposta da IA
       const aiResponse = `Entendi que você disse: "${transcription}". Como posso ajudar?`;
       
-      // Tentar sintetizar resposta (opcional)
-      let responseAudioUrl: string | undefined;
-      try {
-        const responseAudioData = await synthesizeSpeech(aiResponse);
-        if (responseAudioData) {
-          const responseAudioBytes = atob(responseAudioData);
-          const responseAudioArray = new Uint8Array(responseAudioBytes.length);
-          for (let i = 0; i < responseAudioBytes.length; i++) {
-            responseAudioArray[i] = responseAudioBytes.charCodeAt(i);
-          }
-          const responseBlob = new Blob([responseAudioArray], { type: 'audio/mp3' });
-          responseAudioUrl = URL.createObjectURL(responseBlob);
-        }
-      } catch (error) {
-        console.warn('⚠️ [AUDIO] Síntese de voz falhou, continuando apenas com texto:', error);
-      }
-      
-      // Adicionar mensagem da assistente
       const assistantMessage: AudioMessage = {
         id: crypto.randomUUID(),
         type: 'assistant',
         content: aiResponse,
         timestamp: new Date(),
-        audioUrl: responseAudioUrl
       };
       
       setAudioMessages(prev => [...prev, assistantMessage]);
@@ -203,7 +163,6 @@ export const useAudioMessage = () => {
     const message = audioMessages.find(m => m.id === messageId);
     if (!message?.audioUrl) return;
 
-    // Atualizar estado de reprodução
     setAudioMessages(prev => prev.map(m => ({
       ...m,
       isPlaying: m.id === messageId ? !m.isPlaying : false
