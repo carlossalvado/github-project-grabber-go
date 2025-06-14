@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -49,8 +50,10 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const responseQueueRef = useRef<LiveServerMessage[]>([]);
   const audioPartsRef = useRef<string[]>([]);
   const currentlyPlayingRef = useRef<string | null>(null);
+  const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const GEMINI_API_KEY = "AIzaSyARv6YIjGIalbNjeNTeXUNx5moUpWD8wb8";
+  // Você precisa substituir esta chave por uma válida
+  const GEMINI_API_KEY = "SUA_CHAVE_GEMINI_AQUI";
 
   const convertToWav = useCallback((rawData: string[], mimeType: string) => {
     const options = {
@@ -107,6 +110,12 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const handleModelTurn = useCallback((message: LiveServerMessage) => {
     console.log('🤖 [GEMINI LIVE] Processando resposta do modelo:', message);
 
+    // Limpar timeout se recebeu resposta
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+      processTimeoutRef.current = null;
+    }
+
     if (message.serverContent?.modelTurn?.parts) {
       const part = message.serverContent.modelTurn.parts[0];
 
@@ -131,7 +140,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         const wavBuffer = convertToWav(audioPartsRef.current, part.inlineData.mimeType || 'audio/pcm;rate=24000');
         const base64Audio = btoa(String.fromCharCode(...wavBuffer));
         
-        // Atualizar a última mensagem da assistente com o áudio - usando reverse() e find() para compatibilidade
+        // Atualizar a última mensagem da assistente com o áudio
         setMessages(prev => {
           const newMessages = [...prev];
           const assistantMessages = newMessages.filter(m => m.type === 'assistant');
@@ -158,12 +167,20 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   }, [convertToWav]);
 
   const waitMessage = useCallback(async (): Promise<LiveServerMessage> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 300; // 30 segundos máximo
+      
       const checkQueue = () => {
+        attempts++;
         const message = responseQueueRef.current.shift();
         if (message) {
           handleModelTurn(message);
           resolve(message);
+        } else if (attempts >= maxAttempts) {
+          console.error('❌ [GEMINI LIVE] Timeout aguardando resposta');
+          setIsProcessing(false);
+          reject(new Error('Timeout aguardando resposta do Gemini'));
         } else {
           setTimeout(checkQueue, 100);
         }
@@ -175,6 +192,10 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI LIVE] Conectando ao Gemini Live...');
+      
+      if (!GEMINI_API_KEY || GEMINI_API_KEY === "SUA_CHAVE_GEMINI_AQUI") {
+        throw new Error('Chave de API do Gemini não configurada');
+      }
       
       const ai = new GoogleGenAI({
         apiKey: GEMINI_API_KEY,
@@ -243,10 +264,12 @@ Responda como a ISA namorada apaixonada de 21 anos.`
             console.error('❌ [GEMINI LIVE] Erro:', e.message);
             toast.error(`Erro na conexão: ${e.message}`);
             setIsConnected(false);
+            setIsProcessing(false);
           },
           onclose: (e: CloseEvent) => {
             console.log('🔌 [GEMINI LIVE] Conexão fechada:', e.reason);
             setIsConnected(false);
+            setIsProcessing(false);
           },
         },
         config
@@ -258,6 +281,7 @@ Responda como a ISA namorada apaixonada de 21 anos.`
       console.error('❌ [GEMINI LIVE] Erro ao conectar:', error);
       toast.error(`Erro ao conectar: ${error.message}`);
       setIsConnected(false);
+      setIsProcessing(false);
     }
   }, []);
 
@@ -267,6 +291,12 @@ Responda como a ISA namorada apaixonada de 21 anos.`
       sessionRef.current.close();
       sessionRef.current = null;
       setIsConnected(false);
+      setIsProcessing(false);
+    }
+    
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+      processTimeoutRef.current = null;
     }
   }, []);
 
@@ -329,8 +359,16 @@ Responda como a ISA namorada apaixonada de 21 anos.`
       recordingIntervalRef.current = null;
     }
 
+    // Configurar timeout para evitar processamento infinito
+    processTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ [GEMINI LIVE] Timeout no processamento');
+      setIsProcessing(false);
+      toast.error('Timeout no processamento do áudio');
+    }, 30000); // 30 segundos
+
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
+        setIsProcessing(false);
         resolve();
         return;
       }
@@ -370,8 +408,13 @@ Responda como a ISA namorada apaixonada de 21 anos.`
             
             console.log('📤 [GEMINI LIVE] Áudio enviado para processamento');
             
-            // Aguardar resposta
-            await waitMessage();
+            try {
+              // Aguardar resposta com timeout
+              await waitMessage();
+            } catch (error) {
+              console.error('❌ [GEMINI LIVE] Erro ao aguardar resposta:', error);
+              toast.error('Erro ao processar áudio. Tente novamente.');
+            }
           }
           
           resolve();
