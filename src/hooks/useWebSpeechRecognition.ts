@@ -22,7 +22,8 @@ export const useWebSpeechRecognition = (): UseWebSpeechRecognitionReturn => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Verificar se o navegador suporta Web Speech API
-  const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  const isSupported = typeof window !== 'undefined' && 
+    ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
 
   const initializeRecognition = useCallback(() => {
     if (!isSupported) {
@@ -30,8 +31,8 @@ export const useWebSpeechRecognition = (): UseWebSpeechRecognitionReturn => {
       return null;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognitionClass();
 
     recognition.continuous = true;
     recognition.interimResults = true;
