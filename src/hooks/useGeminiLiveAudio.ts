@@ -48,7 +48,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
       // Buscar a chave API do Supabase Edge Function
-      const response = await fetch('/functions/v1/get-gemini-key', {
+      const response = await fetch('https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/get-gemini-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
