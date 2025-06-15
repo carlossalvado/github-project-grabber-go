@@ -11,7 +11,6 @@ import ChatTrialPage from "./pages/ChatTrialPage";
 import ChatPremiumPage from "./pages/ChatPremiumPage";
 import ChatTextOnlyPage from "./pages/ChatTextOnlyPage";
 import ChatTextAudioPage from "./pages/ChatTextAudioPage";
-import ChatTextAudioPageNew from "./pages/ChatTextAudioPageNew";
 import ModernChatPage from "./pages/ModernChatPage";
 import GeminiChatPage from "./pages/GeminiChatPage";
 import GeminiLiveChatPage from "./pages/GeminiLiveChatPage";
@@ -92,14 +91,6 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ChatTextAudioPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat-text-audio-new"
-                  element={
-                    <ProtectedRoute>
-                      <ChatTextAudioPageNew />
                     </ProtectedRoute>
                   }
                 />
