@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { GoogleGenAI } from '@google/genai';
@@ -58,11 +57,11 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
       aiRef.current = ai;
       
-      // Conectar ao live session
+      // Conectar ao live session com configuração corrigida
       const liveSession = await ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
-          responseModalities: ['AUDIO', 'TEXT'],
+          responseModalities: ['audio', 'text'], // Usando valores em lowercase
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
