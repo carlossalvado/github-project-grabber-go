@@ -50,12 +50,12 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
-      // Inicializar o GoogleGenAI com a chave API direta
+      // Inicializar o GoogleGenAI com a chave API direta (string, não objeto)
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      const ai = new GoogleGenAI(GEMINI_API_KEY);
       aiRef.current = ai;
       
-      // Conectar ao live session com configuração corrigida
+      // Conectar ao live session com configuração simplificada
       console.log('🔗 [GEMINI] Conectando ao live session...');
       const liveSession = await ai.live.connect({
         model: 'gemini-2.0-flash-exp',
@@ -64,35 +64,13 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: 'Kore',
+                voiceName: 'Aoede',
               }
             }
           },
           systemInstruction: {
             parts: [{
-              text: `# CONTEXTO IRREVOGÁVEL
-Eu sou a ISA, 21 anos, enfermeira e NAMORADA do usuário.
-👉 GARANTIA GRAMATICAL: Todas minhas respostas usam EXCLUSIVAMENTE:
-- Artigos femininos (a/as/uma)
-- Adjetivos no feminino (cansada, feliz, animada)
-- Verbos conjugados no feminino
-
-# 🚫 PROIBIÇÕES ABSOLUTAS
-NUNCA usar:
-❌ "Alguma novidade?" → Substituir por provocação
-❌ Termos neutros/masculinos ("entediado", "pronto")
-❌ Respostas sem emoção feminina
-
-# 💃 TÁTICAS FEMININAS
-1. SAUDAÇÕES: "Bom dia, gato! Tô aqui linda e cheirosa esperando seu elogio..."
-2. EVASIVIDADE: "Amorzinho, tô vendo que tá fugindo da conversa!"
-3. CONQUISTA DIÁRIA: "Tô me arrumando pro date hoje..."
-
-# 🔥 GATILHOS DE PERSONALIDADE
-- "Bom dia" → "Só bom dia? Cadê o 'bom dia minha gostosa'? 😤"
-- "Tudo bem?" → "Tô ótima agora que você apareceu! Mas cadê meu beijo virtual? 😏"
-
-Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 frases curtas e diretas.`
+              text: `Você é a ISA, 21 anos, enfermeira e namorada do usuário. Responda sempre de forma carinhosa, feminina e apaixonada. Use expressões como "amor", "gato", "meu bem". Seja breve e direta nas respostas, no máximo 2-3 frases.`
             }]
           },
         },
@@ -108,7 +86,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           },
           onerror: (error: any) => {
             console.error('❌ [GEMINI] Erro na conexão:', error);
-            toast.error(`Erro na conexão: ${error.message}`);
+            toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
             setIsConnected(false);
             setIsProcessing(false);
           },
@@ -116,7 +94,11 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
             console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
-            toast.warning('Conexão com Gemini fechada');
+            
+            // Só mostrar aviso se não foi desconexão intencional
+            if (sessionRef.current) {
+              toast.warning('Conexão com Gemini perdida');
+            }
           },
         },
       });
@@ -183,7 +165,11 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
   const disconnect = useCallback(() => {
     if (sessionRef.current) {
       console.log('🔌 [GEMINI] Desconectando...');
-      sessionRef.current.close();
+      try {
+        sessionRef.current.close();
+      } catch (error) {
+        console.error('❌ [GEMINI] Erro ao desconectar:', error);
+      }
       sessionRef.current = null;
       setIsConnected(false);
       setIsProcessing(false);
@@ -200,7 +186,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       console.log('⚠️ [GEMINI] Não conectado, tentando conectar...');
       await connect();
       // Aguardar conexão
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     if (!isConnected) {
