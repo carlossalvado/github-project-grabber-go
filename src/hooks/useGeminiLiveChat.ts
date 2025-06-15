@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { GoogleGenAI, LiveServerMessage, MediaResolution, Modality, Session } from '@google/genai';
@@ -49,8 +48,10 @@ export const useGeminiLiveChat = (): UseGeminiLiveChatReturn => {
     try {
       console.log('🚀 [GEMINI CHAT] Conectando ao Gemini...');
       
-      // Inicializar o GoogleGenAI com a chave API
-      const ai = new GoogleGenAI(GEMINI_API_KEY);
+      // Inicializar o GoogleGenAI com a chave API no formato correto
+      const ai = new GoogleGenAI({
+        apiKey: GEMINI_API_KEY
+      });
       
       // Configurar sessão com ISA
       const config = {
