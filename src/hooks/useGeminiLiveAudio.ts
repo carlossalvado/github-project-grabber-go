@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { GoogleGenAI, Modality } from '@google/genai';
@@ -28,6 +27,9 @@ interface UseGeminiLiveAudioReturn {
   disconnect: () => void;
 }
 
+// Chave API do Gemini diretamente no código
+const GEMINI_API_KEY = 'AIzaSyDdI0hCeZChCOzqyJUVcaQ4X8ptVAzFQeg';
+
 export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const [messages, setMessages] = useState<GeminiAudioMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -48,32 +50,9 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
-      // Buscar a chave API do Supabase Edge Function
-      const response = await fetch('https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/get-gemini-key', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('📡 [GEMINI] Resposta da edge function:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [GEMINI] Erro na resposta:', errorText);
-        throw new Error(`Erro ao obter chave de API: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📦 [GEMINI] Dados recebidos:', { success: data.success, hasApiKey: !!data.apiKey });
-
-      if (!data.success || !data.apiKey) {
-        throw new Error('Chave de API não retornada pela edge function');
-      }
-
-      // Inicializar o GoogleGenAI com a chave API do Supabase
+      // Inicializar o GoogleGenAI com a chave API direta
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
-      const ai = new GoogleGenAI(data.apiKey);
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       aiRef.current = ai;
       
       // Conectar ao live session com configuração corrigida
