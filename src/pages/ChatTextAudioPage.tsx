@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,7 @@ const ChatTextAudioPage = () => {
   const { messages: textMessages, addMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   
-  // Hook Gemini Live Audio
+  // Apenas Gemini Live Audio
   const {
     messages: audioMessages,
     isRecording,
@@ -257,14 +258,28 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-gray-400 hover:text-white"
-          onClick={clearAudioMessages}
-        >
-          Limpar Áudios
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-gray-400 hover:text-white"
+            onClick={clearAudioMessages}
+          >
+            Limpar Áudios
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "text-gray-400 hover:text-white",
+              isConnected ? "text-green-500" : "text-red-500"
+            )}
+            onClick={isConnected ? disconnect : connect}
+            disabled={isProcessing}
+          >
+            {isConnected ? 'Desconectar' : 'Conectar'}
+          </Button>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -273,7 +288,7 @@ const ChatTextAudioPage = () => {
           {/* Text Messages */}
           {textMessages.map(renderTextMessage)}
           
-          {/* Gemini Audio Messages */}
+          {/* Apenas Gemini Audio Messages */}
           {audioMessages.map(message => (
             <GeminiAudioBubble
               key={message.id}
@@ -289,7 +304,7 @@ const ChatTextAudioPage = () => {
         </ScrollArea>
       </div>
 
-      {/* Recording Indicator */}
+      {/* Recording Indicator - Apenas Gemini */}
       {(isRecording || isProcessing) && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-90 p-6 rounded-2xl flex flex-col items-center justify-center border border-gray-500/50 min-w-80">
           <div className={cn(
@@ -304,7 +319,7 @@ const ChatTextAudioPage = () => {
           </div>
           
           <div className="text-xs text-gray-300">
-            {isRecording ? 'Gravando com Gemini Live' : 'Aguardando resposta'}
+            {isRecording ? 'Gravando com Gemini Live' : 'Aguardando resposta do Gemini'}
           </div>
         </div>
       )}
@@ -323,7 +338,7 @@ const ChatTextAudioPage = () => {
         <Input
           ref={inputRef}
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
-          placeholder="Digite uma mensagem..."
+          placeholder="Digite uma mensagem ou use o áudio..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
