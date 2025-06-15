@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,16 +5,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ProtectedRoute from "./components/ProtectedRoute";
 import ChatPage from "./pages/ChatPage";
+import ChatTrialPage from "./pages/ChatTrialPage";
+import ChatPremiumPage from "./pages/ChatPremiumPage";
 import ChatTextOnlyPage from "./pages/ChatTextOnlyPage";
 import ChatTextAudioPage from "./pages/ChatTextAudioPage";
 import ChatTextAudioPageNew from "./pages/ChatTextAudioPageNew";
-import ChatPremiumPage from "./pages/ChatPremiumPage";
-import ChatTrialPage from "./pages/ChatTrialPage";
 import ModernChatPage from "./pages/ModernChatPage";
 import GeminiChatPage from "./pages/GeminiChatPage";
+import GeminiLiveChatPage from "./pages/GeminiLiveChatPage";
 import PersonalizePage from "./pages/PersonalizePage";
 import PlanPage from "./pages/PlanPage";
 import SelectedPlanPage from "./pages/SelectedPlanPage";
@@ -32,162 +30,172 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <BrowserRouter>
-          <SubscriptionProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/landing" element={<LandingPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/home"
-                element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat"
-                element={
-                  <ProtectedRoute>
-                    <ChatPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat-text-only"
-                element={
-                  <ProtectedRoute>
-                    <ChatTextOnlyPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat-text-audio"
-                element={
-                  <ProtectedRoute>
-                    <ChatTextAudioPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat-text-audio-new"
-                element={
-                  <ProtectedRoute>
-                    <ChatTextAudioPageNew />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat-premium"
-                element={
-                  <ProtectedRoute>
-                    <ChatPremiumPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chat-trial"
-                element={
-                  <ProtectedRoute>
-                    <ChatTrialPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/modern-chat"
-                element={
-                  <ProtectedRoute>
-                    <ModernChatPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gemini-chat"
-                element={
-                  <ProtectedRoute>
-                    <GeminiChatPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/personalize"
-                element={
-                  <ProtectedRoute>
-                    <PersonalizePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/plan"
-                element={
-                  <ProtectedRoute>
-                    <PlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/selected-plan"
-                element={
-                  <ProtectedRoute>
-                    <SelectedPlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/free-plan"
-                element={
-                  <ProtectedRoute>
-                    <FreePlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/basic-plan"
-                element={
-                  <ProtectedRoute>
-                    <BasicPlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/premium-plan"
-                element={
-                  <ProtectedRoute>
-                    <PremiumPlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ultimate-plan"
-                element={
-                  <ProtectedRoute>
-                    <UltimatePlanPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </SubscriptionProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <SubscriptionProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="/home"
+                  element={
+                    <ProtectedRoute>
+                      <Home />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat-trial"
+                  element={
+                    <ProtectedRoute>
+                      <ChatTrialPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat-premium"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPremiumPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat-text-only"
+                  element={
+                    <ProtectedRoute>
+                      <ChatTextOnlyPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat-text-audio"
+                  element={
+                    <ProtectedRoute>
+                      <ChatTextAudioPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat-text-audio-new"
+                  element={
+                    <ProtectedRoute>
+                      <ChatTextAudioPageNew />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/modern-chat"
+                  element={
+                    <ProtectedRoute>
+                      <ModernChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/gemini-chat"
+                  element={
+                    <ProtectedRoute>
+                      <GeminiChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/gemini-live-chat"
+                  element={
+                    <ProtectedRoute>
+                      <GeminiLiveChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/personalize"
+                  element={
+                    <ProtectedRoute>
+                      <PersonalizePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/plan"
+                  element={
+                    <ProtectedRoute>
+                      <PlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/selected-plan"
+                  element={
+                    <ProtectedRoute>
+                      <SelectedPlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/free-plan"
+                  element={
+                    <ProtectedRoute>
+                      <FreePlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/basic-plan"
+                  element={
+                    <ProtectedRoute>
+                      <BasicPlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/premium-plan"
+                  element={
+                    <ProtectedRoute>
+                      <PremiumPlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ultimate-plan"
+                  element={
+                    <ProtectedRoute>
+                      <UltimatePlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </SubscriptionProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
