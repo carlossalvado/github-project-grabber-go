@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -45,29 +44,7 @@ export const useGeminiLiveChat = (): UseGeminiLiveChatReturn => {
 
   const connect = useCallback(async () => {
     try {
-      console.log('🚀 [GEMINI CHAT] Conectando ao Gemini via REST API...');
-      
-      // Testar conexão com uma chamada simples
-      const testResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: "Hello, this is a test connection."
-            }]
-          }]
-        })
-      });
-
-      if (!testResponse.ok) {
-        const errorText = await testResponse.text();
-        throw new Error(`Erro na API do Gemini: ${testResponse.status} - ${errorText}`);
-      }
-
-      console.log('✅ [GEMINI CHAT] Conexão com Gemini estabelecida!');
+      console.log('🚀 [GEMINI CHAT] Conectando ao Gemini...');
       setIsConnected(true);
       toast.success('Conectado ao Gemini! 🎤');
       
