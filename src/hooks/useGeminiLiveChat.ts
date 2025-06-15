@@ -27,6 +27,9 @@ interface UseGeminiLiveChatReturn {
   clearMessages: () => void;
 }
 
+// Chave API do Gemini diretamente no código
+const GEMINI_API_KEY = 'AIzaSyDdI0hCeZChCOzqyJUVcaQ4X8ptVAzFQeg';
+
 export const useGeminiLiveChat = (): UseGeminiLiveChatReturn => {
   const [messages, setMessages] = useState<GeminiChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -46,26 +49,8 @@ export const useGeminiLiveChat = (): UseGeminiLiveChatReturn => {
     try {
       console.log('🚀 [GEMINI CHAT] Conectando ao Gemini...');
       
-      // Buscar a chave API do Supabase Edge Function
-      const response = await fetch('https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/get-gemini-key', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ao obter chave de API: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      if (!data.success || !data.apiKey) {
-        throw new Error('Chave de API não retornada pela edge function');
-      }
-
-      // Inicializar o GoogleGenAI
-      const ai = new GoogleGenAI(data.apiKey);
+      // Inicializar o GoogleGenAI com a chave API
+      const ai = new GoogleGenAI(GEMINI_API_KEY);
       
       // Configurar sessão com ISA
       const config = {
