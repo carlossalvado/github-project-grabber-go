@@ -4,19 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { cn } from '@/lib/utils';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { messages, addMessage, clearMessages } = useLocalCache();
+  const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
+  const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
     
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -28,6 +31,7 @@ const ChatTextAudioPage = () => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -108,21 +112,10 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    const isLoading = n8nLoading || isGeneratingAudio;
-    if (!input.trim() || isLoading || !user) return;
-
-    const messageText = input.trim();
-    setInput('');
-
-    addMessage({
-      type: 'user',
-      transcription: messageText,
-      timestamp: new Date().toISOString()
-    });
-
+  const getAssistantResponse = async (messageText: string) => {
+    if (!user) return;
     try {
-      const responseText = await sendToN8n(messageText, user.email);
+      const responseText = await sendToN8n(messageText, user.email!);
       
       setIsGeneratingAudio(true);
       let audioUrl: string | undefined;
@@ -162,15 +155,92 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  const handleSendTextMessage = async () => {
+    const isLoading = n8nLoading || isGeneratingAudio || isRecording || isTranscribing;
+    if (!input.trim() || isLoading || !user) return;
+
+    const messageText = input.trim();
+    setInput('');
+
+    addMessage({
+      type: 'user',
+      transcription: messageText,
+      timestamp: new Date().toISOString()
+    });
+
+    await getAssistantResponse(messageText);
+  };
+
+  useEffect(() => {
+    if (audioBlob && audioUrl) {
+      transcribeAndSend(audioBlob, audioUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioBlob, audioUrl]);
+
+  const transcribeAndSend = async (blob: Blob, url: string) => {
+    setIsTranscribing(true);
+    toast.info("Transcrevendo seu áudio...");
+
+    const userMessageId = addMessage({
+        type: 'user',
+        timestamp: new Date().toISOString(),
+        audioUrl: url,
+        transcription: 'Processando áudio...'
+    });
+
+    try {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+            const base64data = reader.result as string;
+            const audioData = base64data.split(',')[1];
+
+            const { data, error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
+                body: { audioData },
+            });
+
+            if (transcribeError) throw new Error(transcribeError.message);
+            
+            const transcription = data.transcription;
+            if (!transcription || transcription.trim().length === 0) {
+                toast.error("Não foi possível entender o que você disse. Tente novamente.");
+                updateMessage(userMessageId, { transcription: "(Áudio não pôde ser transcrito)" });
+                setIsTranscribing(false);
+                resetAudio();
+                return;
+            }
+            
+            toast.success("Áudio transcrito!");
+            updateMessage(userMessageId, { transcription });
+
+            await getAssistantResponse(transcription);
+            
+            setIsTranscribing(false);
+            resetAudio();
+        };
+    } catch (error) {
+        console.error('Transcription error:', error);
+        toast.error('Erro ao transcrever o áudio.');
+        updateMessage(userMessageId, { transcription: '(Erro na transcrição)' });
+        setIsTranscribing(false);
+        resetAudio();
+    }
+  };
 
   const handleAudioToggle = async () => {
-    toast.info("A gravação de áudio por aqui está sendo aprimorada! Use a caixa de texto por enquanto.");
+    if (isRecording) {
+        stopRecording();
+    } else {
+        if (n8nLoading || isGeneratingAudio || isTranscribing) return;
+        startRecording();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSendTextMessage();
     }
   };
 
@@ -206,7 +276,7 @@ const ChatTextAudioPage = () => {
               : 'bg-gray-700 text-white rounded-bl-none'
           }`}>
             <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
-             {!isUserMessage && message.audioUrl && (
+             {message.audioUrl && (
               <Button
                 size="icon"
                 variant="ghost"
@@ -225,7 +295,7 @@ const ChatTextAudioPage = () => {
         {isUserMessage && (
           <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
             <AvatarFallback className="bg-blue-600 text-white">
-              {user.email?.charAt(0).toUpperCase() || 'U'}
+              {user!.email?.charAt(0).toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
         )}
@@ -241,7 +311,8 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  const isLoading = n8nLoading || isGeneratingAudio;
+  const isProcessing = n8nLoading || isGeneratingAudio || isTranscribing;
+  const isLoading = isProcessing || isRecording;
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
@@ -292,11 +363,14 @@ const ChatTextAudioPage = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="flex-shrink-0 text-gray-400 hover:text-white"
+          className={cn(
+            "flex-shrink-0 text-gray-400 hover:text-white",
+            isRecording && "text-red-500 hover:text-red-600 animate-pulse"
+          )}
           onClick={handleAudioToggle}
-          disabled={isLoading}
+          disabled={isProcessing}
         >
-          <Mic size={20} />
+          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </Button>
         <Input
           ref={inputRef}
@@ -311,10 +385,10 @@ const ChatTextAudioPage = () => {
           variant="ghost"
           size="icon"
           className="flex-shrink-0 text-gray-400 hover:text-white"
-          onClick={handleSendMessage}
+          onClick={handleSendTextMessage}
           disabled={!input.trim() || isLoading}
         >
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+          {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
         </Button>
       </div>
 
