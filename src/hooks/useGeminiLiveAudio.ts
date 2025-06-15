@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -42,31 +43,21 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const intentionalDisconnectRef = useRef(false);
-  const connectionAttemptsRef = useRef(0);
+  const isConnectingRef = useRef(false);
 
   const connect = useCallback(async () => {
+    if (isConnectingRef.current || isConnected) {
+      console.log('🚫 [GEMINI] Já conectando ou conectado, ignorando');
+      return;
+    }
+
     try {
       console.log('🚀 [GEMINI] Iniciando conexão com Gemini Live...');
-      intentionalDisconnectRef.current = false;
+      isConnectingRef.current = true;
+      setIsProcessing(true);
       
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-
-      // Limite de tentativas de reconexão
-      if (connectionAttemptsRef.current >= 5) {
-        console.log('❌ [GEMINI] Máximo de tentativas de conexão atingido');
-        toast.error('Muitas tentativas de conexão. Aguarde antes de tentar novamente.');
-        return;
-      }
-
-      connectionAttemptsRef.current++;
-      
-      // Importação dinâmica do Gemini com Modality enum
-      const { GoogleGenAI, Modality } = await import('@google/genai');
+      // Importação dinâmica do GoogleGenAI
+      const { GoogleGenAI } = await import('@google/genai');
       
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -75,7 +66,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       const session = await ai.live.connect({
         model: 'models/gemini-2.0-flash-exp',
         config: {
-          responseModalities: [Modality.AUDIO, Modality.TEXT],
+          responseModalities: ['audio', 'text'],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
@@ -94,7 +85,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             console.log('✅ [GEMINI] Conexão estabelecida com sucesso!');
             setIsConnected(true);
             setIsProcessing(false);
-            connectionAttemptsRef.current = 0; // Reset contador de tentativas
+            isConnectingRef.current = false;
             toast.success('Conectado ao Gemini Live! 🎤');
           },
           onmessage: (message: any) => {
@@ -105,40 +96,17 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             console.error('❌ [GEMINI] Erro na conexão:', error);
             setIsConnected(false);
             setIsProcessing(false);
-            
-            if (intentionalDisconnectRef.current) {
-              console.log('🚪 [GEMINI] Erro durante desconexão intencional. Ignorando.');
-              return;
-            }
-            
+            isConnectingRef.current = false;
             toast.error(`Erro na conexão com Gemini`);
-            
-            // Reconectar com delay crescente
-            const delay = Math.min(connectionAttemptsRef.current * 2000, 10000);
-            reconnectTimeoutRef.current = setTimeout(() => {
-              console.log('🔄 [GEMINI] Tentando reconectar...');
-              connect();
-            }, delay);
           },
           onclose: (event: any) => {
             console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
+            isConnectingRef.current = false;
             
-            if (intentionalDisconnectRef.current) {
-              console.log('🚪 [GEMINI] Desconexão intencional, não reconectando.');
-              connectionAttemptsRef.current = 0;
-              return;
-            }
-            
-            toast.warning('Conexão com Gemini perdida');
-            
-            // Reconectar com delay
-            const delay = Math.min(connectionAttemptsRef.current * 3000, 15000);
-            reconnectTimeoutRef.current = setTimeout(() => {
-              console.log('🔄 [GEMINI] Reconectando automaticamente...');
-              connect();
-            }, delay);
+            // Não reconectar automaticamente
+            console.log('🚪 [GEMINI] Conexão fechada. Use o botão Conectar para reconectar.');
           },
         },
       });
@@ -151,15 +119,9 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       toast.error(`Erro ao conectar: ${error.message}`);
       setIsConnected(false);
       setIsProcessing(false);
-      
-      // Reconectar com delay maior em caso de erro
-      const delay = Math.min(connectionAttemptsRef.current * 5000, 30000);
-      reconnectTimeoutRef.current = setTimeout(() => {
-        console.log('🔄 [GEMINI] Tentando reconectar após erro...');
-        connect();
-      }, delay);
+      isConnectingRef.current = false;
     }
-  }, []);
+  }, [isConnected]);
 
   const handleModelResponse = useCallback((message: any) => {
     console.log('🤖 [GEMINI] Processando resposta:', message);
@@ -202,13 +164,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
   const disconnect = useCallback(() => {
     console.log('🔌 [GEMINI] Desconectando intencionalmente...');
-    intentionalDisconnectRef.current = true;
-    connectionAttemptsRef.current = 0;
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
     
     if (sessionRef.current) {
       try {
@@ -221,26 +176,15 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     
     setIsConnected(false);
     setIsProcessing(false);
+    isConnectingRef.current = false;
     console.log('✅ [GEMINI] Desconectado com sucesso');
   }, []);
 
   const startRecording = useCallback(async () => {
     if (!isConnected) {
-      console.log('⚠️ [GEMINI] Não conectado, tentando conectar...');
-      toast.warning('Conectando ao Gemini...');
-      await connect();
-      
-      // Aguardar conexão
-      let attempts = 0;
-      while (!isConnected && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-      
-      if (!isConnected) {
-        toast.error('Não foi possível conectar ao Gemini');
-        return;
-      }
+      console.log('⚠️ [GEMINI] Não conectado. Use o botão Conectar primeiro.');
+      toast.warning('Conecte-se ao Gemini primeiro');
+      return;
     }
 
     try {
@@ -283,7 +227,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       console.error('❌ [GEMINI] Erro ao iniciar gravação:', error);
       toast.error(`Erro ao iniciar gravação: ${error.message}`);
     }
-  }, [isConnected, connect]);
+  }, [isConnected]);
 
   const stopRecording = useCallback(async () => {
     if (!mediaRecorderRef.current || !isRecording) return;
