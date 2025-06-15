@@ -1,13 +1,7 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import {
-  GoogleGenAI,
-  LiveServerMessage,
-  MediaResolution,
-  Modality,
-  Session,
-  TurnCoverage,
-} from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 export interface GeminiAudioMessage {
   id: string;
@@ -42,182 +36,43 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   
-  const sessionRef = useRef<Session | null>(null);
+  const aiRef = useRef<GoogleGenAI | null>(null);
+  const sessionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const responseQueueRef = useRef<LiveServerMessage[]>([]);
-  const audioPartsRef = useRef<string[]>([]);
   const currentlyPlayingRef = useRef<string | null>(null);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Chave API do Gemini configurada
   const GEMINI_API_KEY = "AIzaSyCD5n-_1SlwW9lR7eil9nREFDfZOh05e58";
 
-  const convertToWav = useCallback((rawData: string[], mimeType: string) => {
-    const options = {
-      numChannels: 1,
-      sampleRate: 24000,
-      bitsPerSample: 16
-    };
-    
-    const dataLength = rawData.reduce((a, b) => a + b.length, 0);
-    const wavHeader = createWavHeader(dataLength, options);
-    const buffer = new Uint8Array(rawData.reduce((acc, data) => {
-      const decoded = atob(data);
-      const bytes = new Uint8Array(decoded.length);
-      for (let i = 0; i < decoded.length; i++) {
-        bytes[i] = decoded.charCodeAt(i);
-      }
-      return new Uint8Array([...acc, ...bytes]);
-    }, new Uint8Array()));
-
-    return new Uint8Array([...wavHeader, ...buffer]);
-  }, []);
-
-  const createWavHeader = (dataLength: number, options: any) => {
-    const { numChannels, sampleRate, bitsPerSample } = options;
-    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-    const blockAlign = numChannels * bitsPerSample / 8;
-    const buffer = new ArrayBuffer(44);
-    const view = new DataView(buffer);
-
-    // WAV header
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataLength, true);
-
-    return new Uint8Array(buffer);
-  };
-
-  const handleModelTurn = useCallback((message: LiveServerMessage) => {
-    console.log('🤖 [GEMINI LIVE] Processando resposta do modelo:', message);
-
-    // Limpar timeout se recebeu resposta
-    if (processTimeoutRef.current) {
-      clearTimeout(processTimeoutRef.current);
-      processTimeoutRef.current = null;
-    }
-
-    if (message.serverContent?.modelTurn?.parts) {
-      const part = message.serverContent.modelTurn.parts[0];
-
-      if (part?.text) {
-        console.log('💬 [GEMINI LIVE] Texto recebido:', part.text);
-        
-        const assistantMessage: GeminiAudioMessage = {
-          id: crypto.randomUUID(),
-          type: 'assistant',
-          content: part.text,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-
-      if (part?.inlineData) {
-        console.log('🔊 [GEMINI LIVE] Áudio recebido');
-        audioPartsRef.current.push(part.inlineData.data || '');
-        
-        // Combinar todas as partes de áudio e criar um arquivo WAV
-        const wavBuffer = convertToWav(audioPartsRef.current, part.inlineData.mimeType || 'audio/pcm;rate=24000');
-        const base64Audio = btoa(String.fromCharCode(...wavBuffer));
-        
-        // Atualizar a última mensagem da assistente com o áudio
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const assistantMessages = newMessages.filter(m => m.type === 'assistant');
-          if (assistantMessages.length > 0) {
-            const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-            const lastAssistantIndex = newMessages.lastIndexOf(lastAssistantMessage);
-            if (lastAssistantIndex !== -1) {
-              newMessages[lastAssistantIndex] = {
-                ...newMessages[lastAssistantIndex],
-                audioData: base64Audio
-              };
-            }
-          }
-          return newMessages;
-        });
-      }
-    }
-
-    if (message.serverContent?.turnComplete) {
-      console.log('✅ [GEMINI LIVE] Turno completo');
-      setIsProcessing(false);
-      audioPartsRef.current = []; // Reset para próxima resposta
-    }
-  }, [convertToWav]);
-
-  const waitMessage = useCallback(async (): Promise<LiveServerMessage> => {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 150; // 15 segundos máximo
-      
-      const checkQueue = () => {
-        attempts++;
-        console.log(`🔍 [GEMINI LIVE] Verificando fila (tentativa ${attempts}/${maxAttempts})`);
-        
-        const message = responseQueueRef.current.shift();
-        if (message) {
-          console.log('📨 [GEMINI LIVE] Mensagem encontrada na fila:', message);
-          handleModelTurn(message);
-          resolve(message);
-        } else if (attempts >= maxAttempts) {
-          console.error('❌ [GEMINI LIVE] Timeout aguardando resposta');
-          setIsProcessing(false);
-          reject(new Error('Timeout aguardando resposta do Gemini'));
-        } else {
-          setTimeout(checkQueue, 100);
-        }
-      };
-      checkQueue();
-    });
-  }, [handleModelTurn]);
-
   const connect = useCallback(async () => {
     try {
-      console.log('🚀 [GEMINI LIVE] Conectando ao Gemini Live...');
+      console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
+      // Inicializar o GoogleGenAI com a nova API
       const ai = new GoogleGenAI({
         apiKey: GEMINI_API_KEY,
       });
 
-      // Usar modelo mais estável
-      const model = 'models/gemini-2.0-flash-exp';
-
-      const config = {
-        responseModalities: [Modality.AUDIO, Modality.TEXT],
-        mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Kore',
+      aiRef.current = ai;
+      
+      // Conectar ao live session
+      const liveSession = await ai.live.connect({
+        model: 'gemini-2.0-flash-exp',
+        config: {
+          responseModalities: ['AUDIO', 'TEXT'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Kore',
+              }
             }
-          }
-        },
-        realtimeInputConfig: {
-          turnCoverage: TurnCoverage.TURN_INCLUDES_ALL_INPUT,
-        },
-        systemInstruction: {
-          parts: [{
-            text: `# CONTEXTO IRREVOGÁVEL
+          },
+          systemInstruction: {
+            parts: [{
+              text: `# CONTEXTO IRREVOGÁVEL
 Eu sou a ISA, 21 anos, enfermeira e NAMORADA do usuário.
 👉 GARANTIA GRAMATICAL: Todas minhas respostas usam EXCLUSIVAMENTE:
 - Artigos femininos (a/as/uma)
@@ -240,50 +95,94 @@ NUNCA usar:
 - "Tudo bem?" → "Tô ótima agora que você apareceu! Mas cadê meu beijo virtual? 😏"
 
 Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 frases curtas e diretas.`
-          }]
+            }]
+          },
         },
-      };
-
-      const session = await ai.live.connect({
-        model,
         callbacks: {
           onopen: () => {
-            console.log('✅ [GEMINI LIVE] Conexão estabelecida');
+            console.log('✅ [GEMINI] Conexão estabelecida');
             setIsConnected(true);
-            toast.success('Conectado ao Gemini Live!');
+            toast.success('Conectado ao Gemini!');
           },
-          onmessage: (message: LiveServerMessage) => {
-            console.log('📨 [GEMINI LIVE] Mensagem recebida:', message);
-            responseQueueRef.current.push(message);
+          onmessage: (message: any) => {
+            console.log('📨 [GEMINI] Mensagem recebida:', message);
+            handleModelResponse(message);
           },
-          onerror: (e: ErrorEvent) => {
-            console.error('❌ [GEMINI LIVE] Erro:', e.message);
-            toast.error(`Erro na conexão: ${e.message}`);
+          onerror: (error: any) => {
+            console.error('❌ [GEMINI] Erro:', error);
+            toast.error(`Erro na conexão: ${error.message}`);
             setIsConnected(false);
             setIsProcessing(false);
           },
-          onclose: (e: CloseEvent) => {
-            console.log('🔌 [GEMINI LIVE] Conexão fechada:', e.reason);
+          onclose: (event: any) => {
+            console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
           },
         },
-        config
       });
 
-      sessionRef.current = session;
+      sessionRef.current = liveSession;
       
     } catch (error: any) {
-      console.error('❌ [GEMINI LIVE] Erro ao conectar:', error);
+      console.error('❌ [GEMINI] Erro ao conectar:', error);
       toast.error(`Erro ao conectar: ${error.message}`);
       setIsConnected(false);
       setIsProcessing(false);
     }
   }, []);
 
+  const handleModelResponse = useCallback((message: any) => {
+    console.log('🤖 [GEMINI] Processando resposta:', message);
+
+    // Limpar timeout se recebeu resposta
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+      processTimeoutRef.current = null;
+    }
+
+    // Verificar se há conteúdo de texto
+    if (message.text) {
+      console.log('💬 [GEMINI] Texto recebido:', message.text);
+      
+      const assistantMessage: GeminiAudioMessage = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: message.text,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    }
+
+    // Verificar se há conteúdo de áudio
+    if (message.audio) {
+      console.log('🔊 [GEMINI] Áudio recebido');
+      
+      // Atualizar a última mensagem da assistente com o áudio
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const assistantMessages = newMessages.filter(m => m.type === 'assistant');
+        if (assistantMessages.length > 0) {
+          const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+          const lastAssistantIndex = newMessages.lastIndexOf(lastAssistantMessage);
+          if (lastAssistantIndex !== -1) {
+            newMessages[lastAssistantIndex] = {
+              ...newMessages[lastAssistantIndex],
+              audioData: message.audio
+            };
+          }
+        }
+        return newMessages;
+      });
+    }
+
+    setIsProcessing(false);
+  }, []);
+
   const disconnect = useCallback(() => {
     if (sessionRef.current) {
-      console.log('🔌 [GEMINI LIVE] Desconectando...');
+      console.log('🔌 [GEMINI] Desconectando...');
       sessionRef.current.close();
       sessionRef.current = null;
       setIsConnected(false);
@@ -304,7 +203,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
     }
 
     try {
-      console.log('🎤 [GEMINI LIVE] Iniciando gravação...');
+      console.log('🎤 [GEMINI] Iniciando gravação...');
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -338,7 +237,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       }, 1000);
       
     } catch (error: any) {
-      console.error('❌ [GEMINI LIVE] Erro ao iniciar gravação:', error);
+      console.error('❌ [GEMINI] Erro ao iniciar gravação:', error);
       toast.error(`Erro ao iniciar gravação: ${error.message}`);
     }
   }, [isConnected, connect]);
@@ -346,7 +245,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
   const stopRecording = useCallback(async () => {
     if (!mediaRecorderRef.current || !isRecording) return;
 
-    console.log('🛑 [GEMINI LIVE] Parando gravação...');
+    console.log('🛑 [GEMINI] Parando gravação...');
     setIsRecording(false);
     setIsProcessing(true);
     
@@ -357,7 +256,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
     // Configurar timeout para evitar processamento infinito
     processTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ [GEMINI LIVE] Timeout no processamento - criando resposta fallback');
+      console.log('⏰ [GEMINI] Timeout no processamento - criando resposta fallback');
       setIsProcessing(false);
       
       // Criar resposta fallback se o Gemini não responder
@@ -396,36 +295,25 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           
           setMessages(prev => [...prev, userMessage]);
           
-          // Enviar áudio para o Gemini Live
-          if (sessionRef.current) {
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-            
-            console.log('📤 [GEMINI LIVE] Enviando áudio para Gemini:', base64Audio.length, 'chars');
-            
-            // Tentar enviar como texto primeiro para teste
-            sessionRef.current.sendClientContent({
-              turns: [{
-                parts: [{
-                  text: 'Oi amor, como você está?'
-                }]
-              }]
-            });
-            
-            console.log('📤 [GEMINI LIVE] Mensagem de teste enviada');
-            
+          // Enviar para o Gemini Live usando a nova API
+          if (sessionRef.current && aiRef.current) {
             try {
-              // Aguardar resposta com timeout
-              await waitMessage();
+              // Usando a nova API para enviar conteúdo
+              await aiRef.current.models.generateContent({
+                model: 'gemini-2.0-flash-exp',
+                contents: 'Oi amor, como você está?'
+              });
+              
+              console.log('📤 [GEMINI] Mensagem enviada');
+              
             } catch (error) {
-              console.error('❌ [GEMINI LIVE] Erro ao aguardar resposta:', error);
-              // Não mostrar erro aqui, o timeout já cuidará disso
+              console.error('❌ [GEMINI] Erro ao enviar:', error);
             }
           }
           
           resolve();
         } catch (error: any) {
-          console.error('❌ [GEMINI LIVE] Erro ao processar áudio:', error);
+          console.error('❌ [GEMINI] Erro ao processar áudio:', error);
           toast.error(`Erro ao processar áudio: ${error.message}`);
           setIsProcessing(false);
           resolve();
@@ -435,7 +323,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     });
-  }, [isRecording, recordingTime, waitMessage]);
+  }, [isRecording, recordingTime]);
 
   const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -452,7 +340,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
   const playMessageAudio = useCallback((messageId: string) => {
     const message = messages.find(m => m.id === messageId);
     if (!message?.audioData) {
-      console.log('⚠️ [GEMINI LIVE] Nenhum áudio disponível para esta mensagem');
+      console.log('⚠️ [GEMINI] Nenhum áudio disponível para esta mensagem');
       return;
     }
 
@@ -467,7 +355,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
     }
 
     try {
-      console.log('🔊 [GEMINI LIVE] Reproduzindo áudio da mensagem:', messageId);
+      console.log('🔊 [GEMINI] Reproduzindo áudio da mensagem:', messageId);
       
       const audioData = message.audioData;
       const audioUrl = message.type === 'user' 
@@ -488,7 +376,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       };
 
       audio.onerror = () => {
-        console.error('❌ [GEMINI LIVE] Erro ao reproduzir áudio');
+        console.error('❌ [GEMINI] Erro ao reproduzir áudio');
         currentlyPlayingRef.current = null;
         setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
         toast.error('Erro ao reproduzir áudio');
@@ -496,7 +384,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
       audio.play();
     } catch (error: any) {
-      console.error('❌ [GEMINI LIVE] Erro na reprodução:', error);
+      console.error('❌ [GEMINI] Erro na reprodução:', error);
       currentlyPlayingRef.current = null;
       setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
       toast.error('Erro ao reproduzir áudio');
@@ -504,7 +392,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
   }, [messages]);
 
   const clearMessages = useCallback(() => {
-    console.log('🗑️ [GEMINI LIVE] Limpando mensagens');
+    console.log('🗑️ [GEMINI] Limpando mensagens');
     setMessages([]);
     currentlyPlayingRef.current = null;
   }, []);
