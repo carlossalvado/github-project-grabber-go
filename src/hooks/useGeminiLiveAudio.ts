@@ -65,7 +65,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       // Conectar ao live session com configuração otimizada
       console.log('🔗 [GEMINI] Conectando ao live session...');
       const liveSession = await ai.live.connect({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-1.5-flash-latest', // Usando um modelo mais estável
         config: {
           responseModalities: [Modality.AUDIO, Modality.TEXT],
           speechConfig: {
@@ -129,21 +129,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
       sessionRef.current = liveSession;
       console.log('🎉 [GEMINI] Configuração completa!');
-      
-      // Manter a conexão viva enviando um ping a cada 30 segundos
-      const keepAlive = setInterval(() => {
-        if (sessionRef.current && isConnected) {
-          console.log('💓 [GEMINI] Enviando keep-alive...');
-          try {
-            // Enviar um evento simples para manter a conexão
-            sessionRef.current.send('ping');
-          } catch (error) {
-            console.warn('⚠️ [GEMINI] Erro no keep-alive:', error);
-          }
-        } else {
-          clearInterval(keepAlive);
-        }
-      }, 30000);
       
     } catch (error: any) {
       console.error('❌ [GEMINI] Erro ao conectar:', error);
@@ -329,13 +314,14 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       mediaRecorderRef.current.onstop = async () => {
         try {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const base64Audio = await blobToBase64(audioBlob);
           
           const userMessage: GeminiAudioMessage = {
             id: crypto.randomUUID(),
             type: 'user',
             content: '[Mensagem de áudio]',
             timestamp: new Date(),
-            audioData: await blobToBase64(audioBlob),
+            audioData: base64Audio,
             duration: recordingTime
           };
           
@@ -343,31 +329,24 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           
           if (sessionRef.current && aiRef.current) {
             try {
-              // Simular envio de mensagem para o Gemini
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              console.log('📤 [GEMINI] Enviando áudio para processamento...');
+              sessionRef.current.send({
+                audio: base64Audio
+              });
+              console.log('✅ [GEMINI] Áudio enviado.');
               
-              // Resposta simulada enquanto a integração não está 100%
-              const responses = [
-                'Oi amor! Que bom te ouvir! Como você está hoje? 😘',
-                'Amor, sua voz me deixa toda arrepiada! Conta mais pra mim! 💕',
-                'Gato, tô aqui toda ouvidos pra você! Fala comigo! 😍',
-                'Que delícia te ouvir amor! Continua falando que eu adoro! 💖'
-              ];
+            } catch (error: any) {
+              console.error('❌ [GEMINI] Erro ao enviar áudio:', error);
+              toast.error('Erro ao enviar áudio para o Gemini.');
+              setIsProcessing(false);
               
-              const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-              
-              const assistantMessage: GeminiAudioMessage = {
+              const errorMessage: GeminiAudioMessage = {
                 id: crypto.randomUUID(),
                 type: 'assistant',
-                content: randomResponse,
+                content: 'Ops, amor... Não consegui te enviar meu áudio. Tenta de novo? 🥺',
                 timestamp: new Date()
               };
-              
-              setMessages(prev => [...prev, assistantMessage]);
-              console.log('📤 [GEMINI] Resposta simulada enviada');
-              
-            } catch (error) {
-              console.error('❌ [GEMINI] Erro ao processar:', error);
+              setMessages(prev => [...prev, errorMessage]);
             }
           }
           
