@@ -43,16 +43,31 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const currentlyPlayingRef = useRef<string | null>(null);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Chave API do Gemini configurada
-  const GEMINI_API_KEY = "AIzaSyCD5n-_1SlwW9lR7eil9nREFDfZOh05e58";
-
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
-      // Inicializar o GoogleGenAI com a nova API
+      // Buscar a chave API do Supabase Edge Function
+      const response = await fetch('/functions/v1/get-gemini-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao obter chave de API');
+      }
+
+      const { apiKey } = await response.json();
+
+      if (!apiKey) {
+        throw new Error('Chave de API não configurada');
+      }
+
+      // Inicializar o GoogleGenAI com a chave API do Supabase
       const ai = new GoogleGenAI({
-        apiKey: GEMINI_API_KEY,
+        apiKey: apiKey,
       });
 
       aiRef.current = ai;
@@ -61,7 +76,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       const liveSession = await ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
-          responseModalities: [Modality.AUDIO, Modality.TEXT], // Usando enum values
+          responseModalities: [Modality.AUDIO, Modality.TEXT],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
@@ -227,7 +242,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
         }
       };
       
-      mediaRecorder.start(1000); // Capturar chunks a cada segundo
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setRecordingTime(0);
       
@@ -258,7 +273,6 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       console.log('⏰ [GEMINI] Timeout no processamento - criando resposta fallback');
       setIsProcessing(false);
       
-      // Criar resposta fallback se o Gemini não responder
       const fallbackMessage: GeminiAudioMessage = {
         id: crypto.randomUUID(),
         type: 'assistant',
@@ -268,7 +282,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       
       setMessages(prev => [...prev, fallbackMessage]);
       toast.error('Timeout no processamento - resposta automática gerada');
-    }, 10000); // 10 segundos
+    }, 10000);
 
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
@@ -282,7 +296,6 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           const audioUrl = URL.createObjectURL(audioBlob);
           
-          // Adicionar mensagem do usuário
           const userMessage: GeminiAudioMessage = {
             id: crypto.randomUUID(),
             type: 'user',
@@ -294,10 +307,8 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           
           setMessages(prev => [...prev, userMessage]);
           
-          // Enviar para o Gemini Live usando a nova API
           if (sessionRef.current && aiRef.current) {
             try {
-              // Usando a nova API para enviar conteúdo
               await aiRef.current.models.generateContent({
                 model: 'gemini-2.0-flash-exp',
                 contents: 'Oi amor, como você está?'
@@ -343,7 +354,6 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       return;
     }
 
-    // Parar áudio que esteja tocando
     if (currentlyPlayingRef.current) {
       setMessages(prev => prev.map(m => ({ ...m, isPlaying: false })));
       
