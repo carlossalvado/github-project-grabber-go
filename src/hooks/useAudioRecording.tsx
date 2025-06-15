@@ -6,21 +6,31 @@ interface UseAudioRecordingReturn {
   isRecording: boolean;
   recordingTime: number;
   startRecording: () => Promise<void>;
-  stopRecording: () => Promise<Blob | null>;
+  stopRecording: () => void;
   audioUrl: string | null;
+  audioBlob: Blob | null;
+  resetAudio: () => void;
 }
 
 export const useAudioRecording = (): UseAudioRecordingReturn => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const resetAudio = useCallback(() => {
+    setAudioUrl(null);
+    setAudioBlob(null);
+    audioChunksRef.current = [];
+  }, []);
+
   const startRecording = useCallback(async () => {
     try {
+      resetAudio();
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           sampleRate: 16000,
@@ -56,35 +66,31 @@ export const useAudioRecording = (): UseAudioRecordingReturn => {
       console.error('Erro ao iniciar gravação:', error);
       toast.error('Erro ao acessar microfone');
     }
-  }, []);
+  }, [resetAudio]);
 
-  const stopRecording = useCallback(async (): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      if (!mediaRecorderRef.current || !isRecording) {
-        resolve(null);
-        return;
-      }
+  const stopRecording = useCallback(() => {
+    if (!mediaRecorderRef.current || !isRecording) {
+      return;
+    }
 
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioUrl(URL.createObjectURL(audioBlob));
-        
-        // Stop all tracks
-        if (mediaRecorderRef.current?.stream) {
-          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        }
-        
-        resolve(audioBlob);
-      };
-
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    mediaRecorderRef.current.onstop = () => {
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      setAudioBlob(blob);
+      setAudioUrl(URL.createObjectURL(blob));
       
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      // Stop all tracks
+      if (mediaRecorderRef.current?.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       }
-    });
+    };
+
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   }, [isRecording]);
 
   return {
@@ -92,6 +98,8 @@ export const useAudioRecording = (): UseAudioRecordingReturn => {
     recordingTime,
     startRecording,
     stopRecording,
-    audioUrl
+    audioUrl,
+    audioBlob,
+    resetAudio,
   };
 };
