@@ -1,7 +1,6 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { GoogleGenAI, Modality } from '@google/genai';
 
 export interface GeminiAudioMessage {
   id: string;
@@ -39,19 +38,17 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   
-  const aiRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
-  const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const intentionalDisconnectRef = useRef(false);
 
   const connect = useCallback(async () => {
     try {
-      console.log('🚀 [GEMINI] Conectando ao Gemini...');
+      console.log('🚀 [GEMINI] Iniciando conexão com Gemini Live...');
       intentionalDisconnectRef.current = false;
       
       if (reconnectTimeoutRef.current) {
@@ -59,13 +56,14 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         reconnectTimeoutRef.current = null;
       }
       
-      if (!aiRef.current) {
-        console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
-        aiRef.current = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-      }
+      // Importação dinâmica do Gemini
+      const { GoogleGenAI, Modality } = await import('@google/genai');
+      
+      console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       
       console.log('🔗 [GEMINI] Conectando ao live session...');
-      const liveSession = await aiRef.current.live.connect({
+      const session = await ai.live.connect({
         model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
         config: {
           responseModalities: [Modality.AUDIO, Modality.TEXT],
@@ -105,6 +103,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             
             toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
             
+            // Reconectar automaticamente após erro
             reconnectTimeoutRef.current = setTimeout(() => {
               console.log('🔄 [GEMINI] Tentando reconectar...');
               connect();
@@ -122,6 +121,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             
             toast.warning('Conexão com Gemini perdida - reconectando...');
             
+            // Reconectar automaticamente
             reconnectTimeoutRef.current = setTimeout(() => {
               console.log('🔄 [GEMINI] Reconectando automaticamente...');
               connect();
@@ -130,7 +130,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         },
       });
 
-      sessionRef.current = liveSession;
+      sessionRef.current = session;
       console.log('🎉 [GEMINI] Configuração completa!');
       
     } catch (error: any) {
@@ -139,6 +139,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       setIsConnected(false);
       setIsProcessing(false);
       
+      // Tentar reconectar após erro de conexão
       reconnectTimeoutRef.current = setTimeout(() => {
         console.log('🔄 [GEMINI] Tentando reconectar após erro...');
         connect();
@@ -148,11 +149,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
   const handleModelResponse = useCallback((message: any) => {
     console.log('🤖 [GEMINI] Processando resposta:', message);
-
-    if (processTimeoutRef.current) {
-      clearTimeout(processTimeoutRef.current);
-      processTimeoutRef.current = null;
-    }
 
     if (message.text) {
       console.log('💬 [GEMINI] Texto recebido:', message.text);
@@ -199,11 +195,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       reconnectTimeoutRef.current = null;
     }
     
-    if (processTimeoutRef.current) {
-      clearTimeout(processTimeoutRef.current);
-      processTimeoutRef.current = null;
-    }
-    
     if (sessionRef.current) {
       try {
         sessionRef.current.close();
@@ -222,6 +213,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     if (!isConnected) {
       console.log('⚠️ [GEMINI] Não conectado, tentando conectar...');
       await connect();
+      // Aguardar um pouco para a conexão se estabelecer
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
@@ -284,21 +276,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       recordingIntervalRef.current = null;
     }
 
-    processTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ [GEMINI] Timeout no processamento - criando resposta fallback');
-      setIsProcessing(false);
-      
-      const fallbackMessage: GeminiAudioMessage = {
-        id: crypto.randomUUID(),
-        type: 'assistant',
-        content: 'Oi amor! Desculpa, tive um probleminha aqui... mas tô te ouvindo! Fala de novo pra mim? 😘',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, fallbackMessage]);
-      toast.error('Timeout no processamento - resposta automática gerada');
-    }, 10000);
-
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
         setIsProcessing(false);
@@ -322,7 +299,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           
           setMessages(prev => [...prev, userMessage]);
           
-          if (sessionRef.current && aiRef.current) {
+          if (sessionRef.current) {
             try {
               console.log('📤 [GEMINI] Enviando áudio para processamento...');
               sessionRef.current.send({
@@ -338,7 +315,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
               const errorMessage: GeminiAudioMessage = {
                 id: crypto.randomUUID(),
                 type: 'assistant',
-                content: 'Ops, amor... Não consegui te enviar meu áudio. Tenta de novo? 🥺',
+                content: 'Ops, amor... Não consegui processar seu áudio. Tenta de novo? 🥺',
                 timestamp: new Date()
               };
               setMessages(prev => [...prev, errorMessage]);
