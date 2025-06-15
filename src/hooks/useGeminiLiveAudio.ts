@@ -59,14 +59,15 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         reconnectTimeoutRef.current = null;
       }
       
-      // Inicializar o GoogleGenAI com a chave API como objeto
-      console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-      aiRef.current = ai;
+      // Inicializar o GoogleGenAI apenas uma vez
+      if (!aiRef.current) {
+        console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
+        aiRef.current = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      }
       
       // Conectar ao live session com configuração otimizada
       console.log('🔗 [GEMINI] Conectando ao live session...');
-      const liveSession = await ai.live.connect({
+      const liveSession = await aiRef.current.live.connect({
         model: 'gemini-1.5-flash-latest', // Usando um modelo mais estável
         config: {
           responseModalities: [Modality.AUDIO, Modality.TEXT],
