@@ -45,17 +45,24 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
+      
+      // Limpar reconexão anterior se existir
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       
       // Inicializar o GoogleGenAI com a chave API como objeto
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       aiRef.current = ai;
       
-      // Conectar ao live session com configuração simplificada
+      // Conectar ao live session com configuração otimizada
       console.log('🔗 [GEMINI] Conectando ao live session...');
       const liveSession = await ai.live.connect({
         model: 'gemini-2.0-flash-exp',
@@ -78,6 +85,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           onopen: () => {
             console.log('✅ [GEMINI] Conexão estabelecida com sucesso!');
             setIsConnected(true);
+            setIsProcessing(false);
             toast.success('Conectado ao Gemini Live! 🎤');
           },
           onmessage: (message: any) => {
@@ -86,18 +94,34 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
           },
           onerror: (error: any) => {
             console.error('❌ [GEMINI] Erro na conexão:', error);
-            toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
             setIsConnected(false);
             setIsProcessing(false);
+            
+            // Não mostrar toast de erro se a conexão foi fechada intencionalmente
+            if (sessionRef.current) {
+              toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
+              
+              // Tentar reconectar após 3 segundos
+              reconnectTimeoutRef.current = setTimeout(() => {
+                console.log('🔄 [GEMINI] Tentando reconectar...');
+                connect();
+              }, 3000);
+            }
           },
           onclose: (event: any) => {
             console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
             
-            // Só mostrar aviso se não foi desconexão intencional
+            // Só mostrar aviso e tentar reconectar se não foi desconexão intencional
             if (sessionRef.current) {
-              toast.warning('Conexão com Gemini perdida');
+              toast.warning('Conexão com Gemini perdida - reconectando...');
+              
+              // Tentar reconectar após 2 segundos
+              reconnectTimeoutRef.current = setTimeout(() => {
+                console.log('🔄 [GEMINI] Reconectando automaticamente...');
+                connect();
+              }, 2000);
             }
           },
         },
@@ -106,11 +130,32 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       sessionRef.current = liveSession;
       console.log('🎉 [GEMINI] Configuração completa!');
       
+      // Manter a conexão viva enviando um ping a cada 30 segundos
+      const keepAlive = setInterval(() => {
+        if (sessionRef.current && isConnected) {
+          console.log('💓 [GEMINI] Enviando keep-alive...');
+          try {
+            // Enviar um evento simples para manter a conexão
+            sessionRef.current.send('ping');
+          } catch (error) {
+            console.warn('⚠️ [GEMINI] Erro no keep-alive:', error);
+          }
+        } else {
+          clearInterval(keepAlive);
+        }
+      }, 30000);
+      
     } catch (error: any) {
       console.error('❌ [GEMINI] Erro ao conectar:', error);
       toast.error(`Erro ao conectar: ${error.message}`);
       setIsConnected(false);
       setIsProcessing(false);
+      
+      // Tentar reconectar após 5 segundos em caso de erro
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.log('🔄 [GEMINI] Tentando reconectar após erro...');
+        connect();
+      }, 5000);
     }
   }, []);
 
@@ -163,22 +208,32 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   }, []);
 
   const disconnect = useCallback(() => {
-    if (sessionRef.current) {
-      console.log('🔌 [GEMINI] Desconectando...');
-      try {
-        sessionRef.current.close();
-      } catch (error) {
-        console.error('❌ [GEMINI] Erro ao desconectar:', error);
-      }
-      sessionRef.current = null;
-      setIsConnected(false);
-      setIsProcessing(false);
+    console.log('🔌 [GEMINI] Desconectando...');
+    
+    // Limpar timeouts
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     
     if (processTimeoutRef.current) {
       clearTimeout(processTimeoutRef.current);
       processTimeoutRef.current = null;
     }
+    
+    // Fechar sessão
+    if (sessionRef.current) {
+      try {
+        sessionRef.current.close();
+      } catch (error) {
+        console.error('❌ [GEMINI] Erro ao desconectar:', error);
+      }
+      sessionRef.current = null;
+    }
+    
+    setIsConnected(false);
+    setIsProcessing(false);
+    console.log('✅ [GEMINI] Desconectado com sucesso');
   }, []);
 
   const startRecording = useCallback(async () => {
