@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { GoogleGenAI, Modality } from '@google/genai';
@@ -27,8 +28,8 @@ interface UseGeminiLiveAudioReturn {
   disconnect: () => void;
 }
 
-// Chave API do Gemini diretamente no código
-const GEMINI_API_KEY = 'AIzaSyDdI0hCeZChCOzqyJUVcaQ4X8ptVAzFQeg';
+// Chave API do Gemini fornecida pelo usuário
+const GEMINI_API_KEY = 'AIzaSyCD5n-_1SlwW9lR7eil9nREFDfZOh05e58';
 
 export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const [messages, setMessages] = useState<GeminiAudioMessage[]>([]);
@@ -51,30 +52,27 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
-      intentionalDisconnectRef.current = false; // Resetar ao tentar conectar
+      intentionalDisconnectRef.current = false;
       
-      // Limpar reconexão anterior se existir
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
       
-      // Inicializar o GoogleGenAI apenas uma vez
       if (!aiRef.current) {
         console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
         aiRef.current = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       }
       
-      // Conectar ao live session com configuração otimizada
       console.log('🔗 [GEMINI] Conectando ao live session...');
       const liveSession = await aiRef.current.live.connect({
-        model: 'gemini-1.5-flash-latest', // Usando um modelo mais estável
+        model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
         config: {
           responseModalities: [Modality.AUDIO, Modality.TEXT],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: 'Aoede',
+                voiceName: 'Leda',
               }
             }
           },
@@ -107,7 +105,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             
             toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
             
-            // Tentar reconectar após 3 segundos
             reconnectTimeoutRef.current = setTimeout(() => {
               console.log('🔄 [GEMINI] Tentando reconectar...');
               connect();
@@ -120,13 +117,11 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             
             if (intentionalDisconnectRef.current) {
               console.log('🚪 [GEMINI] Desconexão intencional, não reconectando.');
-              return; // Não reconectar
+              return;
             }
             
-            // Só mostrar aviso e tentar reconectar se não foi desconexão intencional
             toast.warning('Conexão com Gemini perdida - reconectando...');
             
-            // Tentar reconectar após 2 segundos
             reconnectTimeoutRef.current = setTimeout(() => {
               console.log('🔄 [GEMINI] Reconectando automaticamente...');
               connect();
@@ -144,7 +139,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       setIsConnected(false);
       setIsProcessing(false);
       
-      // Tentar reconectar após 5 segundos em caso de erro
       reconnectTimeoutRef.current = setTimeout(() => {
         console.log('🔄 [GEMINI] Tentando reconectar após erro...');
         connect();
@@ -155,13 +149,11 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const handleModelResponse = useCallback((message: any) => {
     console.log('🤖 [GEMINI] Processando resposta:', message);
 
-    // Limpar timeout se recebeu resposta
     if (processTimeoutRef.current) {
       clearTimeout(processTimeoutRef.current);
       processTimeoutRef.current = null;
     }
 
-    // Verificar se há conteúdo de texto
     if (message.text) {
       console.log('💬 [GEMINI] Texto recebido:', message.text);
       
@@ -175,11 +167,9 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       setMessages(prev => [...prev, assistantMessage]);
     }
 
-    // Verificar se há conteúdo de áudio
     if (message.audio) {
       console.log('🔊 [GEMINI] Áudio recebido');
       
-      // Atualizar a última mensagem da assistente com o áudio
       setMessages(prev => {
         const newMessages = [...prev];
         const assistantMessages = newMessages.filter(m => m.type === 'assistant');
@@ -202,9 +192,8 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
   const disconnect = useCallback(() => {
     console.log('🔌 [GEMINI] Desconectando intencionalmente...');
-    intentionalDisconnectRef.current = true; // Sinalizar desconexão intencional
+    intentionalDisconnectRef.current = true;
     
-    // Limpar timeouts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -215,7 +204,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       processTimeoutRef.current = null;
     }
     
-    // Fechar sessão
     if (sessionRef.current) {
       try {
         sessionRef.current.close();
@@ -234,7 +222,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     if (!isConnected) {
       console.log('⚠️ [GEMINI] Não conectado, tentando conectar...');
       await connect();
-      // Aguardar conexão
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
@@ -297,7 +284,6 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       recordingIntervalRef.current = null;
     }
 
-    // Configurar timeout para evitar processamento infinito
     processTimeoutRef.current = setTimeout(() => {
       console.log('⏰ [GEMINI] Timeout no processamento - criando resposta fallback');
       setIsProcessing(false);

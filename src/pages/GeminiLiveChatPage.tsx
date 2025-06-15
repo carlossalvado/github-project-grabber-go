@@ -38,6 +38,9 @@ const GeminiLiveChatPage = () => {
   const audioPartsRef = useRef<string[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  // Chave API do Gemini fornecida pelo usuário
+  const GEMINI_API_KEY = 'AIzaSyCD5n-_1SlwW9lR7eil9nREFDfZOh05e58';
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,18 +56,10 @@ const GeminiLiveChatPage = () => {
     try {
       console.log('🚀 [GEMINI LIVE] Conectando...');
       
-      // Fetch API key from Supabase
-      const response = await fetch('https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/get-gemini-key');
-      const { apiKey } = await response.json();
-      
-      if (!apiKey) {
-        throw new Error('Chave de API não encontrada');
-      }
-
       // Dynamic import of Gemini
       const { GoogleGenAI, Modality, MediaResolution } = await import('@google/genai');
       
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       
       const config = {
         responseModalities: [Modality.AUDIO, Modality.TEXT],
