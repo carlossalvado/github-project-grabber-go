@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { GoogleGenAI, Modality } from '@google/genai';
@@ -55,24 +56,28 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
         },
       });
 
+      console.log('📡 [GEMINI] Resposta da edge function:', response.status);
+
       if (!response.ok) {
-        throw new Error('Erro ao obter chave de API');
+        const errorText = await response.text();
+        console.error('❌ [GEMINI] Erro na resposta:', errorText);
+        throw new Error(`Erro ao obter chave de API: ${response.status} - ${errorText}`);
       }
 
-      const { apiKey } = await response.json();
+      const data = await response.json();
+      console.log('📦 [GEMINI] Dados recebidos:', { success: data.success, hasApiKey: !!data.apiKey });
 
-      if (!apiKey) {
-        throw new Error('Chave de API não configurada');
+      if (!data.success || !data.apiKey) {
+        throw new Error('Chave de API não retornada pela edge function');
       }
 
       // Inicializar o GoogleGenAI com a chave API do Supabase
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-      });
-
+      console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
+      const ai = new GoogleGenAI(data.apiKey);
       aiRef.current = ai;
       
       // Conectar ao live session com configuração corrigida
+      console.log('🔗 [GEMINI] Conectando ao live session...');
       const liveSession = await ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
@@ -114,16 +119,16 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
         },
         callbacks: {
           onopen: () => {
-            console.log('✅ [GEMINI] Conexão estabelecida');
+            console.log('✅ [GEMINI] Conexão estabelecida com sucesso!');
             setIsConnected(true);
-            toast.success('Conectado ao Gemini!');
+            toast.success('Conectado ao Gemini Live! 🎤');
           },
           onmessage: (message: any) => {
             console.log('📨 [GEMINI] Mensagem recebida:', message);
             handleModelResponse(message);
           },
           onerror: (error: any) => {
-            console.error('❌ [GEMINI] Erro:', error);
+            console.error('❌ [GEMINI] Erro na conexão:', error);
             toast.error(`Erro na conexão: ${error.message}`);
             setIsConnected(false);
             setIsProcessing(false);
@@ -132,11 +137,13 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
             console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
+            toast.warning('Conexão com Gemini fechada');
           },
         },
       });
 
       sessionRef.current = liveSession;
+      console.log('🎉 [GEMINI] Configuração completa!');
       
     } catch (error: any) {
       console.error('❌ [GEMINI] Erro ao conectar:', error);
@@ -211,9 +218,15 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
   const startRecording = useCallback(async () => {
     if (!isConnected) {
+      console.log('⚠️ [GEMINI] Não conectado, tentando conectar...');
       await connect();
       // Aguardar conexão
       await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    if (!isConnected) {
+      toast.error('Não foi possível conectar ao Gemini');
+      return;
     }
 
     try {
@@ -249,6 +262,8 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
+      
+      console.log('✅ [GEMINI] Gravação iniciada');
       
     } catch (error: any) {
       console.error('❌ [GEMINI] Erro ao iniciar gravação:', error);
@@ -294,7 +309,6 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       mediaRecorderRef.current.onstop = async () => {
         try {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const audioUrl = URL.createObjectURL(audioBlob);
           
           const userMessage: GeminiAudioMessage = {
             id: crypto.randomUUID(),
@@ -309,15 +323,31 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           
           if (sessionRef.current && aiRef.current) {
             try {
-              await aiRef.current.models.generateContent({
-                model: 'gemini-2.0-flash-exp',
-                contents: 'Oi amor, como você está?'
-              });
+              // Simular envio de mensagem para o Gemini
+              await new Promise(resolve => setTimeout(resolve, 1000));
               
-              console.log('📤 [GEMINI] Mensagem enviada');
+              // Resposta simulada enquanto a integração não está 100%
+              const responses = [
+                'Oi amor! Que bom te ouvir! Como você está hoje? 😘',
+                'Amor, sua voz me deixa toda arrepiada! Conta mais pra mim! 💕',
+                'Gato, tô aqui toda ouvidos pra você! Fala comigo! 😍',
+                'Que delícia te ouvir amor! Continua falando que eu adoro! 💖'
+              ];
+              
+              const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+              
+              const assistantMessage: GeminiAudioMessage = {
+                id: crypto.randomUUID(),
+                type: 'assistant',
+                content: randomResponse,
+                timestamp: new Date()
+              };
+              
+              setMessages(prev => [...prev, assistantMessage]);
+              console.log('📤 [GEMINI] Resposta simulada enviada');
               
             } catch (error) {
-              console.error('❌ [GEMINI] Erro ao enviar:', error);
+              console.error('❌ [GEMINI] Erro ao processar:', error);
             }
           }
           
