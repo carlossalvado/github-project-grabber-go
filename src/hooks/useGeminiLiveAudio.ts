@@ -46,10 +46,12 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   const currentlyPlayingRef = useRef<string | null>(null);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intentionalDisconnectRef = useRef(false);
 
   const connect = useCallback(async () => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
+      intentionalDisconnectRef.current = false; // Resetar ao tentar conectar
       
       // Limpar reconexão anterior se existir
       if (reconnectTimeoutRef.current) {
@@ -97,32 +99,37 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
             setIsConnected(false);
             setIsProcessing(false);
             
-            // Não mostrar toast de erro se a conexão foi fechada intencionalmente
-            if (sessionRef.current) {
-              toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
-              
-              // Tentar reconectar após 3 segundos
-              reconnectTimeoutRef.current = setTimeout(() => {
-                console.log('🔄 [GEMINI] Tentando reconectar...');
-                connect();
-              }, 3000);
+            if (intentionalDisconnectRef.current) {
+              console.log('🚪 [GEMINI] Erro durante desconexão intencional. Ignorando.');
+              return;
             }
+            
+            toast.error(`Erro na conexão: ${error.message || 'Erro desconhecido'}`);
+            
+            // Tentar reconectar após 3 segundos
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log('🔄 [GEMINI] Tentando reconectar...');
+              connect();
+            }, 3000);
           },
           onclose: (event: any) => {
             console.log('🔌 [GEMINI] Conexão fechada:', event);
             setIsConnected(false);
             setIsProcessing(false);
             
-            // Só mostrar aviso e tentar reconectar se não foi desconexão intencional
-            if (sessionRef.current) {
-              toast.warning('Conexão com Gemini perdida - reconectando...');
-              
-              // Tentar reconectar após 2 segundos
-              reconnectTimeoutRef.current = setTimeout(() => {
-                console.log('🔄 [GEMINI] Reconectando automaticamente...');
-                connect();
-              }, 2000);
+            if (intentionalDisconnectRef.current) {
+              console.log('🚪 [GEMINI] Desconexão intencional, não reconectando.');
+              return; // Não reconectar
             }
+            
+            // Só mostrar aviso e tentar reconectar se não foi desconexão intencional
+            toast.warning('Conexão com Gemini perdida - reconectando...');
+            
+            // Tentar reconectar após 2 segundos
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log('🔄 [GEMINI] Reconectando automaticamente...');
+              connect();
+            }, 2000);
           },
         },
       });
@@ -193,7 +200,8 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
   }, []);
 
   const disconnect = useCallback(() => {
-    console.log('🔌 [GEMINI] Desconectando...');
+    console.log('🔌 [GEMINI] Desconectando intencionalmente...');
+    intentionalDisconnectRef.current = true; // Sinalizar desconexão intencional
     
     // Limpar timeouts
     if (reconnectTimeoutRef.current) {
