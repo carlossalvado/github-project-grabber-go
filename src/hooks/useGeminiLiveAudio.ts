@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -66,8 +65,8 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
 
       connectionAttemptsRef.current++;
       
-      // Importação dinâmica do Gemini
-      const { GoogleGenAI } = await import('@google/genai');
+      // Importação dinâmica do Gemini com Modality enum
+      const { GoogleGenAI, Modality } = await import('@google/genai');
       
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -76,7 +75,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       const session = await ai.live.connect({
         model: 'models/gemini-2.0-flash-exp',
         config: {
-          responseModalities: ['AUDIO', 'TEXT'],
+          responseModalities: [Modality.AUDIO, Modality.TEXT],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
