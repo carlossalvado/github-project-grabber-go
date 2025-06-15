@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Mic, Send, Loader2, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocalCache } from '@/hooks/useLocalCache';
+import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
@@ -116,7 +116,6 @@ const ChatTextAudioPage = () => {
     setInput('');
 
     addMessage({
-      id: crypto.randomUUID(),
       type: 'user',
       transcription: messageText,
       timestamp: new Date().toISOString()
@@ -142,9 +141,7 @@ const ChatTextAudioPage = () => {
         setIsGeneratingAudio(false);
       }
       
-      const assistantMessageId = crypto.randomUUID();
-      addMessage({
-        id: assistantMessageId,
+      const assistantMessageId = addMessage({
         type: 'assistant',
         transcription: responseText,
         timestamp: new Date().toISOString(),

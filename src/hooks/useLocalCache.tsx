@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 
 export interface CachedMessage {
@@ -61,7 +60,7 @@ export const useLocalCache = (conversationId: string = 'default') => {
     ));
   };
 
-  const clearConversation = () => {
+  const clearMessages = () => {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
   };
@@ -70,6 +69,6 @@ export const useLocalCache = (conversationId: string = 'default') => {
     messages,
     addMessage,
     updateMessage,
-    clearConversation
+    clearMessages
   };
 };
