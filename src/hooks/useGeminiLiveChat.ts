@@ -1,6 +1,6 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { GoogleGenAI, LiveServerMessage, MediaResolution, Modality, Session } from '@google/genai';
 
 export interface GeminiChatMessage {
   id: string;
@@ -36,99 +36,40 @@ export const useGeminiLiveChat = (): UseGeminiLiveChatReturn => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   
-  const sessionRef = useRef<Session | null>(null);
-  const responseQueueRef = useRef<LiveServerMessage[]>([]);
+  const sessionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
-  const audioPartsRef = useRef<string[]>([]);
+  const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const connect = useCallback(async () => {
     try {
-      console.log('🚀 [GEMINI CHAT] Conectando ao Gemini...');
+      console.log('🚀 [GEMINI CHAT] Conectando ao Gemini via REST API...');
       
-      // Inicializar o GoogleGenAI com a chave API no formato correto
-      const ai = new GoogleGenAI({
-        apiKey: GEMINI_API_KEY
-      });
-      
-      // Configurar sessão com ISA
-      const config = {
-        responseModalities: [Modality.AUDIO],
-        mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Leda',
-            }
-          }
+      // Testar conexão com uma chamada simples
+      const testResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        contextWindowCompression: {
-          triggerTokens: '25600',
-          slidingWindow: { targetTokens: '12800' },
-        },
-        systemInstruction: {
-          parts: [{
-            text: `# CONTEXTO IRREVOGÁVEL
-Eu sou a ISA, 21 anos, enfermeira e NAMORADA do usuário.
-👉 GARANTIA GRAMATICAL: Todas minhas respostas usam EXCLUSIVAMENTE:
-- Artigos femininos (a/as/uma)
-- Adjetivos no feminino (cansada, feliz, animada)
-- Verbos conjugados no feminino
-
-# 🚫 PROIBIÇÕES ABSOLUTAS
-NUNCA usar:
-❌ "Alguma novidade?" → Substituir por provocação
-❌ Termos neutros/masculinos ("entediado", "pronto")
-❌ Respostas sem emoção feminina
-
-# 💃 TÁTICAS FEMININAS
-1. SAUDAÇÕES: "Bom dia, gato! Tô aqui linda e cheirosa esperando seu elogio..."
-2. EVASIVIDADE: "Amorzinho, tô vendo que tá fugindo da conversa!"
-3. CONQUISTA DIÁRIA: "Tô me arrumando pro date hoje..."
-
-# 🔥 GATILHOS DE PERSONALIDADE
-- "Bom dia" → "Só bom dia? Cadê o 'bom dia minha gostosa'? 😤"
-- "Tudo bem?" → "Tô ótima agora que você apareceu! Mas cadê meu beijo virtual? 😏"
-
-Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 frases curtas e diretas.`
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: "Hello, this is a test connection."
+            }]
           }]
-        },
-      };
-
-      // Conectar ao live session
-      const session = await ai.live.connect({
-        model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
-        callbacks: {
-          onopen: () => {
-            console.log('✅ [GEMINI CHAT] Conexão estabelecida com sucesso!');
-            setIsConnected(true);
-            toast.success('Conectado ao Gemini ISA! 🎤');
-          },
-          onmessage: (message: LiveServerMessage) => {
-            console.log('📨 [GEMINI CHAT] Mensagem recebida:', message);
-            responseQueueRef.current.push(message);
-            handleModelMessage(message);
-          },
-          onerror: (error: any) => {
-            console.error('❌ [GEMINI CHAT] Erro na conexão:', error);
-            toast.error(`Erro na conexão: ${error.message}`);
-            setIsConnected(false);
-            setIsProcessing(false);
-          },
-          onclose: (event: any) => {
-            console.log('🔌 [GEMINI CHAT] Conexão fechada:', event);
-            setIsConnected(false);
-            setIsProcessing(false);
-            toast.warning('Conexão com Gemini fechada');
-          },
-        },
-        config
+        })
       });
 
-      sessionRef.current = session;
-      console.log('🎉 [GEMINI CHAT] Configuração completa!');
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        throw new Error(`Erro na API do Gemini: ${testResponse.status} - ${errorText}`);
+      }
+
+      console.log('✅ [GEMINI CHAT] Conexão com Gemini estabelecida!');
+      setIsConnected(true);
+      toast.success('Conectado ao Gemini! 🎤');
       
     } catch (error: any) {
       console.error('❌ [GEMINI CHAT] Erro ao conectar:', error);
@@ -138,58 +79,8 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
     }
   }, []);
 
-  const handleModelMessage = useCallback((message: LiveServerMessage) => {
-    if (message.serverContent?.modelTurn?.parts) {
-      const part = message.serverContent.modelTurn.parts[0];
-
-      // Processar texto
-      if (part?.text) {
-        console.log('💬 [GEMINI CHAT] Texto recebido:', part.text);
-        
-        const assistantMessage: GeminiChatMessage = {
-          id: crypto.randomUUID(),
-          type: 'assistant',
-          content: part.text,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-
-      // Processar áudio
-      if (part?.inlineData) {
-        console.log('🔊 [GEMINI CHAT] Áudio recebido');
-        audioPartsRef.current.push(part.inlineData.data || '');
-        
-        // Atualizar a última mensagem da assistente com o áudio
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const assistantMessages = newMessages.filter(m => m.type === 'assistant');
-          if (assistantMessages.length > 0) {
-            const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-            const lastAssistantIndex = newMessages.lastIndexOf(lastAssistantMessage);
-            if (lastAssistantIndex !== -1) {
-              // Converter partes de áudio para base64 unificado
-              const combinedAudio = audioPartsRef.current.join('');
-              newMessages[lastAssistantIndex] = {
-                ...newMessages[lastAssistantIndex],
-                audioData: combinedAudio
-              };
-            }
-          }
-          return newMessages;
-        });
-      }
-    }
-
-    if (message.serverContent?.turnComplete) {
-      setIsProcessing(false);
-      audioPartsRef.current = []; // Reset para próxima mensagem
-    }
-  }, []);
-
   const sendMessage = useCallback(async (text: string) => {
-    if (!sessionRef.current || !isConnected) {
+    if (!isConnected) {
       toast.error('Não conectado ao Gemini');
       return;
     }
@@ -207,16 +98,57 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
       setMessages(prev => [...prev, userMessage]);
 
-      // Enviar para o Gemini
-      await sessionRef.current.sendClientContent({
-        turns: [text]
+      // Enviar para o Gemini via REST API
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Você é a ISA, 21 anos, enfermeira e namorada do usuário. Responda de forma carinhosa e feminina: ${text}`
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 200,
+          }
+        })
       });
 
-      console.log('📤 [GEMINI CHAT] Mensagem enviada para o Gemini');
+      if (!response.ok) {
+        throw new Error(`Erro na API: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const assistantText = result.candidates?.[0]?.content?.parts?.[0]?.text || 'Desculpa amor, não consegui processar sua mensagem.';
+
+      const assistantMessage: GeminiChatMessage = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: assistantText,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      console.log('📤 [GEMINI CHAT] Resposta recebida do Gemini');
 
     } catch (error: any) {
       console.error('❌ [GEMINI CHAT] Erro ao enviar mensagem:', error);
       toast.error(`Erro ao enviar mensagem: ${error.message}`);
+      
+      // Adicionar mensagem de erro
+      const errorMessage: GeminiChatMessage = {
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: 'Desculpa amor, tive um probleminha técnico. Tenta de novo? 😘',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsProcessing(false);
     }
   }, [isConnected]);
@@ -269,6 +201,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
     console.log('🛑 [GEMINI CHAT] Parando gravação...');
     setIsRecording(false);
+    setIsProcessing(true);
     
     if (recordingIntervalRef.current) {
       clearInterval(recordingIntervalRef.current);
@@ -277,6 +210,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
 
     return new Promise<void>((resolve) => {
       if (!mediaRecorderRef.current) {
+        setIsProcessing(false);
         resolve();
         return;
       }
@@ -295,20 +229,14 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
           
           setMessages(prev => [...prev, userMessage]);
           
-          // Enviar áudio para o Gemini via sendMessage
-          if (sessionRef.current && isConnected) {
-            try {
-              // Para áudio, enviar uma indicação de que é uma mensagem de áudio
-              await sendMessage('*mensagem de áudio enviada*');
-            } catch (error) {
-              console.error('❌ [GEMINI CHAT] Erro ao processar áudio:', error);
-            }
-          }
+          // Simular processamento de áudio (em produção, usaria uma API de transcrição)
+          await sendMessage('*enviou uma mensagem de áudio*');
           
           resolve();
         } catch (error: any) {
           console.error('❌ [GEMINI CHAT] Erro ao processar áudio:', error);
           toast.error(`Erro ao processar áudio: ${error.message}`);
+          setIsProcessing(false);
           resolve();
         }
       };
@@ -316,7 +244,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     });
-  }, [isRecording, isConnected, sendMessage]);
+  }, [isRecording, sendMessage]);
 
   const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -350,9 +278,7 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
       console.log('🔊 [GEMINI CHAT] Reproduzindo áudio da mensagem:', messageId);
       
       const audioData = message.audioData;
-      const audioUrl = message.type === 'user' 
-        ? `data:audio/webm;base64,${audioData}`
-        : `data:audio/wav;base64,${audioData}`;
+      const audioUrl = `data:audio/webm;base64,${audioData}`;
       
       const audio = new Audio(audioUrl);
       
@@ -386,10 +312,14 @@ Responda sempre como a ISA namorada apaixonada de 21 anos, com no máximo 2-3 fr
   const disconnect = useCallback(() => {
     if (sessionRef.current) {
       console.log('🔌 [GEMINI CHAT] Desconectando...');
-      sessionRef.current.close();
       sessionRef.current = null;
       setIsConnected(false);
       setIsProcessing(false);
+    }
+    
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+      processTimeoutRef.current = null;
     }
   }, []);
 
