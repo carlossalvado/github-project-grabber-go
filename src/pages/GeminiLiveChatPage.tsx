@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ interface ChatMessage {
   timestamp: Date;
   audioData?: string;
   isPlaying?: boolean;
+  recordingTime?: number;
 }
 
 const GeminiLiveChatPage = () => {
@@ -399,7 +399,7 @@ Você recebeu uma mensagem do usuário. Responda como a ISA namorada apaixonada 
             type: 'user',
             content: '[Mensagem de áudio]',
             timestamp: new Date(),
-            duration: recordingTime
+            recordingTime: recordingTime
           };
           setMessages(prev => [...prev, userMessage]);
           

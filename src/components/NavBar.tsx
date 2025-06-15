@@ -3,11 +3,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const NavBar = () => {
   const { user, signOut } = useAuth();
-  const { subscription } = useSubscription();
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
@@ -31,11 +29,9 @@ const NavBar = () => {
               <Link to="/gemini-live-chat" className="text-purple-600 hover:text-purple-900 font-medium">
                 Gemini Live
               </Link>
-              {subscription && (
-                <Link to="/chat-premium" className="text-purple-600 hover:text-purple-900">
-                  Premium
-                </Link>
-              )}
+              <Link to="/chat-premium" className="text-purple-600 hover:text-purple-900">
+                Premium
+              </Link>
             </div>
           )}
         </div>
