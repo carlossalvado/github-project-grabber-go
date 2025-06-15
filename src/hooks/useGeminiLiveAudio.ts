@@ -50,9 +50,9 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
     try {
       console.log('🚀 [GEMINI] Conectando ao Gemini...');
       
-      // Inicializar o GoogleGenAI com a chave API direta (string, não objeto)
+      // Inicializar o GoogleGenAI com a chave API como objeto
       console.log('🔧 [GEMINI] Inicializando GoogleGenAI...');
-      const ai = new GoogleGenAI(GEMINI_API_KEY);
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       aiRef.current = ai;
       
       // Conectar ao live session com configuração simplificada
