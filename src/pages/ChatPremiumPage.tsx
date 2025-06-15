@@ -119,7 +119,6 @@ const ChatPremiumPage = () => {
     setInput('');
 
     addMessage({
-      id: crypto.randomUUID(),
       type: 'user',
       transcription: messageText,
       timestamp: new Date().toISOString()
@@ -145,9 +144,7 @@ const ChatPremiumPage = () => {
         setIsGeneratingAudio(false);
       }
       
-      const assistantMessageId = crypto.randomUUID();
-      addMessage({
-        id: assistantMessageId,
+      const assistantMessageId = addMessage({
         type: 'assistant',
         transcription: responseText,
         timestamp: new Date().toISOString(),
