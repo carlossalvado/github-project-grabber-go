@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -75,7 +76,7 @@ export const useGeminiLiveAudio = (): UseGeminiLiveAudioReturn => {
       const session = await ai.live.connect({
         model: 'models/gemini-2.0-flash-exp',
         config: {
-          responseModalities: ['audio', 'text'],
+          responseModalities: ['AUDIO', 'TEXT'],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
