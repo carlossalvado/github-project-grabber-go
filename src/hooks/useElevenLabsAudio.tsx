@@ -21,8 +21,8 @@ export const useElevenLabsAudio = () => {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  const ELEVENLABS_API_KEY = 'sk_9eb765fea090202fcc226bffc261d4b04b01c97013f4fcc3';
-  const AGENT_ID = 'agent_01jwfmbhwtfm9aanc0r7sbqzdf';
+  const ELEVENLABS_API_KEY = 'sk_3fc258809d4f1d87b425c7923a55ff0a2be0272a085de8f9';
+  const AGENT_ID = 'agent_01jxwps2rffj1tnfjqnzxdvktd';
 
   const startRecording = async () => {
     try {
@@ -56,11 +56,8 @@ export const useElevenLabsAudio = () => {
         let audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
 
         // --- START FIX FOR BUFFER SIZE ERROR ---
-        // Ensure audioBlob size is a multiple of 2 (for 16-bit samples)
-        // This is a common workaround for "buffer size must be a multiple of element size" errors
-        // when dealing with audio data that is expected to be 16-bit PCM.
         if (audioBlob.size % 2 !== 0) {
-          const padding = new Uint8Array([0]); // Add a single zero byte
+          const padding = new Uint8Array([0]);
           audioBlob = new Blob([audioBlob, padding], { type: 'audio/webm' });
         }
         // --- END FIX FOR BUFFER SIZE ERROR ---
@@ -110,11 +107,14 @@ export const useElevenLabsAudio = () => {
       
       setAudioMessages(prev => [...prev, userMessage]);
       
-      // Usar o Conversational AI Agent do ElevenLabs
+      console.log('=== INÍCIO DO ENVIO PARA ELEVENLABS ===');
+      console.log('Agent ID:', AGENT_ID);
+      console.log('Audio blob size:', audioBlob.size);
+      
       const audioResponse = await sendToElevenLabsAgent(audioBlob);
       
       if (audioResponse) {
-        console.log('ElevenLabs audioResponse received:', audioResponse); // Log para verificar o audioResponse
+        console.log('ElevenLabs audioResponse received, size:', audioResponse.size);
         const assistantAudioUrl = URL.createObjectURL(audioResponse);
         const assistantMessage: AudioMessage = {
           id: crypto.randomUUID(),
@@ -129,12 +129,13 @@ export const useElevenLabsAudio = () => {
         // Reproduzir automaticamente a resposta
         setTimeout(() => playAudio(assistantMessage), 500);
       } else {
-        console.warn('ElevenLabs audioResponse is null or empty.'); // Log se audioResponse for nulo/vazio
+        console.warn('ElevenLabs audioResponse is null or empty.');
         toast.error('Não foi possível obter resposta de áudio do ElevenLabs.');
       }
       
     } catch (error: any) {
-      console.error('Erro ao processar áudio:', error);
+      console.error('=== ERRO NO PROCESSAMENTO ELEVENLABS ===');
+      console.error('Erro:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
     } finally {
       setIsProcessing(false);
@@ -143,6 +144,8 @@ export const useElevenLabsAudio = () => {
 
   const sendToElevenLabsAgent = async (audioBlob: Blob): Promise<Blob | null> => {
     try {
+      console.log('Obtendo URL assinada para o agente...');
+      
       // Primeiro, obter a URL assinada para o agente
       const signedUrlResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${AGENT_ID}`, {
         method: 'GET',
@@ -151,32 +154,39 @@ export const useElevenLabsAudio = () => {
         }
       });
       
+      console.log('Resposta da URL assinada - Status:', signedUrlResponse.status);
+      
       if (!signedUrlResponse.ok) {
-        throw new Error(`Erro ao obter URL assinada: ${signedUrlResponse.status}`);
+        const errorText = await signedUrlResponse.text();
+        console.error('Erro ao obter URL assinada:', errorText);
+        throw new Error(`Erro ao obter URL assinada: ${signedUrlResponse.status} - ${errorText}`);
       }
       
       const { signed_url } = await signedUrlResponse.json();
+      console.log('URL assinada obtida com sucesso');
       
       // Conectar via WebSocket com o agente
       return new Promise((resolve, reject) => {
+        console.log('Iniciando conexão WebSocket...');
         const ws = new WebSocket(signed_url);
         let audioResponse: Blob | null = null;
         const audioChunks: Uint8Array[] = [];
         
         ws.onopen = () => {
-          console.log('Conectado ao agente ElevenLabs');
+          console.log('✅ Conectado ao agente ElevenLabs');
           
           const reader = new FileReader();
           reader.onload = () => {
             const arrayBuffer = reader.result as ArrayBuffer;
             const uint8Array = new Uint8Array(arrayBuffer);
             
+            console.log('Enviando áudio em chunks, tamanho total:', uint8Array.length);
+            
             // --- START FIX FOR AUDIO STREAMING ---
-            const chunkSize = 4096; // Tamanho do chunk em bytes
+            const chunkSize = 4096;
             for (let i = 0; i < uint8Array.length; i += chunkSize) {
               const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
               
-              // Convert chunk to Base64
               let binary = '';
               const len = chunk.byteLength;
               for (let j = 0; j < len; j++) {
@@ -184,14 +194,13 @@ export const useElevenLabsAudio = () => {
               }
               const base64Chunk = btoa(binary);
               
-              // Send each chunk
               ws.send(JSON.stringify({
                 user_audio_chunk: base64Chunk
               }));
             }
             // --- END FIX FOR AUDIO STREAMING ---
             
-            // Sinalizar fim do áudio após todos os chunks
+            console.log('Finalizando envio de áudio...');
             ws.send(JSON.stringify({
               user_audio_chunk: ""
             }));
@@ -202,10 +211,9 @@ export const useElevenLabsAudio = () => {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('Mensagem recebida do ElevenLabs:', data);
+            console.log('📨 Mensagem recebida do ElevenLabs:', data.audio_event?.event_id || 'message');
             
             if (data.audio_event && data.audio_event.audio_base_64) {
-              // Converter base64 para Uint8Array
               const binaryString = atob(data.audio_event.audio_base_64);
               const bytes = new Uint8Array(binaryString.length);
               for (let i = 0; i < binaryString.length; i++) {
@@ -215,8 +223,7 @@ export const useElevenLabsAudio = () => {
             }
             
             if (data.audio_event && data.audio_event.event_id === 'audio_stream_end') {
-              console.log('ElevenLabs: audio_stream_end event received.'); // Log para confirmar o evento
-              // Combinar todos os chunks de áudio
+              console.log('🎵 ElevenLabs: audio_stream_end - Finalizando áudio');
               const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
               const combinedAudio = new Uint8Array(totalLength);
               let offset = 0;
@@ -226,26 +233,28 @@ export const useElevenLabsAudio = () => {
               }
               
               audioResponse = new Blob([combinedAudio], { type: 'audio/mpeg' });
+              console.log('✅ Áudio combinado criado, tamanho:', audioResponse.size);
               ws.close();
             }
           } catch (error) {
-            console.error('Erro ao processar mensagem WebSocket:', error);
+            console.error('❌ Erro ao processar mensagem WebSocket:', error);
           }
         };
         
         ws.onclose = () => {
-          console.log('Conexão WebSocket fechada');
+          console.log('🔌 Conexão WebSocket fechada');
           resolve(audioResponse);
         };
         
         ws.onerror = (error) => {
-          console.error('Erro WebSocket:', error);
+          console.error('❌ Erro WebSocket:', error);
           reject(new Error('Erro na conexão WebSocket'));
         };
         
         // Timeout de 30 segundos
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
+            console.log('⏱️ Timeout - Fechando conexão');
             ws.close();
             reject(new Error('Timeout na conexão com o agente'));
           }
@@ -253,7 +262,7 @@ export const useElevenLabsAudio = () => {
       });
       
     } catch (error) {
-      console.error('Erro ao conectar com agente ElevenLabs:', error);
+      console.error('❌ Erro ao conectar com agente ElevenLabs:', error);
       return null;
     }
   };
@@ -287,7 +296,7 @@ export const useElevenLabsAudio = () => {
         };
         
         audio.onerror = (e) => {
-          console.error("Erro ao carregar ou tocar o áudio:", e); // Log do erro completo
+          console.error("Erro ao carregar ou tocar o áudio:", e);
           if (audio) {
             console.error('Audio element error code:', audio.error?.code);
             console.error('Audio element error message:', audio.error?.message);
