@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -18,33 +19,46 @@ export const useN8nWebhook = () => {
     setIsLoading(true);
     
     try {
-      console.log('Enviando mensagem para n8n:', message);
+      console.log('=== INÍCIO DO ENVIO PARA N8N ===');
+      console.log('URL do webhook:', webhookUrl);
+      console.log('Mensagem a ser enviada:', message);
+      console.log('Email do usuário:', userEmail);
+      
+      const payload = {
+        message: message,
+        timestamp: new Date().toISOString(),
+        user: userEmail || 'anonymous'
+      };
+      
+      console.log('Payload completo:', JSON.stringify(payload, null, 2));
       
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          message: message,
-          timestamp: new Date().toISOString(),
-          user: userEmail || 'anonymous'
-        })
+        body: JSON.stringify(payload)
       });
       
+      console.log('Status da resposta:', response.status);
+      console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Erro na resposta do servidor:', errorText);
+        throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}. Detalhes: ${errorText}`);
       }
       
       // Processar resposta do n8n
       let responseText = '';
       try {
         const responseData = await response.json();
-        console.log('Resposta JSON do n8n:', responseData);
+        console.log('Resposta JSON completa do n8n:', JSON.stringify(responseData, null, 2));
         
         // Se a resposta é um array, pega o primeiro item
         if (Array.isArray(responseData) && responseData.length > 0) {
           const firstItem = responseData[0];
+          console.log('Primeiro item do array:', firstItem);
           if (firstItem.output) {
             responseText = firstItem.output;
           } else if (firstItem.message) {
@@ -59,6 +73,7 @@ export const useN8nWebhook = () => {
         } 
         // Se não é array, trata como objeto
         else if (responseData && typeof responseData === 'object') {
+          console.log('Tratando como objeto:', responseData);
           if (responseData.output) {
             responseText = responseData.output;
           } else if (responseData.message) {
@@ -82,6 +97,9 @@ export const useN8nWebhook = () => {
         responseText = await response.text();
       }
       
+      console.log('Texto final da resposta:', responseText);
+      console.log('=== FIM DO PROCESSAMENTO N8N ===');
+      
       if (!responseText) {
         throw new Error('Resposta vazia do n8n');
       }
@@ -89,8 +107,18 @@ export const useN8nWebhook = () => {
       return responseText;
       
     } catch (error: any) {
-      console.error('Erro ao enviar mensagem para n8n:', error);
-      toast.error(`Erro ao processar mensagem: ${error.message}`);
+      console.error('=== ERRO NO ENVIO PARA N8N ===');
+      console.error('Tipo do erro:', error.constructor.name);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Stack trace:', error.stack);
+      console.error('Erro completo:', error);
+      
+      // Verificar se é erro de conectividade
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        toast.error('Erro de conectividade: Verifique se o n8n está rodando em localhost:5678');
+      } else {
+        toast.error(`Erro ao processar mensagem: ${error.message}`);
+      }
       throw error;
     } finally {
       setIsLoading(false);
