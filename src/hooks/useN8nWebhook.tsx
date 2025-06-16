@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -13,7 +12,7 @@ interface N8nResponse {
 export const useN8nWebhook = () => {
   const [isLoading, setIsLoading] = useState(false);
   
-  const webhookUrl = "https://fghj789hjk.app.n8n.cloud/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const webhookUrl = "http://localhost:5678/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
 
   const sendToN8n = async (message: string, userEmail?: string): Promise<string> => {
     setIsLoading(true);
