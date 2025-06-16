@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -175,7 +176,6 @@ const ChatTextAudioPage = () => {
     if (audioBlob && audioUrl) {
       transcribeAndSend(audioBlob, audioUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, audioUrl]);
 
   const transcribeAndSend = async (blob: Blob, url: string) => {
