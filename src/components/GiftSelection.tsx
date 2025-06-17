@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -135,7 +134,7 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="text-lg mb-1">{gift.image_url}</div>
+                <div className="text-2xl mb-1">{gift.image_url}</div>
                 <div className="text-[10px] text-white font-medium leading-tight mb-1">
                   {gift.name}
                 </div>
