@@ -103,7 +103,7 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col border-t border-gray-700">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[60vh] flex flex-col border-t border-gray-700">
       {/* Header */}
       <div className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
         <h3 className="text-lg font-semibold text-white">Enviar Presente</h3>
@@ -124,22 +124,22 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
         </div>
       ) : (
         <div className="flex-1 p-4 overflow-y-auto">
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-6 gap-2 mb-4">
             {gifts.map((gift) => (
               <button
                 key={gift.id}
-                className={`aspect-square p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center ${
+                className={`aspect-square p-2 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center text-center ${
                   selectedGift === gift.id 
                     ? 'border-purple-500 bg-purple-900/50 shadow-lg' 
                     : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="text-2xl mb-1">{gift.image_url}</div>
-                <div className="text-xs text-white font-medium text-center leading-tight">
+                <div className="text-lg mb-1">{gift.image_url}</div>
+                <div className="text-[10px] text-white font-medium leading-tight mb-1">
                   {gift.name}
                 </div>
-                <div className="text-xs text-purple-400 font-bold mt-1">
+                <div className="text-[9px] text-purple-400 font-bold">
                   ${(gift.price / 100).toFixed(0)}
                 </div>
               </button>
