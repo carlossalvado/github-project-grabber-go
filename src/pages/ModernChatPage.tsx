@@ -227,7 +227,7 @@ const ModernChatPage = () => {
   const MobileLoadingIndicator = () => (
     <div className="flex justify-start mb-4">
       <div className="max-w-[70%] space-y-1">
-        <div className="bg-gray-700 text-white rounded-2xl rounded-bl-md px-4 py-3">
+        <div className="bg-gray-700 text-white rounded-6xl rounded-bl-md px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex space-x-1">
               <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -244,7 +244,7 @@ const ModernChatPage = () => {
   const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
     <div className="flex justify-center my-6">
       <div className="relative">
-        <div className="text-8xl animate-bounce drop-shadow-6xl">
+        <div className="text-8xl animate-bounce drop-shadow-2xl">
           {message.giftEmoji || '🎁'}
         </div>
         
