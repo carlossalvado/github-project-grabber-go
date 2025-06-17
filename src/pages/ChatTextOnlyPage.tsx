@@ -1,16 +1,19 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Smile, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import EmoticonSelector from '@/components/EmoticonSelector';
+import GiftSelection from '@/components/GiftSelection';
 
 const ChatTextOnlyPage = () => {
   const navigate = useNavigate();
@@ -20,6 +23,8 @@ const ChatTextOnlyPage = () => {
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
+  const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -83,6 +88,27 @@ const ChatTextOnlyPage = () => {
     inputRef.current?.focus();
   }, []);
 
+  // Check for gift success/cancel parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const giftSuccess = urlParams.get('gift_success');
+    const giftId = urlParams.get('gift_id');
+    const giftName = urlParams.get('gift_name');
+    const giftCanceled = urlParams.get('gift_canceled');
+    
+    if (giftSuccess === 'true' && giftId && giftName) {
+      handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
+      // Clean URL
+      window.history.replaceState({}, document.title, '/chat-text-only');
+    }
+    
+    if (giftCanceled === 'true') {
+      toast.error('Compra de presente cancelada');
+      // Clean URL
+      window.history.replaceState({}, document.title, '/chat-text-only');
+    }
+  }, []);
+
   const handleSendMessage = async () => {
     if (!input.trim() || n8nLoading || !user) return;
 
@@ -118,6 +144,88 @@ const ChatTextOnlyPage = () => {
     }
   };
 
+  const handleEmoticonClick = () => {
+    setShowEmoticonSelector(!showEmoticonSelector);
+    setShowGiftSelection(false);
+  };
+
+  const handleGiftClick = () => {
+    setShowGiftSelection(!showGiftSelection);
+    setShowEmoticonSelector(false);
+  };
+
+  const handleEmoticonSelect = (emoticon: string) => {
+    setInput(prev => prev + emoticon);
+    setShowEmoticonSelector(false);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
+    try {
+      console.log("Selecionando presente:", { giftId, giftName, giftPrice });
+      
+      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+        body: {
+          giftId
+        }
+      });
+
+      if (error) {
+        console.error("Erro na function invoke:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Erro retornado pela função:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("Checkout session criada:", data);
+
+      if (data?.url) {
+        console.log("Redirecionando para:", data.url);
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não recebida");
+      }
+      
+      setShowGiftSelection(false);
+    } catch (error: any) {
+      console.error('Error processing gift:', error);
+      toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
+    }
+  };
+
+  const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
+    // Get gift emoji mapping
+    const giftEmojis: { [key: string]: string } = {
+      "00000000-0000-0000-0000-000000000001": "🌹",
+      "00000000-0000-0000-0000-000000000002": "🍫", 
+      "00000000-0000-0000-0000-000000000003": "🧸",
+      "00000000-0000-0000-0000-000000000004": "💐"
+    };
+
+    // Add gift message to chat
+    addMessage({
+      type: 'user',
+      transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
+      timestamp: new Date().toISOString()
+    });
+    
+    toast.success(`Presente ${giftName} enviado com sucesso!`);
+
+    // Simulate assistant response
+    setTimeout(() => {
+      addMessage({
+        type: 'assistant',
+        transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
+        timestamp: new Date().toISOString()
+      });
+    }, 1500);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -145,7 +253,7 @@ const ChatTextOnlyPage = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full">
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -212,6 +320,22 @@ const ChatTextOnlyPage = () => {
         </ScrollArea>
       </div>
 
+      {/* Emoticon Selector */}
+      {showEmoticonSelector && (
+        <EmoticonSelector
+          onSelect={handleEmoticonSelect}
+          onClose={() => setShowEmoticonSelector(false)}
+        />
+      )}
+
+      {/* Gift Selection Modal */}
+      {showGiftSelection && (
+        <GiftSelection
+          onClose={() => setShowGiftSelection(false)}
+          onSelectGift={handleGiftSelect}
+        />
+      )}
+
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
         <Input
@@ -223,6 +347,32 @@ const ChatTextOnlyPage = () => {
           onKeyDown={handleKeyPress}
           disabled={n8nLoading}
         />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleEmoticonClick}
+          className={`flex-shrink-0 ${
+            showEmoticonSelector 
+              ? 'text-purple-400 bg-gray-700' 
+              : 'text-gray-400 hover:text-white'
+          }`}
+          disabled={n8nLoading}
+        >
+          <Smile size={20} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleGiftClick}
+          className={`flex-shrink-0 ${
+            showGiftSelection 
+              ? 'text-purple-400 bg-gray-700' 
+              : 'text-gray-400 hover:text-white'
+          }`}
+          disabled={n8nLoading}
+        >
+          <Gift size={20} />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
