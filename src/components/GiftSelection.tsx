@@ -103,72 +103,63 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col border-t border-gray-700">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col border-t border-gray-700">
       {/* Header */}
-      <div className="flex justify-between items-center p-6 border-b border-gray-700 flex-shrink-0">
-        <h3 className="text-xl font-semibold text-white">Enviar Presente</h3>
+      <div className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
+        <h3 className="text-lg font-semibold text-white">Enviar Presente</h3>
         <button 
           onClick={onClose} 
-          className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-full"
+          className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded-full"
         >
-          <X size={24} />
+          <X size={20} />
         </button>
       </div>
       
       {loadingGifts ? (
-        <div className="flex-1 flex items-center justify-center py-12">
+        <div className="flex-1 flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-gray-300 text-lg">Carregando presentes...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-3"></div>
+            <p className="text-gray-300 text-sm">Carregando presentes...</p>
           </div>
         </div>
       ) : (
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="flex-1 p-4 overflow-y-auto">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             {gifts.map((gift) => (
-              <div
+              <button
                 key={gift.id}
-                className={`cursor-pointer border-2 rounded-2xl p-4 transition-all duration-200 ${
+                className={`aspect-square p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center ${
                   selectedGift === gift.id 
-                    ? 'border-purple-500 bg-purple-900/30 shadow-lg scale-105' 
-                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800 hover:shadow-md'
+                    ? 'border-purple-500 bg-purple-900/50 shadow-lg' 
+                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="aspect-square mb-3 bg-gradient-to-br from-gray-700 to-gray-600 rounded-xl flex items-center justify-center">
-                  <span className="text-6xl animate-pulse">{gift.image_url}</span>
+                <div className="text-2xl mb-1">{gift.image_url}</div>
+                <div className="text-xs text-white font-medium text-center leading-tight">
+                  {gift.name}
                 </div>
-                <h3 className="font-semibold text-lg text-white mb-2 text-center">{gift.name}</h3>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-purple-400">
-                    US$ {(gift.price / 100).toFixed(2)}
-                  </div>
-                  {selectedGift === gift.id && (
-                    <div className="mt-2 flex justify-center">
-                      <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                        <div className="w-3 h-3 bg-white rounded-full"></div>
-                      </div>
-                    </div>
-                  )}
+                <div className="text-xs text-purple-400 font-bold mt-1">
+                  ${(gift.price / 100).toFixed(0)}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           
           {/* Send Button */}
           <Button
             onClick={handleGiftPurchase}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-2xl transition-all duration-200 text-lg"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all duration-200"
             disabled={!selectedGift || loading}
           >
             {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 Processando...
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💝</span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💝</span>
                 Enviar Presente
               </div>
             )}
