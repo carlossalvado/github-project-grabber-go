@@ -244,7 +244,7 @@ const ModernChatPage = () => {
   const AnimatedGiftMessage = ({ message }: { message: ModernMessage }) => (
     <div className="flex justify-center my-6">
       <div className="relative">
-        <div className="text-8xl animate-bounce drop-shadow-2xl">
+        <div className="text-8xl animate-bounce drop-shadow-6xl">
           {message.giftEmoji || '🎁'}
         </div>
         
