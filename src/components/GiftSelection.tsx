@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -124,38 +123,27 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
         </div>
       ) : (
         <div className="flex-1 p-4 overflow-y-auto">
-          <div className="grid grid-cols-8 gap-2 mb-4">
+          <div className="grid grid-cols-6 gap-2 mb-4">
             {gifts.map((gift) => (
               <button
                 key={gift.id}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 hover:scale-110 transform active:scale-95 h-12 w-12 ${
+                className={`aspect-square p-2 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center text-center ${
                   selectedGift === gift.id 
-                    ? 'bg-purple-600 text-white shadow-lg' 
-                    : 'hover:bg-gray-700 text-gray-300'
+                    ? 'border-purple-500 bg-purple-900/50 shadow-lg' 
+                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <span className="text-2xl">{gift.image_url}</span>
+                <div className="text-2xl mb-1">{gift.image_url}</div>
+                <div className="text-[10px] text-white font-medium leading-tight mb-1">
+                  {gift.name}
+                </div>
+                <div className="text-[9px] text-purple-400 font-bold">
+                  ${(gift.price / 100).toFixed(0)}
+                </div>
               </button>
             ))}
           </div>
-          
-          {/* Gift Details */}
-          {selectedGift && (
-            <div className="mb-4 p-3 bg-gray-800 rounded-lg">
-              {(() => {
-                const gift = gifts.find(g => g.id === selectedGift);
-                return gift ? (
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">{gift.image_url}</div>
-                    <h4 className="text-white font-semibold mb-1">{gift.name}</h4>
-                    <p className="text-gray-300 text-sm mb-2">{gift.description}</p>
-                    <p className="text-purple-400 font-bold text-lg">${(gift.price / 100).toFixed(0)}</p>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          )}
           
           {/* Send Button */}
           <Button
