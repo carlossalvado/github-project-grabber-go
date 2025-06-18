@@ -57,11 +57,38 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   }
 
   const userPlanName = getPlanName()?.toLowerCase() || '';
-  const normalizedRequiredPlan = requiredPlan.toLowerCase();
+
+  // Mapear planos para suas páginas de chat correspondentes
+  const planToRoute: { [key: string]: string } = {
+    'trial': '/chat-trial',
+    'text only': '/chat-text-only',
+    'text & audio': '/chat-text-audio',
+    'premium': '/chat-premium'
+  };
+
+  // Encontrar a rota correta para o plano do usuário
+  let correctRoute = '';
+  for (const [planKey, route] of Object.entries(planToRoute)) {
+    if (userPlanName.includes(planKey)) {
+      correctRoute = route;
+      break;
+    }
+  }
+
+  // Se não encontrou rota correspondente, redirecionar para perfil
+  if (!correctRoute) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  // Se o usuário está tentando acessar uma página que não corresponde ao seu plano
+  const currentPath = window.location.pathname;
+  if (currentPath !== correctRoute) {
+    return <Navigate to={correctRoute} replace />;
+  }
 
   // Verificar se o usuário tem acesso ao chat específico
-  const hasAccess = userPlanName.includes(normalizedRequiredPlan) || 
-                   (normalizedRequiredPlan === 'trial' && userPlanName.includes('ultimate'));
+  const normalizedRequiredPlan = requiredPlan.toLowerCase();
+  const hasAccess = userPlanName.includes(normalizedRequiredPlan);
 
   if (!hasAccess) {
     return (
@@ -73,13 +100,13 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
             Seu plano atual: <span className="text-purple-400">{getPlanName()}</span>
           </p>
           <p className="text-gray-300 mb-6">
-            Este chat requer o plano: <span className="text-purple-400">{requiredPlan}</span>
+            Redirecionando para o chat do seu plano...
           </p>
           <Button
-            onClick={() => window.location.href = '/profile'}
-            className="bg-red-600 hover:bg-red-700"
+            onClick={() => window.location.href = correctRoute}
+            className="bg-purple-600 hover:bg-purple-700"
           >
-            Voltar ao Perfil
+            Ir para Meu Chat
           </Button>
         </div>
       </div>
