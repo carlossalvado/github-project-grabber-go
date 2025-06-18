@@ -18,17 +18,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   chatType 
 }) => {
   const { user, loading: authLoading } = useAuth();
-  const { profile, plan, hasPlanActive, getPlanName } = useUserCache();
-
-  console.log('🔍 ProtectedChatRoute Debug:', {
-    user: user?.id,
-    profile,
-    plan,
-    hasPlanActive: hasPlanActive(),
-    getPlanName: getPlanName(),
-    requiredPlan,
-    chatType
-  });
+  const { plan, hasPlanActive, getPlanName } = useUserCache();
 
   if (authLoading) {
     return (
@@ -45,14 +35,8 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Verificar se tem plano ativo usando os dados do perfil ou do cache
-  const planActive = profile?.plan_active || plan?.plan_active || false;
-  const planName = profile?.plan_name || plan?.plan_name || '';
-
-  console.log('📋 Dados do plano:', { planActive, planName, profile, plan });
-
-  if (!planActive) {
-    console.log('❌ Plano não ativo:', { planActive, planName });
+  // Verificar se tem plano ativo
+  if (!hasPlanActive()) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
@@ -72,78 +56,36 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     );
   }
 
-  const userPlanName = planName.toLowerCase() || '';
-  console.log('📋 Plano do usuário:', userPlanName);
-
-  // Mapear planos para suas páginas de chat correspondentes
-  const planToRoute: { [key: string]: string } = {
-    'trial': '/chat-trial',
-    'text only': '/chat-text-only',
-    'text & audio': '/chat-text-audio',
-    'premium': '/chat-premium'
-  };
-
-  // Encontrar a rota correta para o plano do usuário
-  let correctRoute = '';
-  for (const [planKey, route] of Object.entries(planToRoute)) {
-    if (userPlanName.includes(planKey)) {
-      correctRoute = route;
-      break;
-    }
-  }
-
-  console.log('🛤️ Rota correta encontrada:', correctRoute);
-
-  // Se não encontrou rota correspondente, redirecionar para perfil
-  if (!correctRoute) {
-    console.log('❌ Nenhuma rota correspondente encontrada');
-    return <Navigate to="/profile" replace />;
-  }
-
-  // Se o usuário está tentando acessar uma página que não corresponde ao seu plano
-  const currentPath = window.location.pathname;
-  console.log('📍 Caminho atual vs correto:', { currentPath, correctRoute });
-  
-  if (currentPath !== correctRoute) {
-    console.log('🔄 Redirecionando para rota correta:', correctRoute);
-    return <Navigate to={correctRoute} replace />;
-  }
+  const userPlanName = getPlanName()?.toLowerCase() || '';
+  const normalizedRequiredPlan = requiredPlan.toLowerCase();
 
   // Verificar se o usuário tem acesso ao chat específico
-  const normalizedRequiredPlan = requiredPlan.toLowerCase();
-  const hasAccess = userPlanName.includes(normalizedRequiredPlan);
-
-  console.log('🔐 Verificação de acesso:', {
-    normalizedRequiredPlan,
-    userPlanName,
-    hasAccess
-  });
+  const hasAccess = userPlanName.includes(normalizedRequiredPlan) || 
+                   (normalizedRequiredPlan === 'trial' && userPlanName.includes('ultimate'));
 
   if (!hasAccess) {
-    console.log('❌ Acesso negado para o plano:', normalizedRequiredPlan);
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Acesso Negado</h2>
           <p className="text-gray-300 mb-2">
-            Seu plano atual: <span className="text-purple-400">{planName}</span>
+            Seu plano atual: <span className="text-purple-400">{getPlanName()}</span>
           </p>
           <p className="text-gray-300 mb-6">
-            Redirecionando para o chat do seu plano...
+            Este chat requer o plano: <span className="text-purple-400">{requiredPlan}</span>
           </p>
           <Button
-            onClick={() => window.location.href = correctRoute}
-            className="bg-purple-600 hover:bg-purple-700"
+            onClick={() => window.location.href = '/profile'}
+            className="bg-red-600 hover:bg-red-700"
           >
-            Ir para Meu Chat
+            Voltar ao Perfil
           </Button>
         </div>
       </div>
     );
   }
 
-  console.log('✅ Acesso permitido ao chat');
   return <>{children}</>;
 };
 

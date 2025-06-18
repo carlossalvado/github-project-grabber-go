@@ -51,7 +51,7 @@ function App() {
                   path="/home"
                   element={
                     <ProtectedRoute>
-                      <LandingPage />
+                      <Home />
                     </ProtectedRoute>
                   }
                 />
@@ -90,7 +90,7 @@ function App() {
                 <Route
                   path="/chat-text-audio"
                   element={
-                    <ProtectedChatRoute requiredPlan="text & audio" chatType="text-audio">
+                    <ProtectedChatRoute requiredPlan="text" chatType="text-audio">
                       <ChatTextAudioPage />
                     </ProtectedChatRoute>
                   }
