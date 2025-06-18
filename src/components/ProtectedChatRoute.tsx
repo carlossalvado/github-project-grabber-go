@@ -18,10 +18,11 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   chatType 
 }) => {
   const { user, loading: authLoading } = useAuth();
-  const { plan, hasPlanActive, getPlanName } = useUserCache();
+  const { profile, plan, hasPlanActive, getPlanName } = useUserCache();
 
   console.log('🔍 ProtectedChatRoute Debug:', {
     user: user?.id,
+    profile,
     plan,
     hasPlanActive: hasPlanActive(),
     getPlanName: getPlanName(),
@@ -44,9 +45,14 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Verificar se tem plano ativo
-  if (!hasPlanActive()) {
-    console.log('❌ Plano não ativo:', { plan, hasPlanActive: hasPlanActive() });
+  // Verificar se tem plano ativo usando os dados do perfil ou do cache
+  const planActive = profile?.plan_active || plan?.plan_active || false;
+  const planName = profile?.plan_name || plan?.plan_name || '';
+
+  console.log('📋 Dados do plano:', { planActive, planName, profile, plan });
+
+  if (!planActive) {
+    console.log('❌ Plano não ativo:', { planActive, planName });
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
@@ -66,7 +72,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     );
   }
 
-  const userPlanName = getPlanName()?.toLowerCase() || '';
+  const userPlanName = planName.toLowerCase() || '';
   console.log('📋 Plano do usuário:', userPlanName);
 
   // Mapear planos para suas páginas de chat correspondentes
@@ -121,7 +127,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Acesso Negado</h2>
           <p className="text-gray-300 mb-2">
-            Seu plano atual: <span className="text-purple-400">{getPlanName()}</span>
+            Seu plano atual: <span className="text-purple-400">{planName}</span>
           </p>
           <p className="text-gray-300 mb-6">
             Redirecionando para o chat do seu plano...
