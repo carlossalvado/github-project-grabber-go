@@ -20,6 +20,15 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   const { user, loading: authLoading } = useAuth();
   const { plan, hasPlanActive, getPlanName } = useUserCache();
 
+  console.log('🔍 ProtectedChatRoute Debug:', {
+    user: user?.id,
+    plan,
+    hasPlanActive: hasPlanActive(),
+    getPlanName: getPlanName(),
+    requiredPlan,
+    chatType
+  });
+
   if (authLoading) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -37,6 +46,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
 
   // Verificar se tem plano ativo
   if (!hasPlanActive()) {
+    console.log('❌ Plano não ativo:', { plan, hasPlanActive: hasPlanActive() });
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
@@ -57,6 +67,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   }
 
   const userPlanName = getPlanName()?.toLowerCase() || '';
+  console.log('📋 Plano do usuário:', userPlanName);
 
   // Mapear planos para suas páginas de chat correspondentes
   const planToRoute: { [key: string]: string } = {
@@ -75,14 +86,20 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     }
   }
 
+  console.log('🛤️ Rota correta encontrada:', correctRoute);
+
   // Se não encontrou rota correspondente, redirecionar para perfil
   if (!correctRoute) {
+    console.log('❌ Nenhuma rota correspondente encontrada');
     return <Navigate to="/profile" replace />;
   }
 
   // Se o usuário está tentando acessar uma página que não corresponde ao seu plano
   const currentPath = window.location.pathname;
+  console.log('📍 Caminho atual vs correto:', { currentPath, correctRoute });
+  
   if (currentPath !== correctRoute) {
+    console.log('🔄 Redirecionando para rota correta:', correctRoute);
     return <Navigate to={correctRoute} replace />;
   }
 
@@ -90,7 +107,14 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
   const normalizedRequiredPlan = requiredPlan.toLowerCase();
   const hasAccess = userPlanName.includes(normalizedRequiredPlan);
 
+  console.log('🔐 Verificação de acesso:', {
+    normalizedRequiredPlan,
+    userPlanName,
+    hasAccess
+  });
+
   if (!hasAccess) {
+    console.log('❌ Acesso negado para o plano:', normalizedRequiredPlan);
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
@@ -113,6 +137,7 @@ const ProtectedChatRoute: React.FC<ProtectedChatRouteProps> = ({
     );
   }
 
+  console.log('✅ Acesso permitido ao chat');
   return <>{children}</>;
 };
 
