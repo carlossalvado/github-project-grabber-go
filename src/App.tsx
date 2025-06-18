@@ -29,7 +29,6 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ProtectedChatRoute from "./components/ProtectedChatRoute";
 
 const queryClient = new QueryClient();
 
@@ -66,33 +65,33 @@ function App() {
                 <Route
                   path="/chat-trial"
                   element={
-                    <ProtectedChatRoute requiredPlan="trial" chatType="trial">
+                    <ProtectedRoute>
                       <ChatTrialPage />
-                    </ProtectedChatRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/chat-premium"
                   element={
-                    <ProtectedChatRoute requiredPlan="premium" chatType="premium">
+                    <ProtectedRoute>
                       <ChatPremiumPage />
-                    </ProtectedChatRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/chat-text-only"
                   element={
-                    <ProtectedChatRoute requiredPlan="text only" chatType="text-only">
+                    <ProtectedRoute>
                       <ChatTextOnlyPage />
-                    </ProtectedChatRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/chat-text-audio"
                   element={
-                    <ProtectedChatRoute requiredPlan="text" chatType="text-audio">
+                    <ProtectedRoute>
                       <ChatTextAudioPage />
-                    </ProtectedChatRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
