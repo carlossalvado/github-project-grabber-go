@@ -34,7 +34,6 @@ const ChatTextAudioPage = () => {
         <ChatContainer 
           agentId={agent?.agent_id || 'default'}
           nickname={agent?.nickname || 'Assistente'}
-          agentAvatar={undefined}
           subscription={userSubscription}
           hasPremiumFeatures={true}
           hasAudioFeature={true}
