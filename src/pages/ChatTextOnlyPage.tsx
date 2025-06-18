@@ -4,13 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import ChatContainer from '@/components/ChatContainer';
+import { useUserCache } from '@/hooks/useUserCache';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const ChatTextOnlyPage = () => {
   const navigate = useNavigate();
+  const { getSelectedAgent } = useUserCache();
+  const { subscription } = useSubscription();
 
   const handleBackToProfile = () => {
     navigate('/profile');
   };
+
+  const selectedAgent = getSelectedAgent();
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -27,7 +33,14 @@ const ChatTextOnlyPage = () => {
           <h1 className="text-2xl font-bold text-pink-500">Chat Text Only</h1>
           <div className="w-32"></div> {/* Spacer for center alignment */}
         </div>
-        <ChatContainer />
+        <ChatContainer 
+          agentId={selectedAgent?.agent_id || 'default'}
+          nickname={selectedAgent?.nickname || 'Assistente'}
+          agentAvatar={selectedAgent?.avatar_url}
+          subscription={subscription}
+          hasPremiumFeatures={false}
+          hasAudioFeature={false}
+        />
       </div>
     </div>
   );
