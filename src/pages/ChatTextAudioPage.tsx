@@ -9,14 +9,12 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
-  const { getSelectedAgent } = useUserCache();
-  const { subscription } = useSubscription();
+  const { agent } = useUserCache();
+  const { userSubscription } = useSubscription();
 
   const handleBackToProfile = () => {
     navigate('/profile');
   };
-
-  const selectedAgent = getSelectedAgent();
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -34,10 +32,10 @@ const ChatTextAudioPage = () => {
           <div className="w-32"></div> {/* Spacer for center alignment */}
         </div>
         <ChatContainer 
-          agentId={selectedAgent?.agent_id || 'default'}
-          nickname={selectedAgent?.nickname || 'Assistente'}
-          agentAvatar={selectedAgent?.avatar_url}
-          subscription={subscription}
+          agentId={agent?.agent_id || 'default'}
+          nickname={agent?.nickname || 'Assistente'}
+          agentAvatar={agent?.avatar_url}
+          subscription={userSubscription}
           hasPremiumFeatures={true}
           hasAudioFeature={true}
         />
