@@ -13,7 +13,7 @@ interface N8nResponse {
 export const useN8nWebhook = () => {
   const [isLoading, setIsLoading] = useState(false);
   
-  const webhookUrl = "http://localhost:5678/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
+  const webhookUrl = "https://isa.isadate.online/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
 
   const sendToN8n = async (message: string, userEmail?: string): Promise<string> => {
     setIsLoading(true);
@@ -115,7 +115,7 @@ export const useN8nWebhook = () => {
       
       // Verificar se é erro de conectividade
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        toast.error('Erro de conectividade: Verifique se o n8n está rodando em localhost:5678');
+        toast.error('Erro de conectividade: Verifique a conexão com o servidor');
       } else {
         toast.error(`Erro ao processar mensagem: ${error.message}`);
       }
