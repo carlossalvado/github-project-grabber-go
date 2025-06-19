@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import { cn } from '@/lib/utils';
@@ -20,6 +22,7 @@ const ChatPremiumPage = () => {
   const { user } = useAuth();
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache('premium-chat');
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
+  const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   
   const [input, setInput] = useState('');
@@ -32,7 +35,6 @@ const ChatPremiumPage = () => {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -157,8 +159,34 @@ const ChatPremiumPage = () => {
     }
   };
 
+  const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
+    if (!user) return;
+    try {
+      const result = await sendAudioToN8n(audioBlob, user.email!);
+      
+      const assistantMessageId = addMessage({
+        type: 'assistant',
+        transcription: result.text,
+        timestamp: new Date().toISOString(),
+        audioUrl: result.audioUrl
+      });
+
+      if (result.audioUrl) {
+        handlePlayAudio(assistantMessageId, result.audioUrl);
+      }
+
+    } catch (error: any) {
+      console.error('Error generating audio response:', error);
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
+
   const handleSendTextMessage = async () => {
-    const isProcessing = n8nLoading || isGeneratingAudio || isTranscribing;
+    const isProcessing = n8nLoading || audioN8nLoading || isGeneratingAudio;
     const isLoading = isProcessing || isRecording;
     if (!input.trim() || isLoading || !user) return;
 
@@ -176,14 +204,14 @@ const ChatPremiumPage = () => {
   
   useEffect(() => {
     if (audioBlob && audioUrl) {
-      transcribeAndSend(audioBlob, audioUrl);
+      processAudioMessage(audioBlob, audioUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, audioUrl]);
 
-  const transcribeAndSend = async (blob: Blob, url: string) => {
-    setIsTranscribing(true);
-    toast.info("Transcrevendo seu áudio...");
+  const processAudioMessage = async (blob: Blob, url: string) => {
+    if (!user) return;
+
+    toast.info("Processando seu áudio...");
 
     const userMessageId = addMessage({
         type: 'user',
@@ -193,41 +221,14 @@ const ChatPremiumPage = () => {
     });
 
     try {
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-            const base64data = reader.result as string;
-            const audioData = base64data.split(',')[1];
-
-            const { data, error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
-                body: { audioData },
-            });
-
-            if (transcribeError) throw new Error(transcribeError.message);
-            
-            const transcription = data.transcription;
-            if (!transcription || transcription.trim().length === 0) {
-                toast.error("Não foi possível entender o que você disse. Tente novamente.");
-                updateMessage(userMessageId, { transcription: "(Áudio não pôde ser transcrito)" });
-                setIsTranscribing(false);
-                resetAudio();
-                return;
-            }
-            
-            toast.success("Áudio transcrito!");
-            updateMessage(userMessageId, { transcription });
-
-            await getAssistantResponse(transcription);
-            
-            setIsTranscribing(false);
-            resetAudio();
-        };
+      await getAssistantAudioResponse(blob, url);
+      updateMessage(userMessageId, { transcription: 'Áudio enviado' });
+      resetAudio();
     } catch (error) {
-        console.error('Transcription error:', error);
-        toast.error('Erro ao transcrever o áudio.');
-        updateMessage(userMessageId, { transcription: '(Erro na transcrição)' });
-        setIsTranscribing(false);
-        resetAudio();
+      console.error('Audio processing error:', error);
+      toast.error('Erro ao processar o áudio.');
+      updateMessage(userMessageId, { transcription: '(Erro no processamento do áudio)' });
+      resetAudio();
     }
   };
 
@@ -235,7 +236,7 @@ const ChatPremiumPage = () => {
     if (isRecording) {
         stopRecording();
     } else {
-        if (n8nLoading || isGeneratingAudio || isTranscribing) return;
+        if (n8nLoading || audioN8nLoading || isGeneratingAudio) return;
         startRecording();
     }
   };
@@ -259,7 +260,7 @@ const ChatPremiumPage = () => {
     );
   }
 
-  const isProcessing = n8nLoading || isGeneratingAudio || isTranscribing;
+  const isProcessing = n8nLoading || audioN8nLoading || isGeneratingAudio;
   const isLoading = isProcessing || isRecording;
 
   return (
@@ -386,7 +387,7 @@ const ChatPremiumPage = () => {
         <Input
           ref={inputRef}
           className="bg-gray-700/80 border-purple-500/30 text-white placeholder:text-gray-400 focus-visible:ring-purple-500 backdrop-blur-sm"
-          placeholder="Digite uma mensagem premium..."
+          placeholder="Digite uma mensagem premium ou use o áudio..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

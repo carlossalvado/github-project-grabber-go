@@ -1,30 +1,36 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Send, Loader2, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Smile, Gift, Mic, MicOff, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { cn } from '@/lib/utils';
 
 const ChatTextOnlyPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { messages, addMessage } = useLocalCache();
+  const { messages, addMessage, updateMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
+  const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
+  const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -244,6 +250,95 @@ const ChatTextOnlyPage = () => {
     setIsProfileModalOpen(true);
   };
 
+  const handlePlayAudio = (messageId: string, audioUrl: string) => {
+    if (audioRef.current && currentlyPlaying === messageId) {
+        audioRef.current.pause();
+        setCurrentlyPlaying(null);
+    } else {
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+        audioRef.current = new Audio(audioUrl);
+        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+        setCurrentlyPlaying(messageId);
+        audioRef.current.onended = () => {
+            setCurrentlyPlaying(null);
+        };
+        audioRef.current.onerror = () => {
+            setCurrentlyPlaying(null);
+            toast.error("Erro ao reproduzir o áudio.");
+        }
+    }
+  };
+
+  const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
+    if (!user) return;
+    try {
+      const result = await sendAudioToN8n(audioBlob, user.email!);
+      
+      const assistantMessageId = addMessage({
+        type: 'assistant',
+        transcription: result.text,
+        timestamp: new Date().toISOString(),
+        audioUrl: result.audioUrl
+      });
+
+      if (result.audioUrl) {
+        handlePlayAudio(assistantMessageId, result.audioUrl);
+      }
+
+    } catch (error: any) {
+      console.error('Error generating audio response:', error);
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
+
+  const handleAudioToggle = async () => {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        if (n8nLoading || audioN8nLoading) return;
+        startRecording();
+    }
+  };
+
+  useEffect(() => {
+    if (audioBlob && audioUrl) {
+      processAudioMessage(audioBlob, audioUrl);
+    }
+  }, [audioBlob, audioUrl]);
+
+  const processAudioMessage = async (blob: Blob, url: string) => {
+    if (!user) return;
+
+    toast.info("Processando seu áudio...");
+
+    const userMessageId = addMessage({
+        type: 'user',
+        timestamp: new Date().toISOString(),
+        audioUrl: url,
+        transcription: 'Processando áudio...'
+    });
+
+    try {
+      await getAssistantAudioResponse(blob, url);
+      updateMessage(userMessageId, { transcription: 'Áudio enviado' });
+      resetAudio();
+    } catch (error) {
+      console.error('Audio processing error:', error);
+      toast.error('Erro ao processar o áudio.');
+      updateMessage(userMessageId, { transcription: '(Erro no processamento do áudio)' });
+      resetAudio();
+    }
+  };
+
+  const isProcessing = n8nLoading || audioN8nLoading;
+  const isLoading = isProcessing || isRecording;
+
   if (!user) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -298,6 +393,16 @@ const ChatTextOnlyPage = () => {
                         : 'bg-gray-700 text-white rounded-bl-none'
                     }`}>
                       <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
+                      {message.audioUrl && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="w-8 h-8 mt-2 text-white hover:bg-white/20"
+                          onClick={() => handlePlayAudio(message.id!, message.audioUrl!)}
+                        >
+                          {currentlyPlaying === message.id ? <Pause size={16} /> : <Play size={16} />}
+                        </Button>
+                      )}
                     </div>
                     <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
                       {formatTime(message.timestamp)}
@@ -338,14 +443,26 @@ const ChatTextOnlyPage = () => {
 
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "flex-shrink-0 text-gray-400 hover:text-white",
+            isRecording && "text-red-500 hover:text-red-600 animate-pulse"
+          )}
+          onClick={handleAudioToggle}
+          disabled={isProcessing}
+        >
+          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+        </Button>
         <Input
           ref={inputRef}
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
-          placeholder="Digite uma mensagem..."
+          placeholder="Digite uma mensagem ou use o áudio..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
-          disabled={n8nLoading}
+          disabled={isLoading}
         />
         <Button
           variant="ghost"
