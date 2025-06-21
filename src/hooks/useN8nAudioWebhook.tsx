@@ -14,7 +14,7 @@ interface N8nAudioResponse {
 export const useN8nAudioWebhook = () => {
   const [isLoading, setIsLoading] = useState(false);
   
-  const audioWebhookUrl = "https://isa.isadate.online/webhook/d97asdfasd43245639-ohasasdfasdd-5-pijaasdJHGFDfadssd54-asasdfadsfd42-fghjklç456";
+  const audioWebhookUrl = "https://isa.isadate.online/webhook-test/d97asdfasd43245639-ohasasdfasdd-5-pijaasdJHGFDfadssd54-asasdfadsfd42-fghjklç456";
 
   const sendAudioToN8n = async (audioBlob: Blob, userEmail?: string): Promise<{ text: string; audioUrl?: string }> => {
     setIsLoading(true);
