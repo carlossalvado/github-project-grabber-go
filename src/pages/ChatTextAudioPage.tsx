@@ -35,7 +35,6 @@ const ChatTextAudioPage = () => {
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
   
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -120,22 +119,22 @@ const ChatTextAudioPage = () => {
 
   const handlePlayAudio = (messageId: string, audioUrl: string) => {
     if (audioRef.current && currentlyPlaying === messageId) {
-        audioRef.current.pause();
-        setCurrentlyPlaying(null);
+      audioRef.current.pause();
+      setCurrentlyPlaying(null);
     } else {
-        if (audioRef.current) {
-            audioRef.current.pause();
-        }
-        audioRef.current = new Audio(audioUrl);
-        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-        setCurrentlyPlaying(messageId);
-        audioRef.current.onended = () => {
-            setCurrentlyPlaying(null);
-        };
-        audioRef.current.onerror = () => {
-            setCurrentlyPlaying(null);
-            toast.error("Erro ao reproduzir o áudio.");
-        }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.play().catch(e => console.error("Erro ao reproduzir áudio:", e));
+      setCurrentlyPlaying(messageId);
+      audioRef.current.onended = () => {
+        setCurrentlyPlaying(null);
+      };
+      audioRef.current.onerror = () => {
+        setCurrentlyPlaying(null);
+        toast.error("Erro ao reproduzir o áudio.");
+      };
     }
   };
 
@@ -144,36 +143,14 @@ const ChatTextAudioPage = () => {
     try {
       const responseText = await sendToN8n(messageText, user.email!);
       
-      setIsGeneratingAudio(true);
-      let audioUrl: string | undefined;
-      try {
-        const { data, error } = await supabase.functions.invoke('elevenlabs-text-to-speech', {
-            body: { text: responseText, voiceId: 'XB0fDUnXU5powFXDhCwa' }
-        });
-        if (error) throw error;
-        if (data.audioContent) {
-            audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-        }
-      } catch (e) {
-        console.error("Failed to generate audio:", e);
-        toast.error("Erro ao gerar a voz da resposta.");
-      } finally {
-        setIsGeneratingAudio(false);
-      }
-      
       const assistantMessageId = addMessage({
         type: 'assistant',
         transcription: responseText,
-        timestamp: new Date().toISOString(),
-        audioUrl: audioUrl
+        timestamp: new Date().toISOString()
       });
 
-      if (audioUrl) {
-        handlePlayAudio(assistantMessageId, audioUrl);
-      }
-
     } catch (error: any) {
-      console.error('Error generating response:', error);
+      console.error('Erro ao gerar resposta:', error);
       addMessage({
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`,
@@ -194,12 +171,15 @@ const ChatTextAudioPage = () => {
         audioUrl: result.audioUrl
       });
 
+      // Auto-play the audio response if available
       if (result.audioUrl) {
-        handlePlayAudio(assistantMessageId, result.audioUrl);
+        setTimeout(() => {
+          handlePlayAudio(assistantMessageId, result.audioUrl!);
+        }, 500);
       }
 
     } catch (error: any) {
-      console.error('Error generating audio response:', error);
+      console.error('Erro ao gerar resposta de áudio:', error);
       addMessage({
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
@@ -209,7 +189,7 @@ const ChatTextAudioPage = () => {
   };
 
   const handleSendTextMessage = async () => {
-    const isLoading = n8nLoading || audioN8nLoading || isGeneratingAudio || isRecording;
+    const isLoading = n8nLoading || audioN8nLoading || isRecording;
     if (!input.trim() || isLoading || !user) return;
 
     const messageText = input.trim();
@@ -318,22 +298,17 @@ const ChatTextAudioPage = () => {
     toast.info("Processando seu áudio...");
 
     const userMessageId = addMessage({
-        type: 'user',
-        timestamp: new Date().toISOString(),
-        audioUrl: url,
-        transcription: 'Processando áudio...'
+      type: 'user',
+      timestamp: new Date().toISOString(),
+      audioUrl: url,
+      transcription: 'Áudio enviado'
     });
 
     try {
-      // Enviar áudio diretamente para o webhook do n8n
       await getAssistantAudioResponse(blob, url);
-      
-      // Atualizar mensagem do usuário para indicar que foi processada
-      updateMessage(userMessageId, { transcription: 'Áudio enviado' });
-      
       resetAudio();
     } catch (error) {
-      console.error('Audio processing error:', error);
+      console.error('Erro ao processar áudio:', error);
       toast.error('Erro ao processar o áudio.');
       updateMessage(userMessageId, { transcription: '(Erro no processamento do áudio)' });
       resetAudio();
@@ -342,10 +317,10 @@ const ChatTextAudioPage = () => {
 
   const handleAudioToggle = async () => {
     if (isRecording) {
-        stopRecording();
+      stopRecording();
     } else {
-        if (n8nLoading || audioN8nLoading || isGeneratingAudio) return;
-        startRecording();
+      if (n8nLoading || audioN8nLoading) return;
+      startRecording();
     }
   };
 
@@ -394,7 +369,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  const isProcessing = n8nLoading || audioN8nLoading || isGeneratingAudio;
+  const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
 
   return (
@@ -416,9 +391,9 @@ const ChatTextAudioPage = () => {
           </Avatar>
           <div className="flex flex-col">
             <span className="font-medium">{agentData.name}</span>
-             <span className="text-xs text-gray-400">
-                {isLoading ? 'Pensando...' : 'Online'}
-              </span>
+            <span className="text-xs text-gray-400">
+              {isLoading ? 'Pensando...' : 'Online'}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">

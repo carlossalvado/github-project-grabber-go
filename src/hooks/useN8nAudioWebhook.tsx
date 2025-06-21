@@ -20,9 +20,8 @@ export const useN8nAudioWebhook = () => {
     setIsLoading(true);
     
     try {
-      console.log('=== INÍCIO DO ENVIO DE ÁUDIO PARA N8N ===');
-      console.log('URL do webhook de áudio:', audioWebhookUrl);
-      console.log('Email do usuário:', userEmail);
+      console.log('=== ENVIANDO ÁUDIO PARA N8N ===');
+      console.log('URL do webhook:', audioWebhookUrl);
       
       // Converter blob para base64
       const reader = new FileReader();
@@ -42,8 +41,6 @@ export const useN8nAudioWebhook = () => {
         user: userEmail || 'anonymous'
       };
       
-      console.log('Payload de áudio preparado');
-      
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
@@ -52,81 +49,83 @@ export const useN8nAudioWebhook = () => {
         body: JSON.stringify(payload)
       });
       
-      console.log('Status da resposta de áudio:', response.status);
+      console.log('Status da resposta:', response.status);
+      console.log('Content-Type:', response.headers.get('content-type'));
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erro na resposta do servidor de áudio:', errorText);
-        throw new Error(`Erro na resposta de áudio: ${response.status} - ${response.statusText}`);
+        throw new Error(`Erro na resposta: ${response.status}`);
       }
-      
-      // Verificar o content-type da resposta
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type da resposta:', contentType);
       
       let responseText = '';
       let audioUrl: string | undefined;
       
-      // Se a resposta é áudio MP3 direto do ElevenLabs
+      // Verificar se a resposta é áudio MP3 direto
+      const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('audio/mpeg')) {
-        console.log('Resposta é áudio MP3 direto do ElevenLabs');
+        console.log('Resposta é áudio MP3 direto');
         const audioBlob = await response.blob();
         audioUrl = URL.createObjectURL(audioBlob);
         responseText = 'Resposta em áudio da ISA';
       } else {
-        // Tentar processar como JSON primeiro
+        // Tentar processar como JSON
         try {
           const responseData = await response.json();
-          console.log('Resposta JSON completa do n8n (áudio):', JSON.stringify(responseData, null, 2));
+          console.log('Resposta JSON:', responseData);
           
-          // Verificar se é um array (formato típico do n8n)
+          // Se é array do n8n
           if (Array.isArray(responseData) && responseData.length > 0) {
             const firstItem = responseData[0];
             
-            // Verificar se contém dados de áudio MP3
+            // Verificar se tem dados binários de áudio
             if (firstItem.binary && firstItem.binary.data) {
               console.log('Áudio MP3 encontrado nos dados binários');
+              const binaryData = firstItem.binary.data;
               
-              // Converter dados binários para Blob e criar URL
-              const audioData = firstItem.binary.data;
-              const uint8Array = new Uint8Array(audioData);
-              const audioBlob = new Blob([uint8Array], { type: 'audio/mpeg' });
-              audioUrl = URL.createObjectURL(audioBlob);
+              // Se é string base64, converter para Blob
+              if (typeof binaryData === 'string') {
+                const byteCharacters = atob(binaryData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const audioBlob = new Blob([byteArray], { type: 'audio/mpeg' });
+                audioUrl = URL.createObjectURL(audioBlob);
+              } else if (binaryData instanceof ArrayBuffer || Array.isArray(binaryData)) {
+                const uint8Array = new Uint8Array(binaryData);
+                const audioBlob = new Blob([uint8Array], { type: 'audio/mpeg' });
+                audioUrl = URL.createObjectURL(audioBlob);
+              }
               
-              // Extrair texto da resposta do AI Agent
               responseText = firstItem.output || firstItem.text || 'Resposta em áudio da ISA';
             } else {
-              // Processar resposta sem áudio
-              responseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || 'Resposta processada';
-              
-              if (firstItem.audioUrl) {
-                audioUrl = firstItem.audioUrl;
-              }
+              responseText = firstItem.output || firstItem.message || firstItem.text || 'Resposta processada';
             }
           } else if (responseData && typeof responseData === 'object') {
-            responseText = responseData.output || responseData.message || responseData.text || responseData.response || 'Resposta processada';
+            responseText = responseData.output || responseData.message || responseData.text || 'Resposta processada';
             
             if (responseData.binary && responseData.binary.data) {
-              const audioData = responseData.binary.data;
-              const uint8Array = new Uint8Array(audioData);
-              const audioBlob = new Blob([uint8Array], { type: 'audio/mpeg' });
-              audioUrl = URL.createObjectURL(audioBlob);
-            } else if (responseData.audioUrl) {
-              audioUrl = responseData.audioUrl;
+              const binaryData = responseData.binary.data;
+              if (typeof binaryData === 'string') {
+                const byteCharacters = atob(binaryData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const audioBlob = new Blob([byteArray], { type: 'audio/mpeg' });
+                audioUrl = URL.createObjectURL(audioBlob);
+              }
             }
-          } else if (typeof responseData === 'string') {
-            responseText = responseData;
           }
         } catch (jsonError) {
-          console.log('Resposta não é JSON, tentando como texto');
-          const textResponse = await response.text();
-          responseText = textResponse || 'Áudio processado com sucesso';
+          console.log('Não é JSON, tratando como texto');
+          responseText = await response.text();
         }
       }
       
-      console.log('Texto final da resposta de áudio:', responseText);
-      console.log('URL de áudio criada:', audioUrl ? 'Sim' : 'Não');
-      console.log('=== FIM DO PROCESSAMENTO N8N ÁUDIO ===');
+      console.log('Texto final:', responseText);
+      console.log('URL de áudio:', audioUrl ? 'Criada' : 'Não criada');
       
       return {
         text: responseText,
@@ -134,9 +133,7 @@ export const useN8nAudioWebhook = () => {
       };
       
     } catch (error: any) {
-      console.error('=== ERRO NO ENVIO DE ÁUDIO PARA N8N ===');
-      console.error('Erro completo:', error);
-      
+      console.error('Erro no envio de áudio:', error);
       toast.error(`Erro ao processar áudio: ${error.message}`);
       throw error;
     } finally {
