@@ -46,12 +46,11 @@ export const useN8nAudioWebhook = () => {
       
       console.log('Fazendo requisição para o webhook...');
       
-      // Fazer requisição diretamente esperando áudio MP3
+      // Fazer requisição diretamente
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });
@@ -78,73 +77,59 @@ export const useN8nAudioWebhook = () => {
           text: 'Áudio da Isa',
           audioUrl
         };
-      } else {
-        // Se não é áudio, tentar processar como JSON e depois fazer nova requisição para áudio
-        console.log('Resposta não é áudio, processando como JSON...');
-        const responseData = await response.json();
-        console.log('Resposta JSON:', responseData);
+      }
+      
+      // Se não é áudio, processar como JSON
+      console.log('Resposta não é áudio, processando como JSON...');
+      const responseData = await response.json();
+      console.log('Resposta JSON completa:', responseData);
+      
+      // O N8N está retornando um array com headers HTTP
+      // Precisamos fazer uma nova requisição para obter o áudio real
+      if (Array.isArray(responseData) && responseData.length > 0) {
+        const firstItem = responseData[0];
+        console.log('Primeiro item da resposta:', firstItem);
         
-        // Fazer uma segunda requisição sem Accept header para ver se obtemos áudio
-        console.log('Fazendo segunda requisição sem Accept header...');
-        const audioResponse = await fetch(audioWebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        
-        console.log('Segunda requisição - Status:', audioResponse.status);
-        console.log('Segunda requisição - Content-Type:', audioResponse.headers.get('content-type'));
-        
-        const secondContentType = audioResponse.headers.get('content-type');
-        
-        if (secondContentType && secondContentType.includes('audio/mpeg')) {
-          console.log('✅ Segunda requisição retornou áudio MP3');
-          const audioBlob = await audioResponse.blob();
-          console.log('Blob de áudio da segunda requisição, tamanho:', audioBlob.size, 'bytes');
-          const audioUrl = URL.createObjectURL(audioBlob);
-          console.log('URL de áudio da segunda requisição:', audioUrl);
+        // Verificar se temos informações sobre áudio nos headers
+        if (firstItem['content-type'] === 'audio/mpeg') {
+          console.log('Headers indicam áudio MP3, fazendo nova requisição...');
           
-          return {
-            text: 'Áudio da Isa',
-            audioUrl
-          };
-        } else {
-          console.log('Segunda requisição também não retornou áudio');
-          
-          // Tentar uma terceira abordagem - requisição simples sem headers extras
-          console.log('Fazendo terceira requisição simples...');
-          const simpleResponse = await fetch(audioWebhookUrl, {
+          // Fazer uma nova requisição esperando áudio
+          const audioResponse = await fetch(audioWebhookUrl, {
             method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'audio/mpeg'
+            },
             body: JSON.stringify(payload)
           });
           
-          console.log('Terceira requisição - Status:', simpleResponse.status);
-          console.log('Terceira requisição - Content-Type:', simpleResponse.headers.get('content-type'));
+          console.log('Segunda requisição - Status:', audioResponse.status);
+          console.log('Segunda requisição - Content-Type:', audioResponse.headers.get('content-type'));
           
-          const thirdContentType = simpleResponse.headers.get('content-type');
-          
-          if (thirdContentType && thirdContentType.includes('audio')) {
-            console.log('✅ Terceira requisição retornou áudio');
-            const audioBlob = await simpleResponse.blob();
-            console.log('Blob de áudio da terceira requisição, tamanho:', audioBlob.size, 'bytes');
-            const audioUrl = URL.createObjectURL(audioBlob);
-            console.log('URL de áudio da terceira requisição:', audioUrl);
+          if (audioResponse.headers.get('content-type')?.includes('audio/mpeg')) {
+            console.log('✅ Segunda requisição retornou áudio MP3');
+            const audioBlob = await audioResponse.blob();
+            console.log('Blob de áudio da segunda requisição, tamanho:', audioBlob.size, 'bytes');
             
-            return {
-              text: 'Áudio da Isa',
-              audioUrl
-            };
-          } else {
-            console.log('❌ Nenhuma das requisições retornou áudio válido');
-            return {
-              text: 'Resposta processada (sem áudio disponível)',
-              audioUrl: undefined
-            };
+            if (audioBlob.size > 0) {
+              const audioUrl = URL.createObjectURL(audioBlob);
+              console.log('URL de áudio da segunda requisição:', audioUrl);
+              
+              return {
+                text: 'Áudio da Isa',
+                audioUrl
+              };
+            }
           }
         }
       }
+      
+      console.log('❌ Não foi possível obter áudio válido');
+      return {
+        text: 'Resposta processada (sem áudio disponível)',
+        audioUrl: undefined
+      };
       
     } catch (error: any) {
       console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
