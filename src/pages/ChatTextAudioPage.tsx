@@ -16,6 +16,7 @@ import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
+import AudioMessage from '@/components/AudioMessage';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -370,47 +371,18 @@ const ChatTextAudioPage = () => {
     const isUserMessage = message.type === 'user';
     
     return (
-      <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
-        {!isUserMessage && (
-          <Avatar className="h-8 w-8 mr-2 flex-shrink-0 cursor-pointer" onClick={handleAvatarClick}>
-            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-            <AvatarFallback className="bg-purple-600 text-white">
-              {agentData.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-        )}
-
-        <div className="max-w-[70%] space-y-1">
-          <div className={`px-4 py-3 rounded-2xl shadow-md ${
-            isUserMessage 
-              ? 'bg-purple-600 text-white rounded-br-none' 
-              : 'bg-gray-700 text-white rounded-bl-none'
-          }`}>
-            <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
-             {message.audioUrl && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="w-8 h-8 mt-2 text-white hover:bg-white/20"
-                onClick={() => handlePlayAudio(message.id!, message.audioUrl!)}
-              >
-                {currentlyPlaying === message.id ? <Pause size={16} /> : <Play size={16} />}
-              </Button>
-            )}
-          </div>
-          <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
-            {formatTime(message.timestamp)}
-          </div>
-        </div>
-
-        {isUserMessage && (
-          <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-            <AvatarFallback className="bg-blue-600 text-white">
-              {user!.email?.charAt(0).toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-        )}
-      </div>
+      <AudioMessage
+        key={message.id}
+        id={message.id!}
+        content={message.transcription}
+        audioUrl={message.audioUrl}
+        isUser={isUserMessage}
+        timestamp={message.timestamp}
+        isPlaying={currentlyPlaying === message.id}
+        onPlayAudio={handlePlayAudio}
+        agentData={agentData}
+        userEmail={user?.email}
+      />
     );
   };
 
