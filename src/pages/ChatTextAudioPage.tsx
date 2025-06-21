@@ -161,8 +161,16 @@ const ChatTextAudioPage = () => {
 
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;
+    
+    console.log('=== INICIANDO PROCESSAMENTO DE ÁUDIO ===');
+    console.log('Usuário:', user.email);
+    console.log('Blob de áudio:', audioBlob.size, 'bytes');
+    console.log('URL local do áudio:', audioUrl);
+    
     try {
+      console.log('Chamando sendAudioToN8n...');
       const result = await sendAudioToN8n(audioBlob, user.email!);
+      console.log('Resultado recebido:', result);
       
       const assistantMessageId = addMessage({
         type: 'assistant',
@@ -171,15 +179,24 @@ const ChatTextAudioPage = () => {
         audioUrl: result.audioUrl
       });
 
+      console.log('Mensagem do assistente adicionada com ID:', assistantMessageId);
+      console.log('URL de áudio na mensagem:', result.audioUrl);
+
       // Auto-play the audio response if available
       if (result.audioUrl) {
+        console.log('Iniciando reprodução automática do áudio...');
         setTimeout(() => {
           handlePlayAudio(assistantMessageId, result.audioUrl!);
         }, 500);
+      } else {
+        console.log('Nenhum áudio disponível para reprodução');
       }
 
     } catch (error: any) {
-      console.error('Erro ao gerar resposta de áudio:', error);
+      console.error('=== ERRO AO GERAR RESPOSTA DE ÁUDIO ===');
+      console.error('Erro:', error);
+      console.error('=========================================');
+      
       addMessage({
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
@@ -295,6 +312,10 @@ const ChatTextAudioPage = () => {
   const processAudioMessage = async (blob: Blob, url: string) => {
     if (!user) return;
 
+    console.log('=== PROCESSANDO MENSAGEM DE ÁUDIO ===');
+    console.log('Blob:', blob.size, 'bytes, tipo:', blob.type);
+    console.log('URL:', url);
+
     toast.info("Processando seu áudio...");
 
     const userMessageId = addMessage({
@@ -304,9 +325,12 @@ const ChatTextAudioPage = () => {
       transcription: 'Áudio enviado'
     });
 
+    console.log('Mensagem do usuário adicionada com ID:', userMessageId);
+
     try {
       await getAssistantAudioResponse(blob, url);
       resetAudio();
+      console.log('Áudio processado com sucesso');
     } catch (error) {
       console.error('Erro ao processar áudio:', error);
       toast.error('Erro ao processar o áudio.');
