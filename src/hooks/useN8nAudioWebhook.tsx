@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -61,30 +62,44 @@ export const useN8nAudioWebhook = () => {
       
       // Processar resposta do n8n
       let responseData: any;
-      try {
-        responseData = await response.json();
-        console.log('Resposta JSON completa do n8n (áudio):', JSON.stringify(responseData, null, 2));
-      } catch (jsonError) {
-        const textResponse = await response.text();
-        console.log('Resposta de áudio não é JSON:', textResponse);
-        return { text: textResponse };
-      }
-      
       let responseText = '';
       let audioUrl: string | undefined;
       
-      // Extrair texto da resposta
-      if (Array.isArray(responseData) && responseData.length > 0) {
-        const firstItem = responseData[0];
-        responseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || JSON.stringify(firstItem);
-        audioUrl = firstItem.audioUrl;
-      } else if (responseData && typeof responseData === 'object') {
-        responseText = responseData.output || responseData.message || responseData.text || responseData.response || JSON.stringify(responseData);
-        audioUrl = responseData.audioUrl;
-      } else if (typeof responseData === 'string') {
-        responseText = responseData;
-      } else {
-        responseText = JSON.stringify(responseData);
+      try {
+        responseData = await response.json();
+        console.log('Resposta JSON completa do n8n (áudio):', JSON.stringify(responseData, null, 2));
+        
+        // Verificar se a resposta são headers HTTP (indicativo de erro no n8n)
+        if (Array.isArray(responseData) && responseData.length > 0) {
+          const firstItem = responseData[0];
+          
+          // Se o primeiro item tem propriedades de header HTTP, significa que algo deu errado
+          if (firstItem.hasOwnProperty('content-type') || firstItem.hasOwnProperty('server')) {
+            console.warn('Resposta parece ser headers HTTP, não conteúdo processado');
+            responseText = 'Áudio recebido, mas houve um problema no processamento. Tente novamente.';
+          } else {
+            // Processar resposta normal
+            responseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || 'Áudio processado com sucesso';
+            audioUrl = firstItem.audioUrl;
+          }
+        } else if (responseData && typeof responseData === 'object') {
+          // Verificar se são headers HTTP
+          if (responseData.hasOwnProperty('content-type') || responseData.hasOwnProperty('server')) {
+            console.warn('Resposta parece ser headers HTTP, não conteúdo processado');
+            responseText = 'Áudio recebido, mas houve um problema no processamento. Tente novamente.';
+          } else {
+            responseText = responseData.output || responseData.message || responseData.text || responseData.response || 'Áudio processado com sucesso';
+            audioUrl = responseData.audioUrl;
+          }
+        } else if (typeof responseData === 'string') {
+          responseText = responseData;
+        } else {
+          responseText = 'Áudio processado com sucesso';
+        }
+      } catch (jsonError) {
+        console.log('Resposta não é JSON, tratando como texto');
+        const textResponse = await response.text();
+        responseText = textResponse || 'Áudio processado com sucesso';
       }
       
       console.log('Texto final da resposta de áudio:', responseText);
@@ -92,7 +107,7 @@ export const useN8nAudioWebhook = () => {
       console.log('=== FIM DO PROCESSAMENTO N8N ÁUDIO ===');
       
       return {
-        text: responseText || 'Resposta de áudio processada',
+        text: responseText,
         audioUrl
       };
       
