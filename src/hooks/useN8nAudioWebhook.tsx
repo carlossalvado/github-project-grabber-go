@@ -46,12 +46,12 @@ export const useN8nAudioWebhook = () => {
       
       console.log('Fazendo requisição para o webhook...');
       
-      // Tentar primeiro com expectativa de receber o áudio diretamente
+      // Corrigir o header Accept para evitar erro do servidor
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg, application/json'
+          'Accept': '*/*'
         },
         body: JSON.stringify(payload)
       });
@@ -66,8 +66,8 @@ export const useN8nAudioWebhook = () => {
         throw new Error(`Erro na resposta: ${response.status}`);
       }
       
-      // Se recebemos áudio diretamente
-      if (contentType && contentType.includes('audio/mpeg')) {
+      // Se recebemos áudio diretamente (agora que o webhook está configurado como Binary File)
+      if (contentType && contentType.includes('audio/')) {
         console.log('✅ Resposta é áudio MP3 direto');
         const audioBlob = await response.blob();
         console.log('Blob de áudio criado, tamanho:', audioBlob.size, 'bytes');
@@ -83,7 +83,7 @@ export const useN8nAudioWebhook = () => {
         }
       }
       
-      // Se recebemos JSON, processar os headers
+      // Se ainda recebemos JSON (fallback)
       console.log('Resposta não é áudio, processando como JSON...');
       const responseData = await response.json();
       console.log('Resposta JSON completa:', responseData);
