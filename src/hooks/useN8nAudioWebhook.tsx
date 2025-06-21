@@ -46,11 +46,12 @@ export const useN8nAudioWebhook = () => {
       
       console.log('Fazendo requisição para o webhook...');
       
-      // Fazer requisição diretamente
+      // Tentar primeiro com expectativa de receber o áudio diretamente
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg, application/json'
         },
         body: JSON.stringify(payload)
       });
@@ -65,69 +66,96 @@ export const useN8nAudioWebhook = () => {
         throw new Error(`Erro na resposta: ${response.status}`);
       }
       
-      // Verificar se a resposta é áudio MP3 direto
+      // Se recebemos áudio diretamente
       if (contentType && contentType.includes('audio/mpeg')) {
         console.log('✅ Resposta é áudio MP3 direto');
         const audioBlob = await response.blob();
         console.log('Blob de áudio criado, tamanho:', audioBlob.size, 'bytes');
-        const audioUrl = URL.createObjectURL(audioBlob);
-        console.log('URL de áudio criada:', audioUrl);
         
-        return {
-          text: 'Áudio da Isa',
-          audioUrl
-        };
+        if (audioBlob.size > 0) {
+          const audioUrl = URL.createObjectURL(audioBlob);
+          console.log('URL de áudio criada:', audioUrl);
+          
+          return {
+            text: 'Áudio da Isa',
+            audioUrl
+          };
+        }
       }
       
-      // Se não é áudio, processar como JSON
+      // Se recebemos JSON, processar os headers
       console.log('Resposta não é áudio, processando como JSON...');
       const responseData = await response.json();
       console.log('Resposta JSON completa:', responseData);
       
-      // O N8N está retornando um array com headers HTTP
-      // Precisamos fazer uma nova requisição para obter o áudio real
+      // O N8N está retornando headers HTTP, vamos tentar extrair informações úteis
       if (Array.isArray(responseData) && responseData.length > 0) {
         const firstItem = responseData[0];
         console.log('Primeiro item da resposta:', firstItem);
         
-        // Verificar se temos informações sobre áudio nos headers
-        if (firstItem['content-type'] === 'audio/mpeg') {
-          console.log('Headers indicam áudio MP3, fazendo nova requisição...');
+        // Verificar se temos um request-id para tentar obter o áudio
+        const requestId = firstItem['request-id'];
+        const historyItemId = firstItem['history-item-id'];
+        
+        if (requestId || historyItemId) {
+          console.log('Tentando usar request-id/history-item-id para obter áudio...');
           
-          // Fazer uma nova requisição esperando áudio
-          const audioResponse = await fetch(audioWebhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'audio/mpeg'
-            },
-            body: JSON.stringify(payload)
-          });
+          // Tentar diferentes URLs possíveis para obter o áudio
+          const possibleUrls = [
+            `${audioWebhookUrl}/${requestId}`,
+            `${audioWebhookUrl}?request-id=${requestId}`,
+            `${audioWebhookUrl}?history-item-id=${historyItemId}`,
+            audioWebhookUrl // Tentar novamente o URL original
+          ].filter(Boolean);
           
-          console.log('Segunda requisição - Status:', audioResponse.status);
-          console.log('Segunda requisição - Content-Type:', audioResponse.headers.get('content-type'));
-          
-          if (audioResponse.headers.get('content-type')?.includes('audio/mpeg')) {
-            console.log('✅ Segunda requisição retornou áudio MP3');
-            const audioBlob = await audioResponse.blob();
-            console.log('Blob de áudio da segunda requisição, tamanho:', audioBlob.size, 'bytes');
-            
-            if (audioBlob.size > 0) {
-              const audioUrl = URL.createObjectURL(audioBlob);
-              console.log('URL de áudio da segunda requisição:', audioUrl);
+          for (const url of possibleUrls) {
+            try {
+              console.log('Tentando URL:', url);
+              const audioResponse = await fetch(url, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'audio/mpeg, audio/*, */*'
+                }
+              });
               
-              return {
-                text: 'Áudio da Isa',
-                audioUrl
-              };
+              console.log('Resposta da tentativa - Status:', audioResponse.status);
+              console.log('Resposta da tentativa - Content-Type:', audioResponse.headers.get('content-type'));
+              
+              if (audioResponse.ok && audioResponse.headers.get('content-type')?.includes('audio/')) {
+                const audioBlob = await audioResponse.blob();
+                console.log('✅ Áudio obtido, tamanho:', audioBlob.size, 'bytes');
+                
+                if (audioBlob.size > 0) {
+                  const audioUrl = URL.createObjectURL(audioBlob);
+                  console.log('URL de áudio criada:', audioUrl);
+                  
+                  return {
+                    text: 'Áudio da Isa',
+                    audioUrl
+                  };
+                }
+              }
+            } catch (error) {
+              console.log('Erro ao tentar URL:', url, error);
+              continue;
             }
           }
         }
+        
+        // Se temos informações sobre caracteres processados, assumir que houve processamento
+        const characterCost = firstItem['character-cost'];
+        if (characterCost && parseInt(characterCost) > 0) {
+          console.log('Processamento detectado (character-cost:', characterCost, '), mas sem áudio disponível');
+          return {
+            text: 'Áudio processado com sucesso, mas não foi possível obter o arquivo de áudio.',
+            audioUrl: undefined
+          };
+        }
       }
       
-      console.log('❌ Não foi possível obter áudio válido');
+      console.log('❌ Não foi possível obter áudio válido de nenhuma forma');
       return {
-        text: 'Resposta processada (sem áudio disponível)',
+        text: 'Resposta processada (formato de webhook não suportado para áudio)',
         audioUrl: undefined
       };
       
