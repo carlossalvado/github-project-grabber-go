@@ -9,6 +9,9 @@ interface N8nAudioResponse {
   output?: string;
   audioUrl?: string;
   error?: string;
+  // Para lidar com a resposta do ElevenLabs
+  binary?: any;
+  data?: any;
 }
 
 export const useN8nAudioWebhook = () => {
@@ -60,7 +63,7 @@ export const useN8nAudioWebhook = () => {
         throw new Error(`Erro na resposta de áudio: ${response.status} - ${response.statusText}`);
       }
       
-      // Processar resposta do n8n
+      // Processar resposta do n8n que agora inclui MP3
       let responseData: any;
       let responseText = '';
       let audioUrl: string | undefined;
@@ -69,18 +72,32 @@ export const useN8nAudioWebhook = () => {
         responseData = await response.json();
         console.log('Resposta JSON completa do n8n (áudio):', JSON.stringify(responseData, null, 2));
         
-        // Verificar se a resposta são headers HTTP (indicativo de erro no n8n)
+        // Verificar se a resposta é um array (saída do n8n)
         if (Array.isArray(responseData) && responseData.length > 0) {
           const firstItem = responseData[0];
           
-          // Se o primeiro item tem propriedades de header HTTP, significa que algo deu errado
-          if (firstItem.hasOwnProperty('content-type') || firstItem.hasOwnProperty('server')) {
+          // Verificar se tem dados binários do ElevenLabs (MP3)
+          if (firstItem.binary && firstItem.binary.data) {
+            console.log('Resposta contém áudio MP3 do ElevenLabs');
+            
+            // Converter dados binários para URL de áudio
+            const audioData = firstItem.binary.data;
+            const audioBlob = new Blob([new Uint8Array(audioData)], { type: 'audio/mpeg' });
+            audioUrl = URL.createObjectURL(audioBlob);
+            
+            // O texto vem do output do AI Agent
+            responseText = firstItem.output || firstItem.text || 'Resposta processada com áudio';
+          } else if (firstItem.hasOwnProperty('content-type') || firstItem.hasOwnProperty('server')) {
             console.warn('Resposta parece ser headers HTTP, não conteúdo processado');
             responseText = 'Áudio recebido, mas houve um problema no processamento. Tente novamente.';
           } else {
-            // Processar resposta normal
+            // Processar resposta normal sem áudio
             responseText = firstItem.output || firstItem.message || firstItem.text || firstItem.response || 'Áudio processado com sucesso';
-            audioUrl = firstItem.audioUrl;
+            
+            // Verificar se tem URL de áudio diretamente
+            if (firstItem.audioUrl) {
+              audioUrl = firstItem.audioUrl;
+            }
           }
         } else if (responseData && typeof responseData === 'object') {
           // Verificar se são headers HTTP
@@ -89,7 +106,15 @@ export const useN8nAudioWebhook = () => {
             responseText = 'Áudio recebido, mas houve um problema no processamento. Tente novamente.';
           } else {
             responseText = responseData.output || responseData.message || responseData.text || responseData.response || 'Áudio processado com sucesso';
-            audioUrl = responseData.audioUrl;
+            
+            // Verificar se tem dados binários
+            if (responseData.binary && responseData.binary.data) {
+              const audioData = responseData.binary.data;
+              const audioBlob = new Blob([new Uint8Array(audioData)], { type: 'audio/mpeg' });
+              audioUrl = URL.createObjectURL(audioBlob);
+            } else if (responseData.audioUrl) {
+              audioUrl = responseData.audioUrl;
+            }
           }
         } else if (typeof responseData === 'string') {
           responseText = responseData;
