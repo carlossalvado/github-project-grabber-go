@@ -33,28 +33,29 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Try to get the credit product, if not found use default values
+    // Try to get the credit product from database, if not found use default values
     let productData = {
       name: "100 Créditos de Áudio",
       credits: 100,
-      price: 999 // $9.99 in cents
+      price: 999 // $9.99 in cents - valor padrão
     };
 
     try {
       const { data: product } = await supabaseClient
         .from('audio_credit_products')
-        .select('*')
+        .select('name, credits, price')
         .single();
 
       if (product) {
         productData = {
           name: product.name,
           credits: product.credits,
-          price: product.price
+          price: product.price // Usando o preço da coluna price da tabela
         };
+        console.log("Product found in database:", productData);
       }
     } catch (productError) {
-      console.log("No product found in database, using default values");
+      console.log("No product found in database, using default values:", productData);
     }
 
     // Check if customer exists
@@ -79,14 +80,14 @@ serve(async (req) => {
               name: productData.name,
               description: `${productData.credits} créditos de áudio`,
             },
-            unit_amount: productData.price,
+            unit_amount: productData.price, // Preço vem da coluna price
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/chat-text-audio?credits_success=true&credits=${productData.credits}`,
-      cancel_url: `${req.headers.get("origin")}/chat-text-audio?credits_canceled=true`,
+      success_url: `${req.headers.get("origin")}/chat-text-only?credits_success=true&credits=${productData.credits}`,
+      cancel_url: `${req.headers.get("origin")}/chat-text-only?credits_canceled=true`,
       metadata: {
         credits: productData.credits.toString(),
         user_id: user.id,
