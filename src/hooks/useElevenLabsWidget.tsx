@@ -50,14 +50,33 @@ export const useElevenLabsWidget = () => {
   }, []);
 
   const endCall = useCallback(() => {
-    // Remove o widget
+    console.log('Encerrando chamada - removendo widget');
+    
+    // Remove o widget do DOM
     const widget = document.querySelector('elevenlabs-convai');
     if (widget) {
+      console.log('Widget encontrado, removendo...');
       widget.remove();
+    } else {
+      console.log('Widget não encontrado no DOM');
     }
+    
+    // Remove todos os widgets que possam existir
+    const allWidgets = document.querySelectorAll('elevenlabs-convai');
+    allWidgets.forEach(w => w.remove());
+    
+    // Força a limpeza de qualquer conteúdo relacionado ao widget
+    const shadowRoots = document.querySelectorAll('*');
+    shadowRoots.forEach(element => {
+      if (element.shadowRoot) {
+        const convaiElements = element.shadowRoot.querySelectorAll('elevenlabs-convai');
+        convaiElements.forEach(el => el.remove());
+      }
+    });
     
     setIsWidgetActive(false);
     toast.info('Chamada de voz encerrada');
+    console.log('Chamada encerrada - widget removido');
   }, []);
 
   return {
