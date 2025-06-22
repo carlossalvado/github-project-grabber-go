@@ -14,15 +14,20 @@ serve(async (req) => {
   try {
     const { action } = await req.json();
     
+    console.log('Received action:', action);
+    
     if (action === 'get-call-url') {
       // Retorna a URL do ElevenLabs para chamada de voz
       const callUrl = "https://elevenlabs.io/app/talk-to?agent_id=agent_01jxwps2rffj1tnfjqnzxdvktd";
+      
+      console.log('Returning call URL:', callUrl);
       
       return new Response(JSON.stringify({ url: callUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     
+    console.log('Invalid action received:', action);
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
