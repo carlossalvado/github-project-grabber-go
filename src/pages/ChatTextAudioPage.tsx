@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
-import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -23,10 +22,10 @@ const ChatTextAudioPage = () => {
   const { user } = useAuth();
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
-  const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
     
   const [input, setInput] = useState('');
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
@@ -162,51 +161,99 @@ const ChatTextAudioPage = () => {
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;
     
-    console.log('=== INICIANDO PROCESSAMENTO DE ÁUDIO ===');
-    console.log('Usuário:', user.email);
-    console.log('Blob de áudio:', audioBlob.size, 'bytes');
-    console.log('URL local do áudio:', audioUrl);
+    console.log('=== PROCESSAMENTO DE ÁUDIO ALTERNATIVO ===');
+    console.log('Usando transcrição local + resposta de texto');
+    
+    setIsProcessingAudio(true);
     
     try {
-      console.log('Chamando sendAudioToN8n...');
-      const result = await sendAudioToN8n(audioBlob, user.email!);
-      console.log('Resultado recebido:', result);
+      // Converter áudio para base64 para envio
+      const reader = new FileReader();
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64data = result.split(',')[1];
+          resolve(base64data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+      
+      console.log('Áudio convertido para base64, tamanho:', base64Audio.length);
+      
+      // Usar edge function do Supabase para transcrição
+      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+      
+      if (transcriptionError) {
+        console.error('Erro na transcrição:', transcriptionError);
+        throw new Error('Erro ao transcrever áudio');
+      }
+      
+      const transcription = transcriptionData?.text || 'Áudio processado';
+      console.log('Transcrição recebida:', transcription);
+      
+      // Atualizar mensagem do usuário com a transcrição
+      const userMessageId = addMessage({
+        type: 'user',
+        timestamp: new Date().toISOString(),
+        audioUrl: audioUrl,
+        transcription: transcription
+      });
+      
+      // Obter resposta de texto do assistente
+      const responseText = await sendToN8n(transcription, user.email!);
+      
+      // Converter resposta para áudio usando edge function
+      const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-text-to-speech', {
+        body: { 
+          text: responseText,
+          voice_id: 'pNczCjzI2devNBz1zQrb' // Brian voice
+        }
+      });
+      
+      let assistantAudioUrl;
+      if (!ttsError && ttsData?.audioContent) {
+        // Criar URL do áudio da resposta
+        const audioBytes = Uint8Array.from(atob(ttsData.audioContent), c => c.charCodeAt(0));
+        const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+        assistantAudioUrl = URL.createObjectURL(audioBlob);
+        console.log('Áudio da resposta criado:', assistantAudioUrl);
+      }
       
       const assistantMessageId = addMessage({
         type: 'assistant',
-        transcription: result.text,
+        transcription: responseText,
         timestamp: new Date().toISOString(),
-        audioUrl: result.audioUrl
+        audioUrl: assistantAudioUrl
       });
 
-      console.log('Mensagem do assistente adicionada com ID:', assistantMessageId);
-      console.log('URL de áudio na mensagem:', result.audioUrl);
-
-      // Auto-play the audio response if available
-      if (result.audioUrl) {
-        console.log('Iniciando reprodução automática do áudio...');
+      // Auto-play da resposta se disponível
+      if (assistantAudioUrl) {
         setTimeout(() => {
-          handlePlayAudio(assistantMessageId, result.audioUrl!);
+          handlePlayAudio(assistantMessageId, assistantAudioUrl);
         }, 500);
-      } else {
-        console.log('Nenhum áudio disponível para reprodução');
       }
 
     } catch (error: any) {
-      console.error('=== ERRO AO GERAR RESPOSTA DE ÁUDIO ===');
+      console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
       console.error('Erro:', error);
-      console.error('=========================================');
       
       addMessage({
         type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
+        transcription: `Desculpe, ocorreu um erro ao processar seu áudio: ${error.message}`,
         timestamp: new Date().toISOString()
       });
+      
+      toast.error('Erro ao processar áudio: ' + error.message);
+    } finally {
+      setIsProcessingAudio(false);
     }
   };
 
   const handleSendTextMessage = async () => {
-    const isLoading = n8nLoading || audioN8nLoading || isRecording;
+    const isLoading = n8nLoading || isProcessingAudio || isRecording;
     if (!input.trim() || isLoading || !user) return;
 
     const messageText = input.trim();
@@ -318,15 +365,6 @@ const ChatTextAudioPage = () => {
 
     toast.info("Processando seu áudio...");
 
-    const userMessageId = addMessage({
-      type: 'user',
-      timestamp: new Date().toISOString(),
-      audioUrl: url,
-      transcription: 'Áudio enviado'
-    });
-
-    console.log('Mensagem do usuário adicionada com ID:', userMessageId);
-
     try {
       await getAssistantAudioResponse(blob, url);
       resetAudio();
@@ -334,7 +372,6 @@ const ChatTextAudioPage = () => {
     } catch (error) {
       console.error('Erro ao processar áudio:', error);
       toast.error('Erro ao processar o áudio.');
-      updateMessage(userMessageId, { transcription: '(Erro no processamento do áudio)' });
       resetAudio();
     }
   };
@@ -343,7 +380,7 @@ const ChatTextAudioPage = () => {
     if (isRecording) {
       stopRecording();
     } else {
-      if (n8nLoading || audioN8nLoading) return;
+      if (n8nLoading || isProcessingAudio) return;
       startRecording();
     }
   };
@@ -393,7 +430,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  const isProcessing = n8nLoading || audioN8nLoading;
+  const isProcessing = n8nLoading || isProcessingAudio;
   const isLoading = isProcessing || isRecording;
 
   return (
