@@ -1,82 +1,66 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const useElevenLabsWidget = () => {
   const [isWidgetActive, setIsWidgetActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const popupRef = useRef<Window | null>(null);
 
   const initializeWidget = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-widget', {
-        body: { action: 'get-widget-config' }
+        body: { action: 'get-call-url' }
       });
 
       if (error) throw error;
 
-      // Adiciona o script dinamicamente
-      const existingScript = document.querySelector('script[src="' + data.scriptSrc + '"]');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.src = data.scriptSrc;
-        script.async = true;
-        script.type = 'text/javascript';
-        document.head.appendChild(script);
-      }
+      // Abre o popup com a URL do ElevenLabs
+      const popup = window.open(
+        data.url,
+        'elevenlabs-call',
+        'width=800,height=600,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no'
+      );
 
-      // Cria o elemento do widget
-      const existingWidget = document.querySelector('elevenlabs-convai');
-      if (!existingWidget) {
-        const widget = document.createElement('elevenlabs-convai');
-        widget.setAttribute('agent-id', data.agentId);
-        widget.style.position = 'fixed';
-        widget.style.zIndex = '9999';
-        widget.style.top = '50%';
-        widget.style.left = '50%';
-        widget.style.transform = 'translate(-50%, -50%)';
-        document.body.appendChild(widget);
-      }
+      if (popup) {
+        popupRef.current = popup;
+        setIsWidgetActive(true);
+        toast.success('Chamada de voz iniciada!');
 
-      setIsWidgetActive(true);
-      toast.success('Chamada de voz iniciada!');
+        // Monitora se o popup foi fechado pelo usuário
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            setIsWidgetActive(false);
+            popupRef.current = null;
+            toast.info('Chamada de voz encerrada');
+          }
+        }, 1000);
+      } else {
+        throw new Error('Popup foi bloqueado pelo navegador');
+      }
     } catch (error) {
-      console.error('Erro ao inicializar widget:', error);
-      toast.error('Erro ao iniciar chamada de voz');
+      console.error('Erro ao inicializar chamada:', error);
+      toast.error('Erro ao iniciar chamada de voz. Verifique se popups estão permitidos.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const endCall = useCallback(() => {
-    console.log('Encerrando chamada - removendo widget');
+    console.log('Encerrando chamada - fechando popup');
     
-    // Remove o widget do DOM
-    const widget = document.querySelector('elevenlabs-convai');
-    if (widget) {
-      console.log('Widget encontrado, removendo...');
-      widget.remove();
-    } else {
-      console.log('Widget não encontrado no DOM');
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+      console.log('Popup fechado');
     }
     
-    // Remove todos os widgets que possam existir
-    const allWidgets = document.querySelectorAll('elevenlabs-convai');
-    allWidgets.forEach(w => w.remove());
-    
-    // Força a limpeza de qualquer conteúdo relacionado ao widget
-    const shadowRoots = document.querySelectorAll('*');
-    shadowRoots.forEach(element => {
-      if (element.shadowRoot) {
-        const convaiElements = element.shadowRoot.querySelectorAll('elevenlabs-convai');
-        convaiElements.forEach(el => el.remove());
-      }
-    });
-    
     setIsWidgetActive(false);
+    popupRef.current = null;
     toast.info('Chamada de voz encerrada');
-    console.log('Chamada encerrada - widget removido');
+    console.log('Chamada encerrada - popup fechado');
   }, []);
 
   return {

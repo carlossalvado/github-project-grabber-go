@@ -14,14 +14,11 @@ serve(async (req) => {
   try {
     const { action } = await req.json();
     
-    if (action === 'get-widget-config') {
-      // Retorna a configuração do widget de forma segura
-      const widgetConfig = {
-        agentId: "agent_01jxwps2rffj1tnfjqnzxdvktd",
-        scriptSrc: "https://unpkg.com/@elevenlabs/convai-widget-embed"
-      };
+    if (action === 'get-call-url') {
+      // Retorna a URL do ElevenLabs para chamada de voz
+      const callUrl = "https://elevenlabs.io/app/talk-to?agent_id=agent_01jxwps2rffj1tnfjqnzxdvktd";
       
-      return new Response(JSON.stringify(widgetConfig), {
+      return new Response(JSON.stringify({ url: callUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
