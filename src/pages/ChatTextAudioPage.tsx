@@ -19,6 +19,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
+import VoiceCallButton from '@/components/VoiceCallButton';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -438,6 +439,7 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
+          <VoiceCallButton />
           <Button
             variant="ghost"
             size="sm"
