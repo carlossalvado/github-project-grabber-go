@@ -486,64 +486,73 @@ const ChatTextAudioPage = () => {
       />
 
       {/* Input Area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "flex-shrink-0 text-gray-400 hover:text-white",
-            isRecording && "text-red-500 hover:text-red-600 animate-pulse",
-            !hasCredits && "opacity-50"
-          )}
-          onClick={handleAudioToggle}
-          disabled={isProcessing}
-        >
-          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-        </Button>
-        <Input
-          ref={inputRef}
-          className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
-          placeholder="Digite uma mensagem ou use o áudio..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyPress}
-          disabled={isLoading}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleEmoticonClick}
-          className={`flex-shrink-0 ${
-            showEmoticonSelector 
-              ? 'text-purple-400 bg-gray-700' 
-              : 'text-gray-400 hover:text-white'
-          }`}
-          disabled={isLoading}
-        >
-          <Smile size={20} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleGiftClick}
-          className={`flex-shrink-0 ${
-            showGiftSelection 
-              ? 'text-purple-400 bg-gray-700' 
-              : 'text-gray-400 hover:text-white'
-          }`}
-          disabled={isLoading}
-        >
-          <Gift size={20} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="flex-shrink-0 text-gray-400 hover:text-white"
-          onClick={handleSendTextMessage}
-          disabled={!input.trim() || isLoading}
-        >
-          {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-        </Button>
+      <div className="p-4 bg-gray-800 border-t border-gray-700">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "flex-shrink-0 text-gray-400 hover:text-white",
+                isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+                !hasCredits && "opacity-50"
+              )}
+              onClick={handleAudioToggle}
+              disabled={isProcessing}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </Button>
+            {!creditsLoading && (
+              <span className="text-xs text-purple-400 font-medium">
+                {credits}
+              </span>
+            )}
+          </div>
+          <Input
+            ref={inputRef}
+            className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
+            placeholder="Digite uma mensagem ou use o áudio..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={isLoading}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleEmoticonClick}
+            className={`flex-shrink-0 ${
+              showEmoticonSelector 
+                ? 'text-purple-400 bg-gray-700' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+            disabled={isLoading}
+          >
+            <Smile size={20} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleGiftClick}
+            className={`flex-shrink-0 ${
+              showGiftSelection 
+                ? 'text-purple-400 bg-gray-700' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+            disabled={isLoading}
+          >
+            <Gift size={20} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 text-gray-400 hover:text-white"
+            onClick={handleSendTextMessage}
+            disabled={!input.trim() || isLoading}
+          >
+            {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+          </Button>
+        </div>
       </div>
 
       {/* Profile Image Modal */}
