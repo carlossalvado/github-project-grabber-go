@@ -101,6 +101,12 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     return bars;
   };
 
+  // Filtrar o conteúdo para remover "Resposta de áudio da Isa" ou variações similares
+  const cleanContent = content
+    .replace(/Resposta de áudio da? \w+/gi, '')
+    .replace(/^Resposta de áudio/gi, '')
+    .trim();
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       {!isUser && (
@@ -144,9 +150,9 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
             </div>
           )}
           
-          {/* Message content */}
-          {content && (
-            <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
+          {/* Message content - só mostra se houver conteúdo limpo */}
+          {cleanContent && (
+            <p className="whitespace-pre-wrap break-words text-sm">{cleanContent}</p>
           )}
         </div>
         

@@ -329,7 +329,7 @@ const ChatTextAudioPage = () => {
     console.log('Blob:', blob.size, 'bytes, tipo:', blob.type);
     console.log('URL:', url);
 
-    toast.info("Processando seu áudio...");
+    // REMOVIDO: toast.info("Processando seu áudio...");
 
     try {
       await getAssistantAudioResponse(blob, url);
