@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
+import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
+import AudioCreditsModal from '@/components/AudioCreditsModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -25,11 +27,13 @@ const ChatTextAudioPage = () => {
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
+  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
     
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
@@ -46,7 +50,6 @@ const ChatTextAudioPage = () => {
       if (!user?.id) return;
 
       try {
-        // Buscar o agente selecionado pelo usuário
         const { data: selectedAgent, error: selectedError } = await supabase
           .from('user_selected_agent')
           .select('agent_id')
@@ -59,7 +62,6 @@ const ChatTextAudioPage = () => {
         }
 
         if (selectedAgent) {
-          // Buscar dados completos do agente
           const { data: agent, error: agentError } = await supabase
             .from('ai_agents')
             .select('name, avatar_url')
@@ -86,19 +88,31 @@ const ChatTextAudioPage = () => {
     fetchAgentData();
   }, [user?.id]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input on load
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Check for gift success/cancel parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const creditsSuccess = urlParams.get('credits_success');
+    const creditsAmount = urlParams.get('credits');
+    const creditsCanceled = urlParams.get('credits_canceled');
+    
+    if (creditsSuccess === 'true' && creditsAmount) {
+      toast.success(`${creditsAmount} créditos adicionados com sucesso!`);
+      refreshCredits();
+      window.history.replaceState({}, document.title, '/chat-text-audio');
+    }
+    
+    if (creditsCanceled === 'true') {
+      toast.error('Compra de créditos cancelada');
+      window.history.replaceState({}, document.title, '/chat-text-audio');
+    }
+
     const giftSuccess = urlParams.get('gift_success');
     const giftId = urlParams.get('gift_id');
     const giftName = urlParams.get('gift_name');
@@ -106,13 +120,11 @@ const ChatTextAudioPage = () => {
     
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
     
     if (giftCanceled === 'true') {
       toast.error('Compra de presente cancelada');
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
   }, []);
@@ -166,10 +178,8 @@ const ChatTextAudioPage = () => {
     console.log('Usando webhook N8N para áudio completo');
     
     try {
-      // Usar o hook do webhook N8N para áudio
       const result = await sendAudioToN8n(audioBlob, user.email!);
       
-      // Atualizar mensagem do usuário com transcrição (se disponível)
       const userMessageId = addMessage({
         type: 'user',
         timestamp: new Date().toISOString(),
@@ -177,7 +187,6 @@ const ChatTextAudioPage = () => {
         transcription: result.text || 'Áudio enviado'
       });
       
-      // Adicionar resposta do assistente
       const assistantMessageId = addMessage({
         type: 'assistant',
         transcription: result.text,
@@ -185,7 +194,6 @@ const ChatTextAudioPage = () => {
         audioUrl: result.audioUrl
       });
 
-      // Auto-play da resposta se disponível
       if (result.audioUrl) {
         setTimeout(() => {
           handlePlayAudio(assistantMessageId, result.audioUrl!);
@@ -196,7 +204,6 @@ const ChatTextAudioPage = () => {
       console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
       console.error('Erro:', error);
       
-      // Adicionar mensagem do usuário mesmo com erro
       addMessage({
         type: 'user',
         timestamp: new Date().toISOString(),
@@ -285,7 +292,6 @@ const ChatTextAudioPage = () => {
   };
 
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    // Get gift emoji mapping
     const giftEmojis: { [key: string]: string } = {
       "00000000-0000-0000-0000-000000000001": "🌹",
       "00000000-0000-0000-0000-000000000002": "🍫", 
@@ -293,7 +299,6 @@ const ChatTextAudioPage = () => {
       "00000000-0000-0000-0000-000000000004": "💐"
     };
 
-    // Add gift message to chat
     addMessage({
       type: 'user',
       transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
@@ -302,7 +307,6 @@ const ChatTextAudioPage = () => {
     
     toast.success(`Presente ${giftName} enviado com sucesso!`);
 
-    // Simulate assistant response
     setTimeout(() => {
       addMessage({
         type: 'assistant',
@@ -343,6 +347,20 @@ const ChatTextAudioPage = () => {
       stopRecording();
     } else {
       if (n8nLoading || audioN8nLoading) return;
+      
+      // Verificar créditos antes de iniciar gravação
+      if (!hasCredits) {
+        setShowCreditsModal(true);
+        return;
+      }
+      
+      // Consumir crédito antes de iniciar gravação
+      const creditConsumed = await consumeCredit();
+      if (!creditConsumed) {
+        setShowCreditsModal(true);
+        return;
+      }
+      
       startRecording();
     }
   };
@@ -419,7 +437,12 @@ const ChatTextAudioPage = () => {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {!creditsLoading && (
+            <div className="text-sm text-gray-400">
+              <span className="text-purple-400 font-medium">{credits}</span> créditos
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -455,6 +478,13 @@ const ChatTextAudioPage = () => {
         />
       )}
 
+      {/* Audio Credits Modal */}
+      <AudioCreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        currentCredits={credits}
+      />
+
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
         <Button
@@ -462,7 +492,8 @@ const ChatTextAudioPage = () => {
           size="icon"
           className={cn(
             "flex-shrink-0 text-gray-400 hover:text-white",
-            isRecording && "text-red-500 hover:text-red-600 animate-pulse"
+            isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+            !hasCredits && "opacity-50"
           )}
           onClick={handleAudioToggle}
           disabled={isProcessing}

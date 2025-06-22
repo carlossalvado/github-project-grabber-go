@@ -36,6 +36,63 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_credit_products: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          name: string
+          price: number
+          stripe_price_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          name: string
+          price: number
+          stripe_price_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          name?: string
+          price?: number
+          stripe_price_id?: string | null
+        }
+        Relationships: []
+      }
+      audio_credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          stripe_session_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          stripe_session_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          stripe_session_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           audio_input_url: string | null
@@ -244,6 +301,30 @@ export type Database = {
           },
         ]
       }
+      user_audio_credits: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_purchased_gifts: {
         Row: {
           gift_id: string
@@ -346,6 +427,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_audio_credits: {
+        Args: { user_uuid: string; credit_amount: number; session_id?: string }
+        Returns: boolean
+      }
+      consume_audio_credit: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       is_trial_active: {
         Args: { user_uuid: string }
         Returns: boolean

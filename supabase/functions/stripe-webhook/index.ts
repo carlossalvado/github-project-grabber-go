@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -29,7 +28,6 @@ serve(async (req) => {
     
     logStep("Stripe keys verified");
 
-    // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
@@ -38,24 +36,21 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
-    // Get the signature from headers
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
       throw new Error("No Stripe signature found");
     }
 
-    // Get the raw body
     const body = await req.text();
     
-        // Verificar a assinatura do webhook
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(
-        body,          // O corpo da requisição como texto
-        signature!,    // O cabeçalho Stripe-Signature
-        webhookSecret, // Seu STRIPE_WEBHOOK_SECRET
-        undefined,     // Tolerância de tempo (opcional)
-        Stripe.createSubtleCryptoProvider() // Provedor de criptografia para Deno
+        body,
+        signature!,
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
       );
       logStep("Assinatura do webhook verificada", { eventId: event.id, eventType: event.type });
     } catch (err) {
@@ -63,8 +58,6 @@ serve(async (req) => {
       return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
-
-    // Handle the event
     switch (event.type) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(supabaseClient, stripe, event);
@@ -104,15 +97,35 @@ async function handleCheckoutCompleted(supabaseClient: any, stripe: Stripe, even
   const session = event.data.object as Stripe.Checkout.Session;
   logStep("Processing checkout completed", { sessionId: session.id });
 
+  // Check if this is a credit purchase
+  if (session.metadata?.credits && session.metadata?.user_id) {
+    const credits = parseInt(session.metadata.credits);
+    const userId = session.metadata.user_id;
+    
+    logStep("Processing audio credits purchase", { userId, credits, sessionId: session.id });
+    
+    const { error } = await supabaseClient.rpc('add_audio_credits', {
+      user_uuid: userId,
+      credit_amount: credits,
+      session_id: session.id
+    });
+
+    if (error) {
+      logStep("Error adding audio credits", { error });
+    } else {
+      logStep("Audio credits added successfully", { userId, credits });
+    }
+    return;
+  }
+
+  // Handle subscription payments
   if (session.mode === 'subscription' && session.customer && session.subscription) {
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
     const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
     
-    // Get customer details
     const customer = await stripe.customers.retrieve(customerId);
     if (customer.deleted) return;
     
-    // Get subscription details
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     
     await processSubscriptionUpdate(supabaseClient, stripe, customer, subscription);
@@ -158,7 +171,6 @@ async function handleSubscriptionDeleted(supabaseClient: any, stripe: Stripe, ev
     const customer = await stripe.customers.retrieve(customerId);
     if (customer.deleted) return;
     
-    // Deactivate subscription in our system
     if (customer.email) {
       await updateUserSubscriptionStatus(supabaseClient, customer.email, false, null, null);
     }
@@ -171,14 +183,12 @@ async function processSubscriptionUpdate(supabaseClient: any, stripe: Stripe, cu
     return;
   }
 
-  // Get the price ID to determine the plan
   const priceId = subscription.items.data[0]?.price.id;
   if (!priceId) {
     logStep("No price ID found for subscription", { subscriptionId: subscription.id });
     return;
   }
   
-  // Find the corresponding plan in our database
   const { data: planData } = await supabaseClient
     .from('plans')
     .select('*')
@@ -212,7 +222,6 @@ async function updateUserSubscriptionStatus(
   subscriptionId: string | null
 ) {
   try {
-    // Find user by email
     const { data: userData } = await supabaseClient.auth.admin.listUsers();
     const user = userData?.users?.find((u: any) => u.email === email);
     
@@ -221,7 +230,6 @@ async function updateUserSubscriptionStatus(
       return;
     }
 
-    // Update profiles table
     const { error: profileError } = await supabaseClient
       .from("profiles")
       .update({
@@ -237,7 +245,6 @@ async function updateUserSubscriptionStatus(
       logStep("Successfully updated profiles", { userId: user.id, planName, planActive: isActive });
     }
 
-    // Update or create subscription record
     if (isActive && planName) {
       const { data: planData } = await supabaseClient
         .from('plans')

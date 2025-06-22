@@ -10,10 +10,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
+import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
+import AudioCreditsModal from '@/components/AudioCreditsModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 
@@ -24,11 +26,13 @@ const ChatTextOnlyPage = () => {
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
+  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [agentData, setAgentData] = useState({
@@ -97,6 +101,21 @@ const ChatTextOnlyPage = () => {
   // Check for gift success/cancel parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const creditsSuccess = urlParams.get('credits_success');
+    const creditsAmount = urlParams.get('credits');
+    const creditsCanceled = urlParams.get('credits_canceled');
+    
+    if (creditsSuccess === 'true' && creditsAmount) {
+      toast.success(`${creditsAmount} créditos adicionados com sucesso!`);
+      refreshCredits();
+      window.history.replaceState({}, document.title, '/chat-text-only');
+    }
+    
+    if (creditsCanceled === 'true') {
+      toast.error('Compra de créditos cancelada');
+      window.history.replaceState({}, document.title, '/chat-text-only');
+    }
+
     const giftSuccess = urlParams.get('gift_success');
     const giftId = urlParams.get('gift_id');
     const giftName = urlParams.get('gift_name');
@@ -104,13 +123,11 @@ const ChatTextOnlyPage = () => {
     
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-text-only');
     }
     
     if (giftCanceled === 'true') {
       toast.error('Compra de presente cancelada');
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-text-only');
     }
   }, []);
@@ -302,6 +319,20 @@ const ChatTextOnlyPage = () => {
         stopRecording();
     } else {
         if (n8nLoading || audioN8nLoading) return;
+        
+        // Verificar créditos antes de iniciar gravação
+        if (!hasCredits) {
+          setShowCreditsModal(true);
+          return;
+        }
+        
+        // Consumir crédito antes de iniciar gravação
+        const creditConsumed = await consumeCredit();
+        if (!creditConsumed) {
+          setShowCreditsModal(true);
+          return;
+        }
+        
         startRecording();
     }
   };
@@ -365,6 +396,13 @@ const ChatTextOnlyPage = () => {
             <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <span className="font-medium">{agentData.name}</span>
+        </div>
+        <div className="flex gap-2 items-center">
+          {!creditsLoading && (
+            <div className="text-sm text-gray-400">
+              <span className="text-purple-400 font-medium">{credits}</span> créditos
+            </div>
+          )}
         </div>
       </div>
 
@@ -441,6 +479,13 @@ const ChatTextOnlyPage = () => {
         />
       )}
 
+      {/* Audio Credits Modal */}
+      <AudioCreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        currentCredits={credits}
+      />
+
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
         <Button
@@ -448,7 +493,8 @@ const ChatTextOnlyPage = () => {
           size="icon"
           className={cn(
             "flex-shrink-0 text-gray-400 hover:text-white",
-            isRecording && "text-red-500 hover:text-red-600 animate-pulse"
+            isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+            !hasCredits && "opacity-50"
           )}
           onClick={handleAudioToggle}
           disabled={isProcessing}
