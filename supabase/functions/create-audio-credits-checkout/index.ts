@@ -33,14 +33,28 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Get the credit product
-    const { data: product } = await supabaseClient
-      .from('audio_credit_products')
-      .select('*')
-      .single();
+    // Try to get the credit product, if not found use default values
+    let productData = {
+      name: "100 Créditos de Áudio",
+      credits: 100,
+      price: 999 // $9.99 in cents
+    };
 
-    if (!product) {
-      throw new Error("Produto de créditos não encontrado");
+    try {
+      const { data: product } = await supabaseClient
+        .from('audio_credit_products')
+        .select('*')
+        .single();
+
+      if (product) {
+        productData = {
+          name: product.name,
+          credits: product.credits,
+          price: product.price
+        };
+      }
+    } catch (productError) {
+      console.log("No product found in database, using default values");
     }
 
     // Check if customer exists
@@ -62,19 +76,19 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: product.name,
-              description: `${product.credits} créditos de áudio`,
+              name: productData.name,
+              description: `${productData.credits} créditos de áudio`,
             },
-            unit_amount: product.price,
+            unit_amount: productData.price,
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/chat-text-audio?credits_success=true&credits=${product.credits}`,
+      success_url: `${req.headers.get("origin")}/chat-text-audio?credits_success=true&credits=${productData.credits}`,
       cancel_url: `${req.headers.get("origin")}/chat-text-audio?credits_canceled=true`,
       metadata: {
-        credits: product.credits.toString(),
+        credits: productData.credits.toString(),
         user_id: user.id,
       },
     });
