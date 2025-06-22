@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
+import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -22,10 +23,10 @@ const ChatTextAudioPage = () => {
   const { user } = useAuth();
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
+  const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
     
   const [input, setInput] = useState('');
-  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
@@ -161,84 +162,47 @@ const ChatTextAudioPage = () => {
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;
     
-    console.log('=== PROCESSAMENTO DE ÁUDIO ALTERNATIVO ===');
-    console.log('Usando transcrição local + resposta de texto');
-    
-    setIsProcessingAudio(true);
+    console.log('=== PROCESSAMENTO DE ÁUDIO COM WEBHOOK N8N ===');
+    console.log('Usando webhook N8N para áudio completo');
     
     try {
-      // Converter áudio para base64 para envio
-      const reader = new FileReader();
-      const base64Audio = await new Promise<string>((resolve, reject) => {
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          const base64data = result.split(',')[1];
-          resolve(base64data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(audioBlob);
-      });
+      // Usar o hook do webhook N8N para áudio
+      const result = await sendAudioToN8n(audioBlob, user.email!);
       
-      console.log('Áudio convertido para base64, tamanho:', base64Audio.length);
-      
-      // Usar edge function do Supabase para transcrição
-      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
-      });
-      
-      if (transcriptionError) {
-        console.error('Erro na transcrição:', transcriptionError);
-        throw new Error('Erro ao transcrever áudio');
-      }
-      
-      const transcription = transcriptionData?.text || 'Áudio processado';
-      console.log('Transcrição recebida:', transcription);
-      
-      // Atualizar mensagem do usuário com a transcrição
+      // Atualizar mensagem do usuário com transcrição (se disponível)
       const userMessageId = addMessage({
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: audioUrl,
-        transcription: transcription
+        transcription: result.text || 'Áudio enviado'
       });
       
-      // Obter resposta de texto do assistente
-      const responseText = await sendToN8n(transcription, user.email!);
-      
-      // Converter resposta para áudio usando edge function
-      const { data: ttsData, error: ttsError } = await supabase.functions.invoke('elevenlabs-text-to-speech', {
-        body: { 
-          text: responseText,
-          voice_id: 'pNczCjzI2devNBz1zQrb' // Brian voice
-        }
-      });
-      
-      let assistantAudioUrl;
-      if (!ttsError && ttsData?.audioContent) {
-        // Criar URL do áudio da resposta
-        const audioBytes = Uint8Array.from(atob(ttsData.audioContent), c => c.charCodeAt(0));
-        const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
-        assistantAudioUrl = URL.createObjectURL(audioBlob);
-        console.log('Áudio da resposta criado:', assistantAudioUrl);
-      }
-      
+      // Adicionar resposta do assistente
       const assistantMessageId = addMessage({
         type: 'assistant',
-        transcription: responseText,
+        transcription: result.text,
         timestamp: new Date().toISOString(),
-        audioUrl: assistantAudioUrl
+        audioUrl: result.audioUrl
       });
 
       // Auto-play da resposta se disponível
-      if (assistantAudioUrl) {
+      if (result.audioUrl) {
         setTimeout(() => {
-          handlePlayAudio(assistantMessageId, assistantAudioUrl);
+          handlePlayAudio(assistantMessageId, result.audioUrl!);
         }, 500);
       }
 
     } catch (error: any) {
       console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
       console.error('Erro:', error);
+      
+      // Adicionar mensagem do usuário mesmo com erro
+      addMessage({
+        type: 'user',
+        timestamp: new Date().toISOString(),
+        audioUrl: audioUrl,
+        transcription: 'Áudio enviado (erro no processamento)'
+      });
       
       addMessage({
         type: 'assistant',
@@ -247,13 +211,11 @@ const ChatTextAudioPage = () => {
       });
       
       toast.error('Erro ao processar áudio: ' + error.message);
-    } finally {
-      setIsProcessingAudio(false);
     }
   };
 
   const handleSendTextMessage = async () => {
-    const isLoading = n8nLoading || isProcessingAudio || isRecording;
+    const isLoading = n8nLoading || audioN8nLoading || isRecording;
     if (!input.trim() || isLoading || !user) return;
 
     const messageText = input.trim();
@@ -380,7 +342,7 @@ const ChatTextAudioPage = () => {
     if (isRecording) {
       stopRecording();
     } else {
-      if (n8nLoading || isProcessingAudio) return;
+      if (n8nLoading || audioN8nLoading) return;
       startRecording();
     }
   };
@@ -430,7 +392,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  const isProcessing = n8nLoading || isProcessingAudio;
+  const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
 
   return (
