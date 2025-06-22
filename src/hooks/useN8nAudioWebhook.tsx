@@ -20,7 +20,7 @@ export const useN8nAudioWebhook = () => {
     setIsLoading(true);
     
     try {
-      console.log('=== ENVIANDO ÁUDIO PARA N8N ===');
+      console.log('=== ENVIANDO ÁUDIO PARA N8N (BINARY RESPONSE) ===');
       console.log('URL do webhook:', audioWebhookUrl);
       console.log('Tamanho do blob de áudio:', audioBlob.size, 'bytes');
       console.log('Tipo do blob:', audioBlob.type);
@@ -44,9 +44,9 @@ export const useN8nAudioWebhook = () => {
         user: userEmail || 'anonymous'
       };
       
-      console.log('Fazendo requisição para o webhook...');
+      console.log('Fazendo requisição para o webhook configurado como Binary File...');
       
-      // Requisição simples sem headers problemáticos
+      // Requisição simples, esperando resposta binária (MP3)
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
@@ -56,87 +56,71 @@ export const useN8nAudioWebhook = () => {
       });
       
       console.log('Status da resposta:', response.status);
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type da resposta:', contentType);
+      console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Erro na resposta:', errorText);
+        console.error('Erro HTTP:', response.status, errorText);
         throw new Error(`Erro na resposta: ${response.status} - ${errorText}`);
       }
       
-      // Verificar se é áudio (Binary File configurado no N8N)
-      if (contentType && contentType.includes('audio/')) {
-        console.log('✅ Resposta é áudio MP3 direto');
-        const audioBlob = await response.blob();
-        console.log('Blob de áudio criado, tamanho:', audioBlob.size, 'bytes');
-        
-        if (audioBlob.size > 0) {
-          const audioUrl = URL.createObjectURL(audioBlob);
-          console.log('URL de áudio criada:', audioUrl);
-          
-          return {
-            text: 'Áudio da Isa',
-            audioUrl
-          };
-        }
+      // N8N configurado como Binary File deve retornar diretamente o MP3
+      const contentType = response.headers.get('content-type') || '';
+      console.log('Content-Type:', contentType);
+      
+      // Tratar como áudio MP3 binário
+      const audioResponseBlob = await response.blob();
+      console.log('Blob recebido - tamanho:', audioResponseBlob.size, 'bytes, tipo:', audioResponseBlob.type);
+      
+      if (audioResponseBlob.size === 0) {
+        console.error('❌ Resposta vazia do N8N');
+        throw new Error('Resposta vazia do servidor');
       }
       
-      // Se ainda recebemos JSON ou outro formato
-      console.log('Resposta não é áudio, verificando outros formatos...');
-      
-      // Tentar como blob primeiro (caso seja áudio sem content-type correto)
-      const blob = await response.blob();
-      console.log('Blob recebido, tamanho:', blob.size, 'bytes, tipo:', blob.type);
-      
-      // Se o blob tem tamanho significativo e pode ser áudio
-      if (blob.size > 1000) {
-        console.log('Tentando tratar blob como áudio...');
-        const audioUrl = URL.createObjectURL(blob);
-        
-        // Criar um elemento audio temporário para testar se é válido
-        const testAudio = new Audio(audioUrl);
-        
-        return new Promise((resolve) => {
-          testAudio.onloadedmetadata = () => {
-            console.log('✅ Blob é áudio válido!');
-            resolve({
-              text: 'Áudio da Isa',
-              audioUrl
-            });
-          };
-          
-          testAudio.onerror = () => {
-            console.log('❌ Blob não é áudio válido');
-            URL.revokeObjectURL(audioUrl);
-            resolve({
-              text: 'Resposta processada, mas formato de áudio não reconhecido',
-              audioUrl: undefined
-            });
-          };
-          
-          // Timeout de 2 segundos para evitar travamento
-          setTimeout(() => {
-            console.log('⏰ Timeout na verificação de áudio');
-            URL.revokeObjectURL(audioUrl);
-            resolve({
-              text: 'Resposta processada, mas não foi possível verificar o áudio',
-              audioUrl: undefined
-            });
-          }, 2000);
-        });
+      // Verificar se é realmente áudio
+      if (audioResponseBlob.size < 100) {
+        console.error('❌ Arquivo muito pequeno, provavelmente não é áudio válido');
+        throw new Error('Resposta muito pequena para ser áudio válido');
       }
       
-      console.log('❌ Resposta não contém áudio válido');
-      return {
-        text: 'Resposta processada, mas sem áudio disponível',
-        audioUrl: undefined
-      };
+      // Criar URL para o áudio
+      const audioUrl = URL.createObjectURL(audioResponseBlob);
+      console.log('✅ URL de áudio criada:', audioUrl);
+      
+      // Testar se o áudio é válido
+      return new Promise((resolve, reject) => {
+        const testAudio = new Audio();
+        
+        testAudio.onloadedmetadata = () => {
+          console.log('✅ Áudio válido confirmado! Duração:', testAudio.duration, 'segundos');
+          resolve({
+            text: 'Resposta da Isa',
+            audioUrl: audioUrl
+          });
+        };
+        
+        testAudio.onerror = (error) => {
+          console.error('❌ Áudio inválido:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error('Arquivo de áudio corrompido ou inválido'));
+        };
+        
+        // Timeout de segurança
+        setTimeout(() => {
+          console.error('⏰ Timeout na validação do áudio');
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error('Timeout na validação do áudio'));
+        }, 5000);
+        
+        testAudio.src = audioUrl;
+      });
       
     } catch (error: any) {
       console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
-      console.error('Erro:', error);
-      console.error('=====================================');
+      console.error('Tipo do erro:', error.constructor.name);
+      console.error('Mensagem:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('==========================================');
       
       toast.error(`Erro ao processar áudio: ${error.message}`);
       throw error;
