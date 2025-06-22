@@ -46,7 +46,6 @@ export const useN8nAudioWebhook = () => {
       
       console.log('Enviando para webhook N8N que retorna binary file...');
       
-      // Fazer requisição sem headers específicos de content-type na resposta
       const response = await fetch(audioWebhookUrl, {
         method: 'POST',
         headers: {
@@ -74,53 +73,15 @@ export const useN8nAudioWebhook = () => {
         throw new Error('Nenhum arquivo de áudio foi retornado pelo servidor');
       }
       
-      // Verificar tamanho mínimo para arquivo de áudio
-      if (audioResponseBlob.size < 1000) {
-        console.error('❌ Arquivo muito pequeno para ser áudio válido');
-        // Tentar ler como texto para debug
-        try {
-          const textContent = await audioResponseBlob.text();
-          console.log('Conteúdo recebido (como texto):', textContent);
-        } catch (e) {
-          console.log('Não foi possível ler como texto');
-        }
-        throw new Error('Arquivo muito pequeno - possivelmente erro no servidor');
-      }
-      
       // Criar URL do objeto para o áudio
       const audioUrl = URL.createObjectURL(audioResponseBlob);
       console.log('✅ URL do áudio criada:', audioUrl);
       
-      // Validar se o áudio pode ser reproduzido
-      return new Promise((resolve, reject) => {
-        const testAudio = new Audio();
-        
-        const timeoutId = setTimeout(() => {
-          console.error('⏰ Timeout na validação do áudio');
-          URL.revokeObjectURL(audioUrl);
-          reject(new Error('Timeout ao validar o arquivo de áudio'));
-        }, 8000);
-        
-        testAudio.onloadedmetadata = () => {
-          clearTimeout(timeoutId);
-          console.log('✅ Áudio válido! Duração:', testAudio.duration, 'segundos');
-          resolve({
-            text: 'Resposta de áudio da Isa',
-            audioUrl: audioUrl
-          });
-        };
-        
-        testAudio.onerror = (error) => {
-          clearTimeout(timeoutId);
-          console.error('❌ Erro ao validar áudio:', error);
-          console.error('Detalhes do erro:', testAudio.error);
-          URL.revokeObjectURL(audioUrl);
-          reject(new Error('Arquivo de áudio inválido ou corrompido'));
-        };
-        
-        // Definir a fonte do áudio para iniciar o teste
-        testAudio.src = audioUrl;
-      });
+      // Retornar sem validação prévia do áudio (deixar o player tentar reproduzir)
+      return {
+        text: 'Resposta de áudio da Isa',
+        audioUrl: audioUrl
+      };
       
     } catch (error: any) {
       console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
