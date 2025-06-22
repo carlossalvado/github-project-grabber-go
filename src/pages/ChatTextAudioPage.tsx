@@ -354,7 +354,7 @@ const ChatTextAudioPage = () => {
         return;
       }
       
-      // Consumir crédito antes de iniciar gravação
+      // Consumir crédito IMEDIATAMENTE ao iniciar a gravação
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         setShowCreditsModal(true);
@@ -438,11 +438,6 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          {!creditsLoading && (
-            <div className="text-sm text-gray-400">
-              <span className="text-purple-400 font-medium">{credits}</span> créditos
-            </div>
-          )}
           <Button
             variant="ghost"
             size="sm"
