@@ -1,9 +1,9 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Play, Pause, CheckCheck } from 'lucide-react';
+import React from 'react';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Play, Pause } from 'lucide-react';
 
 interface AudioMessageProps {
   id: string;
@@ -11,13 +11,15 @@ interface AudioMessageProps {
   audioUrl?: string;
   isUser: boolean;
   timestamp: string;
-  isPlaying?: boolean;
+  isPlaying: boolean;
   onPlayAudio: (messageId: string, audioUrl: string) => void;
   agentData?: {
+    id: string;
     name: string;
     avatar_url: string;
   };
   userEmail?: string;
+  userAvatarUrl?: string;
 }
 
 const AudioMessage: React.FC<AudioMessageProps> = ({
@@ -26,148 +28,110 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
   audioUrl,
   isUser,
   timestamp,
-  isPlaying = false,
+  isPlaying,
   onPlayAudio,
   agentData,
-  userEmail
+  userEmail,
+  userAvatarUrl
 }) => {
-  const [duration, setDuration] = useState<number>(0);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (audioUrl && !audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      
-      audioRef.current.onloadedmetadata = () => {
-        if (audioRef.current) {
-          setDuration(audioRef.current.duration);
-        }
-      };
-
-      audioRef.current.ontimeupdate = () => {
-        if (audioRef.current) {
-          setCurrentTime(audioRef.current.currentTime);
-        }
-      };
-
-      audioRef.current.onended = () => {
-        setCurrentTime(0);
-      };
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [audioUrl]);
-
-  const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleTimeString('pt-BR', {
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
-  const formatDuration = (seconds: number) => {
-    if (isNaN(seconds) || seconds === 0) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getWaveformBars = () => {
-    const bars = [];
-    const barCount = 40;
-    
-    for (let i = 0; i < barCount; i++) {
-      const height = Math.random() * 20 + 5; // Altura aleatória entre 5px e 25px
-      const isActive = audioUrl && isPlaying && (currentTime / duration) * barCount > i;
-      
-      bars.push(
-        <div
-          key={i}
-          className={cn(
-            "w-1 rounded-full transition-all duration-200",
-            isActive ? "bg-white" : "bg-white/30"
-          )}
-          style={{ height: `${height}px` }}
-        />
-      );
+  const getUserInitials = () => {
+    if (userEmail) {
+      return userEmail.charAt(0).toUpperCase();
     }
-    
-    return bars;
+    return 'U';
   };
-
-  // Filtrar o conteúdo para remover "Resposta de áudio da Isa" ou variações similares
-  const cleanContent = content
-    .replace(/Resposta de áudio da? \w+/gi, '')
-    .replace(/^Resposta de áudio/gi, '')
-    .trim();
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {!isUser && (
-        <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-          <AvatarImage src={agentData?.avatar_url} alt={agentData?.name} />
-          <AvatarFallback className="bg-purple-600 text-white">
-            {agentData?.name?.charAt(0) || 'I'}
-          </AvatarFallback>
-        </Avatar>
+    <div className={cn(
+      'flex mb-4 max-w-[80%]',
+      isUser ? 'ml-auto' : 'mr-auto'
+    )}>
+      {/* Avatar - mostrar apenas se for mensagem do usuário */}
+      {isUser && (
+        <div className="order-2 ml-2">
+          <Avatar className="h-8 w-8">
+            {userAvatarUrl ? (
+              <AvatarImage src={userAvatarUrl} alt="Você" />
+            ) : (
+              <AvatarFallback className="bg-blue-600 text-white text-sm">
+                {getUserInitials()}
+              </AvatarFallback>
+            )}
+          </Avatar>
+        </div>
       )}
 
-      <div className="max-w-[70%] space-y-1">
-        <div className={cn(
-          'px-4 py-3 rounded-2xl shadow-md',
-          isUser 
-            ? 'bg-purple-600 text-white rounded-br-none' 
-            : 'bg-gray-700 text-white rounded-bl-none'
-        )}>
-          {/* Audio Player */}
-          {audioUrl && (
-            <div className="flex items-center gap-3 mb-2">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white flex-shrink-0"
-                onClick={() => onPlayAudio(id, audioUrl)}
-              >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-              </Button>
-              
-              <div className="flex-1 flex items-center gap-2">
-                <div className="flex items-center gap-0.5 flex-1 h-6">
-                  {getWaveformBars()}
-                </div>
-                
-                <div className="text-xs text-white/70 flex items-center gap-1">
-                  <span>{formatDuration(currentTime || duration)}</span>
-                  <CheckCheck size={12} className="text-green-400" />
-                </div>
+      {/* Avatar do agente - mostrar apenas se for mensagem do assistente */}
+      {!isUser && agentData && (
+        <div className="order-1 mr-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-purple-600 text-white text-sm">
+              {agentData.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      )}
+
+      <div className={cn(
+        'flex flex-col gap-2',
+        isUser ? 'order-1' : 'order-2'
+      )}>
+        {/* Audio Player */}
+        {audioUrl && (
+          <div className={cn(
+            'flex items-center gap-3 p-3 rounded-2xl min-w-[200px]',
+            isUser 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-[#2F3349] text-white border border-blue-800/30'
+          )}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onPlayAudio(id, audioUrl)}
+              className={cn(
+                'p-1 rounded-full',
+                isUser 
+                  ? 'hover:bg-blue-700 text-white' 
+                  : 'hover:bg-blue-900/50 text-blue-200'
+              )}
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+            </Button>
+            
+            <div className="flex-1">
+              <div className="w-full h-1 bg-white bg-opacity-30 rounded-full">
+                <div className="w-1/3 h-full bg-white rounded-full"></div>
               </div>
             </div>
-          )}
-          
-          {/* Message content - só mostra se houver conteúdo limpo */}
-          {cleanContent && (
-            <p className="whitespace-pre-wrap break-words text-sm">{cleanContent}</p>
-          )}
+          </div>
+        )}
+
+        {/* Text Content */}
+        <div className={cn(
+          'px-4 py-3 rounded-2xl max-w-full',
+          isUser 
+            ? 'bg-blue-600 text-white rounded-br-md' 
+            : 'bg-[#2F3349] text-white border border-blue-800/30 rounded-bl-md'
+        )}>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
         </div>
-        
-        <div className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
+
+        {/* Timestamp */}
+        <div className={cn(
+          'text-xs text-blue-400 px-1',
+          isUser ? 'text-right' : 'text-left'
+        )}>
           {formatTime(timestamp)}
         </div>
       </div>
-
-      {isUser && (
-        <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-          <AvatarFallback className="bg-blue-600 text-white">
-            {userEmail?.charAt(0).toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-      )}
     </div>
   );
 };

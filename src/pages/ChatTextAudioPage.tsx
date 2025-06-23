@@ -12,6 +12,7 @@ import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
+import { useUserCache } from '@/hooks/useUserCache';
 import { supabase } from '@/integrations/supabase/client';
 import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -31,12 +32,14 @@ const ChatTextAudioPage = () => {
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
+  const { getAvatarUrl } = useUserCache();
     
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [agentData, setAgentData] = useState({
     id: '',
     name: 'Isa',
@@ -48,6 +51,12 @@ const ChatTextAudioPage = () => {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Carregar avatar do usuário do cache
+  useEffect(() => {
+    const avatarUrl = getAvatarUrl();
+    setUserAvatarUrl(avatarUrl);
+  }, [getAvatarUrl]);
 
   useEffect(() => {
     const fetchAgentData = async () => {
@@ -417,6 +426,7 @@ const ChatTextAudioPage = () => {
         onPlayAudio={handlePlayAudio}
         agentData={agentData}
         userEmail={user?.email}
+        userAvatarUrl={userAvatarUrl}
       />
     );
   };
