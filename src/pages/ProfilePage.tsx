@@ -1,3 +1,8 @@
+   Peço desculpas, parece que a resposta anterior foi cortada.
+
+Aqui está o código completo do seu componente `ProfilePage.js` com a função `handleGoToChat` já corrigida. Você pode copiar e colar este bloco inteiro para substituir o seu arquivo atual.
+
+```javascript
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -169,54 +174,40 @@ const ProfilePage = () => {
     setUserProfile((prev: any) => prev ? { ...prev, avatar_url: avatarUrl } : null);
   };
 
-  // Nova função centralizada de navegação para chat
+  // --- CÓDIGO EDITADO ABAIXO ---
+  // Função de navegação para o chat, agora simplificada e mais robusta
   const handleGoToChat = () => {
+    // Mantendo a verificação de segurança para garantir que o usuário está logado
     if (!user) {
       toast.error('Você precisa estar logado para acessar o chat');
       navigate('/login');
       return;
     }
 
-    let targetPath = '/profile'; // Rota padrão de segurança
-    let planName = '';
-
-    // Verificar se tem trial ativo primeiro
+    // 1. Verifica o Trial primeiro, pois tem prioridade.
     if (isTrialActive) {
-      targetPath = '/chat-trial';
-      planName = 'Trial';
-      toast.success('Redirecionando para o chat trial');
-    }
-    // Verificar se tem plano Text & Audio ativo
-    else if (planData?.plan_active && planData?.plan_name && 
-             (planData.plan_name.toLowerCase().includes('text') && planData.plan_name.toLowerCase().includes('audio'))) {
-      targetPath = '/chat-text-audio';
-      planName = 'Text & Audio';
-      toast.success('Redirecionando para o chat Text & Audio');
-    }
-    // Verificar plano do cache
-    else if (hasPlanActive()) {
-      const cachedPlanName = getPlanName();
-      if (cachedPlanName?.toLowerCase().includes('text') && cachedPlanName?.toLowerCase().includes('audio')) {
-        targetPath = '/chat-text-audio';
-        planName = 'Text & Audio';
-        toast.success('Redirecionando para o chat Text & Audio');
-      } else if (cachedPlanName?.toLowerCase().includes('trial')) {
-        targetPath = '/chat-trial';
-        planName = 'Trial';
-        toast.success('Redirecionando para o chat trial');
-      }
-    }
-
-    // Se não tem plano ativo, redirecionar para seleção de planos
-    if (targetPath === '/profile') {
-      toast.info('Escolha um plano para acessar o chat');
-      navigate('/');
+      toast.success('Redirecionando para o chat trial...');
+      navigate('/chat-trial');
       return;
     }
 
-    console.log('Navegando para:', targetPath, 'com plano:', planName);
-    navigate(targetPath);
+    // 2. Verifica o plano ativo (de qualquer fonte, priorizando o mais recente)
+    const activePlan = getActivePlanName(); 
+
+    if (activePlan && activePlan.toLowerCase().includes('text') && activePlan.toLowerCase().includes('audio')) {
+      toast.success('Redirecionando para o chat Text & Audio...');
+      navigate('/chat-text-audio');
+      return;
+    }
+    
+    // Adicione outras verificações de planos aqui se necessário (ex: 'Premium', 'Ultimate')
+    // else if (activePlan === 'Premium') { ... }
+
+    // 3. Se nenhuma condição acima for atendida, não há plano válido para o chat.
+    toast.info('Escolha um plano para poder acessar o chat.');
+    navigate('/'); // Navega para a página inicial/de planos.
   };
+  // --- FIM DO CÓDIGO EDITADO ---
 
   const getCurrentPlan = () => {
     // Priorizar dados mais recentes
