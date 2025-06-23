@@ -104,11 +104,11 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
           </div>
         ) : agentData ? (
           <div className="p-6 text-center">
-            {/* Avatar */}
+            {/* Avatar - MADE LARGER */}
             <div className="mb-4">
-              <Avatar className="w-24 h-24 mx-auto">
+              <Avatar className="w-40 h-40 mx-auto">
                 <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                <AvatarFallback className="bg-blue-800 text-white text-2xl">
+                <AvatarFallback className="bg-blue-800 text-white text-4xl">
                   {agentData.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
