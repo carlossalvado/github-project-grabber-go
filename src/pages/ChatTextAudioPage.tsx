@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -185,6 +186,29 @@ const ChatTextAudioPage = () => {
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
   }, []);
+
+  const getAssistantResponse = async (messageText: string) => {
+    if (!user) return;
+    
+    try {
+      const responseText = await sendToN8n(messageText, user.email!);
+      
+      addMessage({
+        type: 'assistant',
+        transcription: responseText,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Error generating response:', error);
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`,
+        timestamp: new Date().toISOString()
+      });
+      toast.error('Erro ao processar mensagem');
+    }
+  };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;

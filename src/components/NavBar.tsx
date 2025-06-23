@@ -17,20 +17,11 @@ const NavBar = () => {
           
           {user && (
             <div className="flex items-center space-x-4">
-              <Link to="/chat" className="text-gray-600 hover:text-gray-900">
-                Chat Básico
+              <Link to="/chat-trial" className="text-gray-600 hover:text-gray-900">
+                Chat Trial
               </Link>
               <Link to="/chat-text-audio" className="text-gray-600 hover:text-gray-900">
                 Chat com Áudio
-              </Link>
-              <Link to="/gemini-chat" className="text-gray-600 hover:text-gray-900">
-                Gemini Chat
-              </Link>
-              <Link to="/gemini-live-chat" className="text-purple-600 hover:text-purple-900 font-medium">
-                Gemini Live
-              </Link>
-              <Link to="/chat-premium" className="text-purple-600 hover:text-purple-900">
-                Premium
               </Link>
             </div>
           )}

@@ -6,14 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Index from "./pages/Index";
-import ChatPage from "./pages/ChatPage";
 import ChatTrialPage from "./pages/ChatTrialPage";
-import ChatPremiumPage from "./pages/ChatPremiumPage";
-import ChatTextOnlyPage from "./pages/ChatTextOnlyPage";
 import ChatTextAudioPage from "./pages/ChatTextAudioPage";
-import ModernChatPage from "./pages/ModernChatPage";
-import GeminiChatPage from "./pages/GeminiChatPage";
-import GeminiLiveChatPage from "./pages/GeminiLiveChatPage";
 import PersonalizePage from "./pages/PersonalizePage";
 import PlanPage from "./pages/PlanPage";
 import SelectedPlanPage from "./pages/SelectedPlanPage";
@@ -55,14 +49,6 @@ function App() {
                   }
                 />
                 <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
                   path="/chat-trial"
                   element={
                     <ProtectedRoute>
@@ -71,50 +57,10 @@ function App() {
                   }
                 />
                 <Route
-                  path="/chat-premium"
-                  element={
-                    <ProtectedRoute>
-                      <ChatPremiumPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat-text-only"
-                  element={
-                    <ProtectedRoute>
-                      <ChatTextOnlyPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
                   path="/chat-text-audio"
                   element={
                     <ProtectedRoute>
                       <ChatTextAudioPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/modern-chat"
-                  element={
-                    <ProtectedRoute>
-                      <ModernChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/gemini-chat"
-                  element={
-                    <ProtectedRoute>
-                      <GeminiChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/gemini-live-chat"
-                  element={
-                    <ProtectedRoute>
-                      <GeminiLiveChatPage />
                     </ProtectedRoute>
                   }
                 />
