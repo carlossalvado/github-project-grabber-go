@@ -485,7 +485,10 @@ const ChatTextAudioPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <Avatar className="cursor-pointer" onClick={handleAvatarClick}>
+          <Avatar 
+            className="cursor-pointer" 
+            onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}
+          >
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-blue-800 text-white">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
