@@ -59,6 +59,11 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     }
   };
 
+  // Não renderizar nada se não há áudio e nem conteúdo de texto
+  if (!audioUrl && !content.trim()) {
+    return null;
+  }
+
   return (
     <div className={cn(
       'flex mb-4 max-w-[80%]',
@@ -110,15 +115,17 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
           </div>
         )}
 
-        {/* Text Content */}
-        <div className={cn(
-          'px-4 py-3 rounded-2xl max-w-full',
-          isUser 
-            ? 'bg-blue-600 text-white rounded-br-md' 
-            : 'bg-[#2F3349] text-white border border-blue-800/30 rounded-bl-md'
-        )}>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
-        </div>
+        {/* Text Content - apenas se há conteúdo */}
+        {content.trim() && (
+          <div className={cn(
+            'px-4 py-3 rounded-2xl max-w-full',
+            isUser 
+              ? 'bg-blue-600 text-white rounded-br-md' 
+              : 'bg-[#2F3349] text-white border border-blue-800/30 rounded-bl-md'
+          )}>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+          </div>
+        )}
 
         {/* Timestamp */}
         <div className={cn(
