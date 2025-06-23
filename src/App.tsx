@@ -35,8 +35,8 @@ function App() {
           <BrowserRouter>
             <SubscriptionProvider>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/index" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/auth" element={<Auth />} />
