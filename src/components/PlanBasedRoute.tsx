@@ -16,6 +16,16 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
   const { getPlanName, hasPlanActive } = useUserCache();
   const { isTrialActive, loading: trialLoading } = useTrialManager();
 
+  console.log('PlanBasedRoute - Dados:', {
+    requiredPlan,
+    user: !!user,
+    authLoading,
+    trialLoading,
+    isTrialActive,
+    userPlanName: getPlanName(),
+    isUserPlanActive: hasPlanActive()
+  });
+
   if (authLoading || trialLoading) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -28,14 +38,18 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
   }
 
   if (!user) {
+    console.log('PlanBasedRoute - Usuário não logado, redirecionando para login');
     return <Navigate to="/login" replace />;
   }
 
   // Para chat-trial: verificar se o trial está ativo
   if (requiredPlan === 'trial') {
+    console.log('PlanBasedRoute - Verificando acesso ao trial:', { isTrialActive });
     if (isTrialActive) {
+      console.log('PlanBasedRoute - Trial ativo, permitindo acesso');
       return <>{children}</>;
     } else {
+      console.log('PlanBasedRoute - Trial inativo, redirecionando para profile');
       return <Navigate to="/profile" replace />;
     }
   }
@@ -44,7 +58,10 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
   const userPlanName = getPlanName();
   const isUserPlanActive = hasPlanActive();
 
+  console.log('PlanBasedRoute - Verificando plano:', { userPlanName, isUserPlanActive });
+
   if (!isUserPlanActive || !userPlanName) {
+    console.log('PlanBasedRoute - Plano inativo ou inexistente, redirecionando para profile');
     return <Navigate to="/profile" replace />;
   }
 
@@ -58,12 +75,21 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
 
   const userChatType = planToChatMap[userPlanName];
   
+  console.log('PlanBasedRoute - Mapeamento:', { 
+    userPlanName, 
+    userChatType, 
+    requiredPlan,
+    hasAccess: userChatType === requiredPlan
+  });
+  
   // Se o usuário tem o plano correto para esta página, permitir acesso
   if (userChatType === requiredPlan) {
+    console.log('PlanBasedRoute - Acesso permitido!');
     return <>{children}</>;
   }
 
   // Se não tem o plano correto, redirecionar para profile
+  console.log('PlanBasedRoute - Plano incompatível, redirecionando para profile');
   return <Navigate to="/profile" replace />;
 };
 
