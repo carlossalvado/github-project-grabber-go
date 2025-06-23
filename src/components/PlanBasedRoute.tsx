@@ -33,10 +33,11 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
 
   // Para chat-trial: verificar se o trial está ativo
   if (requiredPlan === 'trial') {
-    if (!isTrialActive) {
+    if (isTrialActive) {
+      return <>{children}</>;
+    } else {
       return <Navigate to="/profile" replace />;
     }
-    return <>{children}</>;
   }
 
   // Para outros chats: verificar plano ativo
@@ -57,11 +58,13 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
 
   const userChatType = planToChatMap[userPlanName];
   
-  if (userChatType !== requiredPlan) {
-    return <Navigate to="/profile" replace />;
+  // Se o usuário tem o plano correto para esta página, permitir acesso
+  if (userChatType === requiredPlan) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Se não tem o plano correto, redirecionar para profile
+  return <Navigate to="/profile" replace />;
 };
 
 export default PlanBasedRoute;
