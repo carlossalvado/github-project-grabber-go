@@ -3,6 +3,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserCache } from '@/hooks/useUserCache';
+import { useTrialManager } from '@/hooks/useTrialManager';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,10 +12,11 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const { plan } = useUserCache();
+  const { isTrialActive, loading: trialLoading } = useTrialManager();
   const location = useLocation();
   
   // Show loading state while checking auth
-  if (loading) {
+  if (loading || trialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
@@ -30,62 +32,62 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Get current path
   const currentPath = location.pathname;
 
-  // Define allowed paths based on plan
-  const getAllowedPaths = () => {
-    if (!plan || !plan.plan_active) {
-      // No active plan - redirect to profile to choose a plan
-      return ['/profile'];
+  // Mapeamento de planos para rotas permitidas
+  const getAllowedRoutes = () => {
+    // Se tem trial ativo, permitir acesso às rotas de trial
+    if (isTrialActive) {
+      return ['/chat-trial', '/profile', '/plan', '/basic-plan', '/premium-plan', '/ultimate-plan'];
     }
 
-    const planName = plan.plan_name?.toLowerCase();
-    console.log('Plan name for path check:', planName);
-    
-    // Check for trial plan (including variations like "Trial", "trial", etc.)
-    if (planName === 'trial' || planName?.includes('trial')) {
-      // Trial plan: chat-trial, profile, and checkout pages
-      return ['/chat-trial', '/profile', '/basic-plan', '/premium-plan', '/ultimate-plan'];
-    } 
-    // Check for text & audio plan
-    else if (planName?.includes('text') && planName?.includes('audio')) {
-      // Text & Audio plan: chat-text-audio and profile
-      return ['/chat-text-audio', '/profile'];
+    // Se tem plano ativo, verificar qual plano
+    if (plan && plan.plan_active) {
+      const planName = plan.plan_name?.toLowerCase();
+      
+      if (planName?.includes('text') && planName?.includes('audio')) {
+        return ['/chat-text-audio', '/profile', '/plan'];
+      }
+      
+      // Para outros planos ativos, permitir pelo menos profile e plan
+      return ['/profile', '/plan'];
     }
-    
-    // Default: only profile access for unknown plans
-    return ['/profile'];
+
+    // Se não tem plano ativo, permitir apenas páginas de seleção de plano e perfil
+    return ['/profile', '/plan', '/selected-plan', '/free-plan', '/basic-plan', '/premium-plan', '/ultimate-plan'];
   };
 
-  const allowedPaths = getAllowedPaths();
-  const isAllowedPath = allowedPaths.includes(currentPath);
-
-  console.log('Current path:', currentPath);
-  console.log('Allowed paths:', allowedPaths);
-  console.log('Is allowed path:', isAllowedPath);
-  console.log('Plan data:', plan);
-
-  // If current path is not allowed, redirect to appropriate page
-  if (!isAllowedPath) {
-    if (!plan || !plan.plan_active) {
-      return <Navigate to="/profile" replace />;
+  // Mapeamento de planos para rota principal (fallback)
+  const getFallbackRoute = () => {
+    if (isTrialActive) {
+      return '/chat-trial';
     }
 
-    const planName = plan.plan_name?.toLowerCase();
-    
-    // Redirect to correct chat based on plan
-    if (planName === 'trial' || planName?.includes('trial')) {
-      console.log('Redirecting to trial chat');
-      return <Navigate to="/chat-trial" replace />;
-    } else if (planName?.includes('text') && planName?.includes('audio')) {
-      console.log('Redirecting to text-audio chat');
-      return <Navigate to="/chat-text-audio" replace />;
+    if (plan && plan.plan_active) {
+      const planName = plan.plan_name?.toLowerCase();
+      
+      if (planName?.includes('text') && planName?.includes('audio')) {
+        return '/chat-text-audio';
+      }
     }
-    
-    console.log('Redirecting to profile - unknown plan');
-    return <Navigate to="/profile" replace />;
+
+    return '/profile';
+  };
+
+  const allowedRoutes = getAllowedRoutes();
+  const fallbackRoute = getFallbackRoute();
+
+  console.log('ProtectedRoute - Current path:', currentPath);
+  console.log('ProtectedRoute - Allowed routes:', allowedRoutes);
+  console.log('ProtectedRoute - Trial active:', isTrialActive);
+  console.log('ProtectedRoute - Plan data:', plan);
+
+  // Se a rota atual é permitida, renderizar o conteúdo
+  if (allowedRoutes.includes(currentPath)) {
+    return <>{children}</>;
   }
 
-  // Render children if authenticated and on allowed path
-  return <>{children}</>;
+  // Se a rota não é permitida, redirecionar para a rota principal do plano
+  console.log('ProtectedRoute - Redirecting to fallback:', fallbackRoute);
+  return <Navigate to={fallbackRoute} replace />;
 };
 
 export default ProtectedRoute;

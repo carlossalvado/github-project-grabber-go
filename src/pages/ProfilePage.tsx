@@ -169,6 +169,55 @@ const ProfilePage = () => {
     setUserProfile((prev: any) => prev ? { ...prev, avatar_url: avatarUrl } : null);
   };
 
+  // Nova função centralizada de navegação para chat
+  const handleGoToChat = () => {
+    if (!user) {
+      toast.error('Você precisa estar logado para acessar o chat');
+      navigate('/login');
+      return;
+    }
+
+    let targetPath = '/profile'; // Rota padrão de segurança
+    let planName = '';
+
+    // Verificar se tem trial ativo primeiro
+    if (isTrialActive) {
+      targetPath = '/chat-trial';
+      planName = 'Trial';
+      toast.success('Redirecionando para o chat trial');
+    }
+    // Verificar se tem plano Text & Audio ativo
+    else if (planData?.plan_active && planData?.plan_name && 
+             (planData.plan_name.toLowerCase().includes('text') && planData.plan_name.toLowerCase().includes('audio'))) {
+      targetPath = '/chat-text-audio';
+      planName = 'Text & Audio';
+      toast.success('Redirecionando para o chat Text & Audio');
+    }
+    // Verificar plano do cache
+    else if (hasPlanActive()) {
+      const cachedPlanName = getPlanName();
+      if (cachedPlanName?.toLowerCase().includes('text') && cachedPlanName?.toLowerCase().includes('audio')) {
+        targetPath = '/chat-text-audio';
+        planName = 'Text & Audio';
+        toast.success('Redirecionando para o chat Text & Audio');
+      } else if (cachedPlanName?.toLowerCase().includes('trial')) {
+        targetPath = '/chat-trial';
+        planName = 'Trial';
+        toast.success('Redirecionando para o chat trial');
+      }
+    }
+
+    // Se não tem plano ativo, redirecionar para seleção de planos
+    if (targetPath === '/profile') {
+      toast.info('Escolha um plano para acessar o chat');
+      navigate('/');
+      return;
+    }
+
+    console.log('Navegando para:', targetPath, 'com plano:', planName);
+    navigate(targetPath);
+  };
+
   const getCurrentPlan = () => {
     // Priorizar dados mais recentes
     if (planData?.plan_active) {
@@ -201,42 +250,6 @@ const ProfilePage = () => {
     
     // Caso contrário, retornar nome do plano pago
     return planData?.plan_name || getPlanName() || userSubscription?.plan_name;
-  };
-
-  const handleChatRedirect = async () => {
-    if (!user) {
-      toast.error('Você precisa estar logado para acessar o chat');
-      navigate('/login');
-      return;
-    }
-
-    try {
-      // Verificar se tem plano Text & Audio ativo
-      const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
-      const isActivePlan = planData?.plan_active || hasPlanActive();
-      
-      if (isActivePlan && activePlanName && 
-          (activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio'))) {
-        navigate('/chat-text-audio');
-        toast.success('Redirecionando para o chat Text & Audio');
-        return;
-      }
-
-      // Se não tem plano Text & Audio ativo, verificar se tem trial ativo
-      if (isTrialActive) {
-        navigate('/chat-trial');
-        toast.success('Redirecionando para o chat trial');
-        return;
-      }
-
-      // Fallback para chat trial
-      navigate('/chat-trial');
-      toast.info('Redirecionando para o chat trial');
-    } catch (error: any) {
-      console.error('Erro ao verificar plano do usuário:', error);
-      navigate('/chat-trial');
-      toast.info('Redirecionando para o chat trial');
-    }
   };
 
   const currentPlan = getCurrentPlan();
@@ -534,16 +547,14 @@ const ProfilePage = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Só mostrar o botão se tiver um plano ativo */}
-                {hasAnyActivePlan() && (
-                  <Button 
-                    onClick={handleChatRedirect}
-                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
-                  >
-                    <MessageCircle className="w-5 h-5 mr-2" />
-                    Ir para Chat
-                  </Button>
-                )}
+                {/* Botão aparece sempre, mas com comportamento inteligente */}
+                <Button 
+                  onClick={handleGoToChat}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  {hasAnyActivePlan() ? 'Ir para Chat' : 'Escolher Plano'}
+                </Button>
                 
                 <Button 
                   onClick={handleSignOut}
