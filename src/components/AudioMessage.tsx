@@ -50,7 +50,8 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     return 'U';
   };
 
-  const handleAvatarClick = () => {
+  const handleAvatarClick = (event: React.MouseEvent) => {
+    event.preventDefault();
     if (isUser && userAvatarUrl && onAvatarClick) {
       onAvatarClick(userAvatarUrl, 'Você');
     } else if (!isUser && agentData?.avatar_url && onAvatarClick) {
