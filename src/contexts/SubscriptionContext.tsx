@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -141,6 +142,30 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     checkUrlForPaymentSuccess();
   }, [user, navigate]);
 
+  // Função para dar créditos baseado no plano
+  const givePlanCredits = async (planName: string) => {
+    if (!user) return false;
+
+    try {
+      console.log(`🎁 Dando créditos do plano ${planName} para o usuário`);
+      const { data, error } = await supabase.rpc('give_plan_credits', {
+        user_uuid: user.id,
+        plan_name_param: planName
+      });
+
+      if (error) {
+        console.error('Erro ao dar créditos do plano:', error);
+        return false;
+      }
+
+      console.log(`✅ Créditos do plano ${planName} dados com sucesso!`);
+      return data;
+    } catch (error) {
+      console.error('Erro ao dar créditos do plano:', error);
+      return false;
+    }
+  };
+
   // Nova função para verificar o sucesso do pagamento
   const verifyPaymentSuccess = async (redirectUrl?: string): Promise<boolean> => {
     if (!user) {
@@ -161,6 +186,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         // SALVAR NO CACHE IMEDIATAMENTE
         const planData = updatePlanAfterPayment(result.planName, true);
         console.log('💾 Dados salvos no cache após pagamento:', planData);
+
+        // DAR CRÉDITOS BASEADO NO PLANO
+        await givePlanCredits(result.planName);
         
         // CRIAR SUBSCRIPTION LOCAL
         const planDetails = plans.find(p => p.name === result.planName);
@@ -201,6 +229,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         // SALVAR NO CACHE IMEDIATAMENTE
         const planData = updatePlanAfterPayment(secondResult.planName, true);
         console.log('💾 Dados salvos no cache após pagamento (2ª tentativa):', planData);
+
+        // DAR CRÉDITOS BASEADO NO PLANO
+        await givePlanCredits(secondResult.planName);
         
         // CRIAR SUBSCRIPTION LOCAL
         const planDetails = plans.find(p => p.name === secondResult.planName);
@@ -312,6 +343,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       
       // Depois salvar no Supabase
       await saveToSupabase('plan', planData);
+
+      // Dar créditos baseado no plano
+      await givePlanCredits(selectedPlan.name);
       
       toast.success(`✅ Plano ${selectedPlan.name} ativado com sucesso!`);
     } catch (error: any) {
