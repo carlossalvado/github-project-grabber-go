@@ -433,6 +433,9 @@ const ProfilePage = () => {
                         </div>
                       ) : activePlanName && activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio') ? (
                         <div className="space-y-3">
+                          <p className="text-pink-400 text-2xl font-bold">
+                            U$ 20,99/mês
+                          </p>
                           <p className="text-slate-300 text-sm leading-relaxed">
                             Dados carregados...
                           </p>
