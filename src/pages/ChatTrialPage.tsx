@@ -18,6 +18,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
+import TrialTimer from '@/components/TrialTimer';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
@@ -399,6 +400,9 @@ const ChatTrialPage = () => {
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
+      {/* Trial Timer - Apenas para usuários trial */}
+      <TrialTimer />
+
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">

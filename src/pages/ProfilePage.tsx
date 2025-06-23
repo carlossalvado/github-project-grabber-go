@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -12,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import AvatarUpload from '@/components/AvatarUpload';
+import TrialTimer from '@/components/TrialTimer';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -263,6 +263,9 @@ const ProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
+      {/* Trial Timer - Apenas para usuários trial */}
+      <TrialTimer />
+
       {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
       
