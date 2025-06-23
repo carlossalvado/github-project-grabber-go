@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -526,7 +527,7 @@ const ChatTextAudioPage = () => {
           </div>
           <Input
             ref={inputRef}
-            className="bg-blue-900/30 border-blue-800/50 text-white placeholder:text-blue-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+            className="bg-[#2F3349] border-[#4A5568] text-white placeholder:text-blue-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
             placeholder="Digite uma mensagem ou use o áudio..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
