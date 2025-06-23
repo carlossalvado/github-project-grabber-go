@@ -67,28 +67,10 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
     }
   };
 
-  // Ícones customizados para TikTok e Kwai usando SVG
+  // Ícone customizado para TikTok usando SVG
   const TikTokIcon = () => (
     <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF0050">
       <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-1.183-.11 6.44 6.44 0 0 0-6.5 6.4 6.443 6.443 0 0 0 11.5 4.087V8.862a8.25 8.25 0 0 0 5.416 2.049v-3.225a4.813 4.813 0 0 1-1 0z"/>
-    </svg>
-  );
-
-  const KwaiIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-10 h-10">
-      <defs>
-        <linearGradient id="kwaiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF6B35" />
-          <stop offset="100%" stopColor="#F7931E" />
-        </linearGradient>
-      </defs>
-      <rect width="24" height="24" rx="5" fill="url(#kwaiGradient)"/>
-      <g fill="white">
-        <path d="M7.5 8.5c0-1.1.9-2 2-2h5c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2h-5c-1.1 0-2-.9-2-2v-7z"/>
-        <circle cx="10" cy="11" r="1.5" fill="url(#kwaiGradient)"/>
-        <circle cx="14" cy="11" r="1.5" fill="url(#kwaiGradient)"/>
-        <path d="M9.5 14h5c.3 0 .5.2.5.5s-.2.5-.5.5h-5c-.3 0-.5-.2-.5-.5s.2-.5.5-.5z" fill="url(#kwaiGradient)"/>
-      </g>
     </svg>
   );
 
@@ -97,16 +79,6 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] mx-auto bg-[#1a1d29] border border-blue-800/30 text-white overflow-auto">
-        {/* Custom Close Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 right-4 text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full z-10"
-          onClick={onClose}
-        >
-          <X size={20} />
-        </Button>
-
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -152,7 +124,11 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                     onClick={() => handleSocialClick(agentData.kwai_url!)}
                     className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
-                    <KwaiIcon />
+                    <img 
+                      src="/lovable-uploads/96e4826d-6291-4724-a50c-0f2692376c67.png" 
+                      alt="Kwai" 
+                      className="w-10 h-10 object-contain"
+                    />
                     <span className="text-lg font-medium text-white">Kwai</span>
                   </button>
                 )}
