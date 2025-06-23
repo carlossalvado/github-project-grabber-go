@@ -19,10 +19,12 @@ import GiftSelection from '@/components/GiftSelection';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { selectTextAudioPlan } = useSubscription();
   const { messages, addMessage, updateMessage } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
@@ -140,28 +142,7 @@ const ChatTrialPage = () => {
   };
 
   const handleUpgrade = async () => {
-    try {
-      // Buscar o plano "Text & Audio" na base de dados
-      const { data: plans, error } = await supabase
-        .from('plans')
-        .select('id, name')
-        .ilike('name', '%text%audio%')
-        .single();
-
-      if (error || !plans) {
-        console.error('Erro ao buscar plano Text & Audio:', error);
-        // Fallback: usar ID 2 se não encontrar
-        navigate('/plan/2');
-        return;
-      }
-
-      // Redirecionar para a página do plano Text & Audio
-      navigate(`/plan/${plans.id}`);
-    } catch (error) {
-      console.error('Erro ao processar upgrade:', error);
-      // Fallback: usar ID 2 se houver erro
-      navigate('/plan/2');
-    }
+    await selectTextAudioPlan();
   };
 
   const handleSendMessage = async () => {

@@ -37,6 +37,7 @@ type SubscriptionContextType = {
   userSubscription: Subscription | null;
   loading: boolean;
   selectPlan: (planId: number) => Promise<void>;
+  selectTextAudioPlan: () => Promise<void>;
   checkSubscriptionStatus: () => Promise<any>;
   openCustomerPortal: () => Promise<void>;
   verifyPaymentSuccess: (redirectUrl?: string) => Promise<boolean>;
@@ -320,6 +321,63 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  const selectTextAudioPlan = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para selecionar um plano");
+      return;
+    }
+
+    try {
+      // Buscar especificamente o plano "Text & Audio"
+      const textAudioPlan = plans.find(plan => 
+        plan.name.toLowerCase().includes('text') && 
+        plan.name.toLowerCase().includes('audio')
+      );
+      
+      if (!textAudioPlan) {
+        throw new Error("Plano Text & Audio não encontrado");
+      }
+
+      // Se tem Stripe price ID, criar checkout session
+      if (textAudioPlan.stripe_price_id) {
+        console.log("💳 Criando checkout Stripe para Text & Audio:", textAudioPlan);
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
+          body: { 
+            planId: textAudioPlan.id,
+            returnUrl: '/profile'
+          }
+        });
+        
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        
+        console.log("🔗 Redirecionando para checkout:", data.url);
+        window.location.href = data.url;
+        return;
+      }
+
+      // Para planos gratuitos, ativar diretamente
+      console.log("🆓 Ativando plano gratuito Text & Audio:", textAudioPlan);
+      
+      const planData = {
+        plan_name: textAudioPlan.name,
+        plan_active: true
+      };
+      
+      // Salvar no cache PRIMEIRO
+      savePlan(planData);
+      
+      // Depois salvar no Supabase
+      await saveToSupabase('plan', planData);
+      
+      toast.success(`✅ Plano ${textAudioPlan.name} ativado com sucesso!`);
+      navigate('/profile');
+    } catch (error: any) {
+      console.error("Error selecting Text & Audio plan:", error);
+      toast.error(error.message || "Falha ao selecionar o plano Text & Audio");
+    }
+  };
+
   const openCustomerPortal = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para gerenciar sua assinatura");
@@ -345,6 +403,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       userSubscription, 
       loading, 
       selectPlan, 
+      selectTextAudioPlan,
       checkSubscriptionStatus,
       verifyPaymentSuccess,
       openCustomerPortal 
