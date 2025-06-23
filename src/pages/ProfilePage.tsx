@@ -192,7 +192,26 @@ const ProfilePage = () => {
     }
 
     try {
-      // Consultar o plano ativo no Supabase
+      // Primeiro verificar se o usuário tem trial ativo
+      const { data: trialData, error: trialError } = await supabase
+        .from('trial_users')
+        .select('trial_end_date')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!trialError && trialData) {
+        const trialEndDate = new Date(trialData.trial_end_date);
+        const now = new Date();
+        
+        if (trialEndDate > now) {
+          // Trial ainda ativo - redirecionar para chat trial
+          navigate('/chat-trial');
+          toast.success('Redirecionando para o chat trial');
+          return;
+        }
+      }
+
+      // Se não tem trial ativo, verificar planos pagos
       const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .select('plan_name, status')
