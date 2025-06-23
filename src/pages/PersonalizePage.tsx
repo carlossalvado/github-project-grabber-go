@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -229,12 +228,22 @@ const PersonalizePage = () => {
       }
     }
     
-    // Recuperar o plano selecionado e redirecionar para o card único
-    const selectedPlanId = localStorage.getItem('selectedPlanId');
-    if (selectedPlanId) {
-      navigate(`/plan/${selectedPlanId}`);
+    // Verificar se é plano trial ou pago
+    const isTrialPlan = userData?.selectedPlan?.name?.toLowerCase().includes('trial');
+    
+    if (isTrialPlan) {
+      // Para trial, ir direto para o profile
+      toast.success('Personalização concluída! Bem-vindo ao trial de 72 horas!');
+      navigate('/profile');
     } else {
-      navigate('/home');
+      // Para planos pagos, ir para a página do produto único (SinglePlanCard)
+      const selectedPlanId = localStorage.getItem('selectedPlanId');
+      if (selectedPlanId) {
+        navigate(`/plan/${selectedPlanId}`);
+      } else {
+        // Fallback - ir para home se não tiver plano ID
+        navigate('/home');
+      }
     }
   };
 
@@ -494,7 +503,7 @@ const PersonalizePage = () => {
                 className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <Sparkles className="w-5 h-5 mr-2" />
-                Continuar para o Plano
+                {userData?.selectedPlan?.name?.toLowerCase().includes('trial') ? 'Finalizar Trial' : 'Continuar para Pagamento'}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             )}

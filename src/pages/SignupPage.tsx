@@ -48,7 +48,8 @@ const SignupPage = () => {
 
     try {
       // Determinar o tipo de plano
-      const planType = selectedPlan?.name?.toLowerCase().includes('trial') ? 'trial' : selectedPlan?.name?.toLowerCase();
+      const isTrialPlan = selectedPlan?.name?.toLowerCase().includes('trial');
+      const planType = isTrialPlan ? 'trial' : selectedPlan?.name?.toLowerCase();
       
       await signUp(email, password, fullName, planType);
       
@@ -64,14 +65,8 @@ const SignupPage = () => {
       
       toast.success('Conta criada com sucesso!');
       
-      // Redirecionar baseado no tipo de plano
-      if (planType === 'trial') {
-        // Para trial, ir diretamente para personalização e depois chat-trial
-        navigate('/personalize?redirect=chat-trial');
-      } else {
-        // Para outros planos, ir para personalização normal
-        navigate('/personalize');
-      }
+      // Sempre ir para personalização primeiro
+      navigate('/personalize');
     } catch (error: any) {
       toast.error('Erro ao criar conta: ' + error.message);
     } finally {
@@ -334,8 +329,8 @@ const SignupPage = () => {
                   <div className="mt-6 p-4 bg-pink-500/10 rounded-lg border border-pink-500/20">
                     <p className="text-pink-300 text-sm text-center">
                       ✨ {selectedPlan.name?.toLowerCase().includes('trial') 
-                        ? 'Após criar sua conta, você será direcionado para o chat trial por 72 horas!'
-                        : 'Após criar sua conta, você será direcionado para personalizar sua experiência!'
+                        ? 'Após criar sua conta, você será direcionado para personalizar sua experiência e depois para o profile!'
+                        : 'Após criar sua conta, você será direcionado para personalizar sua experiência e depois finalizar a compra!'
                       }
                     </p>
                   </div>
