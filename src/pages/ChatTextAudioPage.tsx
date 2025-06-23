@@ -52,12 +52,13 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Carregar avatar do usuário do cache
+  // Carregar avatar do usuário
   useEffect(() => {
     const avatarUrl = getAvatarUrl();
     setUserAvatarUrl(avatarUrl);
   }, [getAvatarUrl]);
 
+  // ... keep existing code (useEffect para fetchAgentData)
   useEffect(() => {
     const fetchAgentData = async () => {
       if (!user?.id) return;
@@ -102,6 +103,7 @@ const ChatTextAudioPage = () => {
     fetchAgentData();
   }, [user?.id]);
 
+  // ... keep existing code (todos os outros useEffect)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -159,6 +161,7 @@ const ChatTextAudioPage = () => {
     }
   }, []);
 
+  // ... keep existing code (todas as funções handlePlayAudio, getAssistantResponse, etc.)
   const handlePlayAudio = (messageId: string, audioUrl: string) => {
     if (audioRef.current && currentlyPlaying === messageId) {
       audioRef.current.pause();
