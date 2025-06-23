@@ -123,43 +123,43 @@ const EmoticonSelector: React.FC<EmoticonSelectorProps> = ({
     : categories[activeCategory as keyof typeof categories]?.emojis || [];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800 rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1d29] rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
+      <div className="flex justify-between items-center p-4 border-b border-blue-800/30 flex-shrink-0">
         <h3 className="text-lg font-semibold text-white">Emoticons</h3>
         <button 
           onClick={onClose} 
-          className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-full"
+          className="text-blue-200 hover:text-white transition-colors p-2 hover:bg-blue-900/50 rounded-full"
         >
           <X size={20} />
         </button>
       </div>
       
       {/* Search bar */}
-      <div className="p-4 border-b border-gray-700 flex-shrink-0">
+      <div className="p-4 border-b border-blue-800/30 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300" size={16} />
           <input
             type="text"
             placeholder="Pesquisar emoticons..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-700 text-white placeholder-gray-400 rounded-full pl-10 pr-4 py-2 border border-gray-600 focus:border-purple-500 focus:outline-none"
+            className="w-full bg-[#2F3349] text-white placeholder-blue-300 rounded-full pl-10 pr-4 py-2 border border-blue-800/50 focus:border-blue-500 focus:outline-none"
           />
         </div>
       </div>
       
       {/* Categories */}
       {!searchTerm && (
-        <div className="flex gap-1 p-4 border-b border-gray-700 overflow-x-auto flex-shrink-0">
+        <div className="flex gap-1 p-4 border-b border-blue-800/30 overflow-x-auto flex-shrink-0">
           {Object.entries(categories).map(([key, category]) => (
             <button
               key={key}
               onClick={() => setActiveCategory(key)}
               className={`flex-shrink-0 flex flex-col items-center gap-1 p-3 rounded-lg transition-colors min-w-[60px] ${
                 activeCategory === key 
-                  ? 'bg-purple-600 text-white' 
-                  : 'hover:bg-gray-700 text-gray-300'
+                  ? 'bg-blue-600 text-white' 
+                  : 'hover:bg-blue-900/50 text-blue-200'
               }`}
             >
               <span className="text-xl">{category.icon}</span>
@@ -175,7 +175,7 @@ const EmoticonSelector: React.FC<EmoticonSelectorProps> = ({
           {filteredEmojis.map((emoticon, index) => (
             <button
               key={`${emoticon}-${index}`}
-              className="text-2xl hover:bg-gray-700 p-3 rounded-lg transition-all hover:scale-110 transform duration-150 flex items-center justify-center h-12 w-12 active:scale-95"
+              className="text-2xl hover:bg-blue-900/50 p-3 rounded-lg transition-all hover:scale-110 transform duration-150 flex items-center justify-center h-12 w-12 active:scale-95"
               onClick={() => onSelect(emoticon)}
             >
               {emoticon}
@@ -184,7 +184,7 @@ const EmoticonSelector: React.FC<EmoticonSelectorProps> = ({
         </div>
         
         {filteredEmojis.length === 0 && searchTerm && (
-          <div className="text-center text-gray-400 py-8">
+          <div className="text-center text-blue-300 py-8">
             <span className="text-4xl mb-2 block">🔍</span>
             Nenhum emoticon encontrado
           </div>

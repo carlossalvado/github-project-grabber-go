@@ -102,13 +102,13 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl shadow-2xl max-h-[60vh] flex flex-col border-t border-gray-700">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1d29] rounded-t-3xl shadow-2xl max-h-[60vh] flex flex-col border-t border-blue-800/30">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
+      <div className="flex justify-between items-center p-4 border-b border-blue-800/30 flex-shrink-0">
         <h3 className="text-lg font-semibold text-white">Enviar Presente</h3>
         <button 
           onClick={onClose} 
-          className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-800 rounded-full"
+          className="text-blue-200 hover:text-white transition-colors p-1 hover:bg-blue-900/50 rounded-full"
         >
           <X size={20} />
         </button>
@@ -117,28 +117,28 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
       {loadingGifts ? (
         <div className="flex-1 flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-3"></div>
-            <p className="text-gray-300 text-sm">Carregando presentes...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+            <p className="text-blue-200 text-sm">Carregando presentes...</p>
           </div>
         </div>
       ) : (
         <div className="flex-1 p-4 overflow-y-auto">
-          <div className="grid grid-cols-6 gap-2 mb-4">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
             {gifts.map((gift) => (
               <button
                 key={gift.id}
-                className={`aspect-square p-2 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center text-center ${
+                className={`aspect-square p-3 md:p-4 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center text-center ${
                   selectedGift === gift.id 
-                    ? 'border-purple-500 bg-purple-900/50 shadow-lg' 
-                    : 'border-gray-600 hover:border-purple-400 hover:bg-gray-800'
+                    ? 'border-blue-500 bg-blue-900/50 shadow-lg' 
+                    : 'border-blue-800/50 hover:border-blue-400 hover:bg-blue-900/30'
                 }`}
                 onClick={() => setSelectedGift(gift.id)}
               >
-                <div className="text-2xl mb-1">{gift.image_url}</div>
-                <div className="text-[10px] text-white font-medium leading-tight mb-1">
+                <div className="text-4xl md:text-6xl lg:text-8xl mb-1 md:mb-2">{gift.image_url}</div>
+                <div className="text-xs md:text-sm text-white font-medium leading-tight mb-1">
                   {gift.name}
                 </div>
-                <div className="text-[9px] text-purple-400 font-bold">
+                <div className="text-xs md:text-sm text-blue-400 font-bold">
                   ${(gift.price / 100).toFixed(0)}
                 </div>
               </button>
@@ -148,7 +148,7 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
           {/* Send Button */}
           <Button
             onClick={handleGiftPurchase}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all duration-200"
             disabled={!selectedGift || loading}
           >
             {loading ? (
