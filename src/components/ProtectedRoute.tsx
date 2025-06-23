@@ -38,21 +38,30 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
 
     const planName = plan.plan_name?.toLowerCase();
+    console.log('Plan name for path check:', planName);
     
-    if (planName?.includes('trial')) {
+    // Check for trial plan (including variations like "Trial", "trial", etc.)
+    if (planName === 'trial' || planName?.includes('trial')) {
       // Trial plan: chat-trial, profile, and checkout pages
       return ['/chat-trial', '/profile', '/basic-plan', '/premium-plan', '/ultimate-plan'];
-    } else if (planName?.includes('text') && planName?.includes('audio')) {
+    } 
+    // Check for text & audio plan
+    else if (planName?.includes('text') && planName?.includes('audio')) {
       // Text & Audio plan: chat-text-audio and profile
       return ['/chat-text-audio', '/profile'];
     }
     
-    // Default: only profile access
+    // Default: only profile access for unknown plans
     return ['/profile'];
   };
 
   const allowedPaths = getAllowedPaths();
   const isAllowedPath = allowedPaths.includes(currentPath);
+
+  console.log('Current path:', currentPath);
+  console.log('Allowed paths:', allowedPaths);
+  console.log('Is allowed path:', isAllowedPath);
+  console.log('Plan data:', plan);
 
   // If current path is not allowed, redirect to appropriate page
   if (!isAllowedPath) {
@@ -62,12 +71,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     const planName = plan.plan_name?.toLowerCase();
     
-    if (planName?.includes('trial')) {
+    // Redirect to correct chat based on plan
+    if (planName === 'trial' || planName?.includes('trial')) {
+      console.log('Redirecting to trial chat');
       return <Navigate to="/chat-trial" replace />;
     } else if (planName?.includes('text') && planName?.includes('audio')) {
+      console.log('Redirecting to text-audio chat');
       return <Navigate to="/chat-text-audio" replace />;
     }
     
+    console.log('Redirecting to profile - unknown plan');
     return <Navigate to="/profile" replace />;
   }
 
