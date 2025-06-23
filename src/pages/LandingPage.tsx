@@ -23,6 +23,12 @@ const LandingPage = () => {
     navigate('/signup');
   };
 
+  // Filter out "Text Only" and "Premium" plans
+  const filteredPlans = plans.filter(plan => 
+    !plan.name.includes('Text Only') && 
+    !plan.name.includes('Premium')
+  );
+
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
       {/* Background Elements */}
@@ -230,15 +236,15 @@ const LandingPage = () => {
           {loading ? (
             <div className="text-center text-white">Carregando planos...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-              {plans.map((plan) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              {filteredPlans.map((plan) => (
                 <Card 
                   key={plan.id} 
                   className={`bg-slate-800/80 backdrop-blur-sm border-slate-700 relative ${
-                    plan.id === 3 ? 'scale-105 border-pink-500/50' : ''
+                    plan.id === 2 ? 'scale-105 border-pink-500/50' : ''
                   }`}
                 >
-                  {plan.id === 3 && (
+                  {plan.id === 2 && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                       <Badge className="bg-pink-500 text-white px-4 py-1">
                         <Star className="w-4 h-4 mr-1" />
@@ -248,7 +254,7 @@ const LandingPage = () => {
                   )}
                   
                   <CardHeader className="text-center">
-                    <div className={`w-12 h-12 ${plan.id === 3 ? 'bg-pink-500' : 'bg-slate-700'} rounded-xl mx-auto mb-4 flex items-center justify-center`}>
+                    <div className={`w-12 h-12 ${plan.id === 2 ? 'bg-pink-500' : 'bg-slate-700'} rounded-xl mx-auto mb-4 flex items-center justify-center`}>
                       {plan.id === 4 ? <Crown className="w-6 h-6 text-white" /> : <Heart className="w-6 h-6 text-white" />}
                     </div>
                     <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
@@ -292,7 +298,7 @@ const LandingPage = () => {
                     <Button
                       onClick={() => handlePlanSelect(plan.id)}
                       className={`w-full ${
-                        plan.id === 3 
+                        plan.id === 2 
                           ? 'bg-pink-500 hover:bg-pink-600 text-white' 
                           : 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
                       } font-semibold py-3 rounded-xl`}
