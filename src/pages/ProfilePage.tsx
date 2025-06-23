@@ -1,8 +1,3 @@
-   Peço desculpas, parece que a resposta anterior foi cortada.
-
-Aqui está o código completo do seu componente `ProfilePage.js` com a função `handleGoToChat` já corrigida. Você pode copiar e colar este bloco inteiro para substituir o seu arquivo atual.
-
-```javascript
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
