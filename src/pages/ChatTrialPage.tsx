@@ -9,23 +9,12 @@ import TrialExpiredModal from "@/components/TrialExpiredModal";
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Array<{ id: string; content: string; isUser: boolean; timestamp: Date }>>([]);
   const { showTrialExpiredModal, closeTrialExpiredModal } = useTrialExpiredModal();
 
   console.log('ChatTrialPage - Modal state:', { showTrialExpiredModal });
 
   const handleBack = () => {
     navigate('/profile');
-  };
-
-  const addMessage = (content: string, isUser: boolean) => {
-    const newMessage = {
-      id: Date.now().toString(),
-      content,
-      isUser,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, newMessage]);
   };
 
   return (
@@ -44,9 +33,12 @@ const ChatTrialPage = () => {
       </div>
       
       <ChatContainer
-        messages={messages}
-        onSendMessage={addMessage}
-        chatType="trial"
+        agentId="trial-agent"
+        nickname="Assistente Trial"
+        agentAvatar="/placeholder.svg"
+        subscription={null}
+        hasPremiumFeatures={false}
+        hasAudioFeature={false}
       />
 
       {/* Apenas renderizar o modal se showTrialExpiredModal for true */}

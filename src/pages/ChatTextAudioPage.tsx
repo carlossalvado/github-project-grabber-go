@@ -7,22 +7,11 @@ import ChatContainer from "@/components/ChatContainer";
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Array<{ id: string; content: string; isUser: boolean; timestamp: Date }>>([]);
 
   console.log('ChatTextAudioPage - Página carregada');
 
   const handleBack = () => {
     navigate('/profile');
-  };
-
-  const addMessage = (content: string, isUser: boolean) => {
-    const newMessage = {
-      id: Date.now().toString(),
-      content,
-      isUser,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, newMessage]);
   };
 
   return (
@@ -41,9 +30,12 @@ const ChatTextAudioPage = () => {
       </div>
       
       <ChatContainer
-        messages={messages}
-        onSendMessage={addMessage}
-        chatType="text-audio"
+        agentId="text-audio-agent"
+        nickname="Assistente Text & Audio"
+        agentAvatar="/placeholder.svg"
+        subscription={null}
+        hasPremiumFeatures={true}
+        hasAudioFeature={true}
       />
     </div>
   );
