@@ -186,48 +186,6 @@ const ChatTextAudioPage = () => {
     }
   }, []);
 
-  const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    if (audioRef.current && currentlyPlaying === messageId) {
-      audioRef.current.pause();
-      setCurrentlyPlaying(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.play().catch(e => console.error("Erro ao reproduzir áudio:", e));
-      setCurrentlyPlaying(messageId);
-      audioRef.current.onended = () => {
-        setCurrentlyPlaying(null);
-      };
-      audioRef.current.onerror = () => {
-        setCurrentlyPlaying(null);
-        toast.error("Erro ao reproduzir o áudio.");
-      };
-    }
-  };
-
-  const getAssistantResponse = async (messageText: string) => {
-    if (!user) return;
-    try {
-      const responseText = await sendToN8n(messageText, user.email!);
-      
-      const assistantMessageId = addMessage({
-        type: 'assistant',
-        transcription: responseText,
-        timestamp: new Date().toISOString()
-      });
-
-    } catch (error: any) {
-      console.error('Erro ao gerar resposta:', error);
-      addMessage({
-        type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`,
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;
     
@@ -241,6 +199,7 @@ const ChatTextAudioPage = () => {
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: audioUrl,
+        audioBlob: audioBlob, // Salvar blob no cache
         transcription: ''
       });
       
@@ -248,10 +207,12 @@ const ChatTextAudioPage = () => {
         type: 'assistant',
         transcription: '',
         timestamp: new Date().toISOString(),
-        audioUrl: result.audioUrl
+        audioUrl: result.audioUrl,
+        audioBlob: result.audioBlob // Salvar blob da resposta no cache
       });
 
       if (result.audioUrl) {
+        console.log('🎵 Reproduzindo áudio automaticamente...');
         setTimeout(() => {
           handlePlayAudio(assistantMessageId, result.audioUrl!);
         }, 500);
@@ -265,6 +226,7 @@ const ChatTextAudioPage = () => {
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: audioUrl,
+        audioBlob: audioBlob,
         transcription: ''
       });
       
@@ -275,6 +237,57 @@ const ChatTextAudioPage = () => {
       });
       
       toast.error('Erro ao processar áudio');
+    }
+  };
+
+  const handlePlayAudio = (messageId: string, audioUrl: string) => {
+    console.log('🎵 Tentando reproduzir áudio:', messageId, audioUrl);
+    
+    if (audioRef.current && currentlyPlaying === messageId) {
+      audioRef.current.pause();
+      setCurrentlyPlaying(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      
+      console.log('🎵 Criando novo elemento de áudio...');
+      audioRef.current = new Audio(audioUrl);
+      
+      audioRef.current.onloadstart = () => {
+        console.log('🎵 Carregamento do áudio iniciado');
+      };
+      
+      audioRef.current.oncanplay = () => {
+        console.log('✅ Áudio pode ser reproduzido');
+      };
+      
+      audioRef.current.onplay = () => {
+        console.log('▶️ Reprodução iniciada');
+        setCurrentlyPlaying(messageId);
+      };
+      
+      audioRef.current.onended = () => {
+        console.log('⏹️ Reprodução finalizada');
+        setCurrentlyPlaying(null);
+      };
+      
+      audioRef.current.onerror = (e) => {
+        console.error("❌ Erro ao reproduzir áudio:", e);
+        if (audioRef.current?.error) {
+          console.error('Código do erro:', audioRef.current.error.code);
+          console.error('Mensagem do erro:', audioRef.current.error.message);
+        }
+        setCurrentlyPlaying(null);
+        toast.error("Erro ao reproduzir o áudio. Tente novamente.");
+      };
+      
+      // Tentar reproduzir
+      audioRef.current.play().catch(e => {
+        console.error("❌ Erro no play():", e);
+        toast.error("Não foi possível reproduzir o áudio");
+        setCurrentlyPlaying(null);
+      });
     }
   };
 
