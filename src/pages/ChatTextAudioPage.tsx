@@ -241,12 +241,12 @@ const ChatTextAudioPage = () => {
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: audioUrl,
-        transcription: result.text || 'Áudio enviado'
+        transcription: ''
       });
       
       const assistantMessageId = addMessage({
         type: 'assistant',
-        transcription: result.text,
+        transcription: '',
         timestamp: new Date().toISOString(),
         audioUrl: result.audioUrl
       });
@@ -265,16 +265,16 @@ const ChatTextAudioPage = () => {
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: audioUrl,
-        transcription: 'Áudio enviado (erro no processamento)'
+        transcription: ''
       });
       
       addMessage({
         type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar seu áudio: ${error.message}`,
+        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
         timestamp: new Date().toISOString()
       });
       
-      toast.error('Erro ao processar áudio: ' + error.message);
+      toast.error('Erro ao processar áudio');
     }
   };
 

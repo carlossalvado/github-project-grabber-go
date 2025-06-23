@@ -77,9 +77,9 @@ export const useN8nAudioWebhook = () => {
       const audioUrl = URL.createObjectURL(audioResponseBlob);
       console.log('✅ URL do áudio criada:', audioUrl);
       
-      // Retornar sem validação prévia do áudio (deixar o player tentar reproduzir)
+      // Retornar sem mensagens automáticas desnecessárias
       return {
-        text: 'Resposta de áudio da Isa',
+        text: '',
         audioUrl: audioUrl
       };
       
