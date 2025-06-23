@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ELEVENLABS_API_KEY = 'sk_6e39400b5ad8d6ea99102feb040adcf92b21a57001c9fb2c';
+const ELEVENLABS_API_KEY = 'sk_2a65579efa5d083faa245e7ba5bbc261b557ba531780a305';
 const AGENT_ID = 'agent_01jxwps2rffj1tnfjqnzxdvktd';
 
 serve(async (req) => {
