@@ -52,11 +52,34 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Carregar avatar do usuário do cache
+  // Carregar avatar do usuário do Supabase
   useEffect(() => {
-    const avatarUrl = getAvatarUrl();
-    setUserAvatarUrl(avatarUrl);
-  }, [getAvatarUrl]);
+    const fetchUserAvatar = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Erro ao buscar avatar do usuário:', error);
+          return;
+        }
+
+        if (profile?.avatar_url) {
+          setUserAvatarUrl(profile.avatar_url);
+          console.log('Avatar do usuário carregado:', profile.avatar_url);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar avatar do usuário:', error);
+      }
+    };
+
+    fetchUserAvatar();
+  }, [user?.id]);
 
   useEffect(() => {
     const fetchAgentData = async () => {
