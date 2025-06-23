@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Heart, Mail, Lock, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,6 +15,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
+  const { plans } = useSubscription();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -30,6 +32,17 @@ const LoginPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleTrialSignup = () => {
+    // Salvar o plano Trial selecionado no localStorage antes de ir para o cadastro
+    const trialPlan = plans.find(p => p.trial_days > 0);
+    if (trialPlan) {
+      localStorage.setItem('selectedPlanId', trialPlan.id.toString());
+      localStorage.setItem('selectedPlanData', JSON.stringify(trialPlan));
+    }
+    // Redirecionar para a página de cadastro
+    navigate('/signup');
   };
 
   return (
@@ -190,12 +203,12 @@ const LoginPage = () => {
             <div className="mt-6 text-center">
               <p className="text-slate-400">
                 Ainda não tem uma conta?{' '}
-                <Link 
-                  to="/signup" 
-                  className="text-pink-500 hover:text-pink-400 font-medium transition-colors"
+                <button 
+                  onClick={handleTrialSignup}
+                  className="text-pink-500 hover:text-pink-400 font-medium transition-colors underline bg-transparent border-none cursor-pointer"
                 >
                   Criar conta
-                </Link>
+                </button>
               </p>
             </div>
           </CardContent>

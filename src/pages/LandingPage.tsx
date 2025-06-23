@@ -11,6 +11,17 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { plans, loading } = useSubscription();
 
+  const handleTrialSignup = () => {
+    // Salvar o plano Trial selecionado no localStorage antes de ir para o cadastro
+    const trialPlan = plans.find(p => p.trial_days > 0);
+    if (trialPlan) {
+      localStorage.setItem('selectedPlanId', trialPlan.id.toString());
+      localStorage.setItem('selectedPlanData', JSON.stringify(trialPlan));
+    }
+    // Redirecionar para a página de cadastro
+    navigate('/signup');
+  };
+
   const handlePlanSelect = (planId: number) => {
     // Salvar o plano selecionado no localStorage antes de ir para o cadastro
     localStorage.setItem('selectedPlanId', planId.toString());
@@ -128,7 +139,7 @@ const LandingPage = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Button
-              onClick={() => navigate('/signup')}
+              onClick={handleTrialSignup}
               className="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-4 px-8 rounded-xl text-lg"
             >
               Começar Grátis
@@ -342,7 +353,7 @@ const LandingPage = () => {
               Junte-se a milhares de pessoas que já descobriram o poder de conversas autênticas
             </p>
             <Button
-              onClick={() => navigate('/signup')}
+              onClick={handleTrialSignup}
               className="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-4 px-8 rounded-xl text-lg"
             >
               <Heart className="w-5 h-5 mr-2" fill="currentColor" />
