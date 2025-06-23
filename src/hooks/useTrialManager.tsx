@@ -58,6 +58,14 @@ export const useTrialManager = () => {
         } else {
           setHoursRemaining(0);
         }
+
+        // Salvar no cache
+        localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
+          ...data,
+          isActive,
+          hoursRemaining: isActive ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0,
+          cached_at: Date.now()
+        }));
       }
     } catch (error) {
       console.error('Erro ao buscar dados do trial:', error);
@@ -71,6 +79,7 @@ export const useTrialManager = () => {
     if (!user?.id) return false;
 
     try {
+      // Chamar a função do Supabase para iniciar o trial
       const { data, error } = await supabase.rpc('start_trial', {
         user_uuid: user.id
       });
@@ -80,6 +89,7 @@ export const useTrialManager = () => {
         return false;
       }
 
+      // Atualizar dados locais
       await fetchTrialData();
       return true;
     } catch (error) {
@@ -105,12 +115,41 @@ export const useTrialManager = () => {
 
       setIsTrialActive(false);
       setHoursRemaining(0);
+      
+      // Atualizar cache
+      const updatedData = { ...trialData, trial_active: false };
+      localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
+        ...updatedData,
+        isActive: false,
+        hoursRemaining: 0,
+        cached_at: Date.now()
+      }));
+
       return true;
     } catch (error) {
       console.error('Erro ao desativar trial:', error);
       return false;
     }
   };
+
+  // Carregar dados do cache inicialmente
+  useEffect(() => {
+    const cachedData = localStorage.getItem('sweet-ai-trial-data');
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        // Verificar se o cache não está muito antigo (máximo 5 minutos)
+        const cacheAge = Date.now() - (parsed.cached_at || 0);
+        if (cacheAge < 5 * 60 * 1000) { // 5 minutos
+          setTrialData(parsed);
+          setIsTrialActive(parsed.isActive || false);
+          setHoursRemaining(parsed.hoursRemaining || 0);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar cache do trial:', error);
+      }
+    }
+  }, []);
 
   // Buscar dados do Supabase quando usuário muda
   useEffect(() => {
