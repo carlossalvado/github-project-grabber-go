@@ -22,6 +22,7 @@ import GiftSelection from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
+import ProfileImageModal from '@/components/ProfileImageModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -40,6 +41,9 @@ const ChatTextAudioPage = () => {
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  const [selectedImageName, setSelectedImageName] = useState('');
   const [agentData, setAgentData] = useState({
     id: '',
     name: 'Isa',
@@ -430,8 +434,10 @@ const ChatTextAudioPage = () => {
     });
   };
 
-  const handleAvatarClick = () => {
-    setIsAgentProfileModalOpen(true);
+  const handleAvatarClick = (imageUrl: string, name: string) => {
+    setSelectedImageUrl(imageUrl);
+    setSelectedImageName(name);
+    setIsProfileImageModalOpen(true);
   };
 
   const renderMessage = (message: CachedMessage) => {
@@ -447,6 +453,7 @@ const ChatTextAudioPage = () => {
         timestamp={message.timestamp}
         isPlaying={currentlyPlaying === message.id}
         onPlayAudio={handlePlayAudio}
+        onAvatarClick={handleAvatarClick}
         agentData={agentData}
         userEmail={user?.email}
         userAvatarUrl={userAvatarUrl}
@@ -541,6 +548,14 @@ const ChatTextAudioPage = () => {
         isOpen={isAgentProfileModalOpen}
         onClose={() => setIsAgentProfileModalOpen(false)}
         agentId={agentData.id}
+      />
+
+      {/* Profile Image Modal */}
+      <ProfileImageModal
+        isOpen={isProfileImageModalOpen}
+        onClose={() => setIsProfileImageModalOpen(false)}
+        imageUrl={selectedImageUrl}
+        agentName={selectedImageName}
       />
 
       {/* Input Area */}

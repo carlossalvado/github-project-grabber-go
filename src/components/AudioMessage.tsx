@@ -13,6 +13,7 @@ interface AudioMessageProps {
   timestamp: string;
   isPlaying: boolean;
   onPlayAudio: (messageId: string, audioUrl: string) => void;
+  onAvatarClick?: (imageUrl: string, name: string) => void;
   agentData?: {
     id: string;
     name: string;
@@ -30,6 +31,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
   timestamp,
   isPlaying,
   onPlayAudio,
+  onAvatarClick,
   agentData,
   userEmail,
   userAvatarUrl
@@ -48,6 +50,14 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     return 'U';
   };
 
+  const handleAvatarClick = () => {
+    if (isUser && userAvatarUrl && onAvatarClick) {
+      onAvatarClick(userAvatarUrl, 'Você');
+    } else if (!isUser && agentData?.avatar_url && onAvatarClick) {
+      onAvatarClick(agentData.avatar_url, agentData.name);
+    }
+  };
+
   return (
     <div className={cn(
       'flex mb-4 max-w-[80%]',
@@ -56,7 +66,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
       {/* Avatar do agente - mostrar apenas se for mensagem do assistente à esquerda */}
       {!isUser && agentData && (
         <div className="mr-2 flex-shrink-0">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 cursor-pointer" onClick={handleAvatarClick}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-purple-600 text-white text-sm">
               {agentData.name.charAt(0)}
@@ -121,7 +131,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
       {/* Avatar do usuário - mostrar apenas se for mensagem do usuário à direita */}
       {isUser && (
         <div className="ml-2 flex-shrink-0">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 cursor-pointer" onClick={handleAvatarClick}>
             {userAvatarUrl ? (
               <AvatarImage src={userAvatarUrl} alt="Você" />
             ) : (
