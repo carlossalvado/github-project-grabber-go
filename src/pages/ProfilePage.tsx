@@ -194,13 +194,13 @@ const ProfilePage = () => {
     try {
       // Primeiro verificar se o usuário tem trial ativo
       const { data: trialData, error: trialError } = await supabase
-        .from('trial_users')
-        .select('trial_end_date')
+        .from('user_trials')
+        .select('trial_end')
         .eq('user_id', user.id)
         .single();
 
       if (!trialError && trialData) {
-        const trialEndDate = new Date(trialData.trial_end_date);
+        const trialEndDate = new Date(trialData.trial_end);
         const now = new Date();
         
         if (trialEndDate > now) {
