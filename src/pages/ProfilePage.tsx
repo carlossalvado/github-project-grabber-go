@@ -553,7 +553,6 @@ const ProfilePage = () => {
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
                 >
                   <MessageCircle className="w-5 h-5 mr-2" />
-                  {hasAnyActivePlan() ? 'Ir para Chat' : 'Escolher Plano'}
                 </Button>
                 
                 <Button 
