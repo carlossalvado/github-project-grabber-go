@@ -216,4 +216,80 @@ const ProfilePage = () => {
                                         <div className="flex items-center justify-center gap-3 mb-4">
                                             {activePlanName === 'Trial' && <Heart className="w-8 h-8 text-green-500" />}
                                             {activePlanName && activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio') && <Heart className="w-8 h-8 text-pink-500" />}
-                                            <Badge variant="default" className={`text-xl px-6 py-
+                                            <Badge variant="default" className={`text-xl px-6 py-2 font-bold shadow-lg ${activePlanName === 'Trial' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white'}`}>
+                                                {activePlanName}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 border border-slate-500 rounded-2xl p-6 text-center">
+                                       {/* Conteúdo do plano ativo... */}
+                                    </div>
+                                </div>
+                            ) : (
+                                // MODIFICAÇÃO 1: Botão removido daqui
+                                <div className="text-center py-8">
+                                    <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 border border-slate-500 rounded-2xl p-8">
+                                        <div className="w-16 h-16 bg-slate-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                                            <Heart className="w-8 h-8 text-slate-400" />
+                                        </div>
+                                        <p className="text-slate-400 mb-6 text-lg">Nenhum plano ativo</p>
+                                        {/* O BOTÃO "ESCOLHER PLANO" FOI REMOVIDO DESTA ÁREA */}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Account Information */}
+                    <Card className="bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur-sm border-slate-600 shadow-xl">
+                        {/* ... (conteúdo do card de informações da conta permanece o mesmo) ... */}
+                        <CardHeader>
+                           <CardTitle className="text-2xl text-white flex items-center gap-3"><div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center"><Mail className="w-6 h-6 text-blue-500" /></div>Informações da Conta</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 border border-slate-500 rounded-2xl p-6">
+                                <div className="flex items-center gap-4"><div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center"><Mail className="w-6 h-6 text-blue-500" /></div><div><p className="text-slate-400 text-sm">Email</p><p className="text-white text-lg font-medium">{user?.email}</p></div></div>
+                            </div>
+                            <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 border border-slate-500 rounded-2xl p-6">
+                                <div className="flex items-center gap-4"><div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center"><Calendar className="w-6 h-6 text-green-500" /></div><div><p className="text-slate-400 text-sm">Status da Conta</p><p className="text-green-400 text-lg font-medium">Verificada</p></div></div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Actions */}
+                <Card className="bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur-sm border-slate-600 shadow-xl">
+                    <CardHeader>
+                        <CardTitle className="text-2xl text-white flex items-center gap-3"><div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center"><User className="w-6 h-6 text-purple-500" /></div>Ações Rápidas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* MODIFICAÇÃO 2: O botão de Chat só aparece se houver um plano ativo */}
+                            {hasAnyActivePlan() && (
+                                <Button 
+                                    onClick={handleGoToChat}
+                                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+                                >
+                                    <MessageCircle className="w-5 h-5 mr-2" />
+                                    Ir para Chat
+                                </Button>
+                            )}
+                            
+                            <Button 
+                                onClick={handleSignOut}
+                                variant="outline"
+                                className="border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                            >
+                                <LogOut className="w-5 h-5 mr-2" />
+                                Sair
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    </div>
+  );
+};
+
+export default ProfilePage;
