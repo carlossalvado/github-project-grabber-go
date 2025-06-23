@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -85,13 +84,13 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-auto bg-[#1a1d29] border border-blue-800/30 text-white">
+      <DialogContent className="max-w-2xl max-h-[90vh] mx-auto bg-[#1a1d29] border border-blue-800/30 text-white overflow-auto">
         {/* Close Button */}
         <DialogClose asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4 text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full"
+            className="absolute top-4 right-4 text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full z-10"
             onClick={onClose}
           >
             <X size={20} />
@@ -104,14 +103,13 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
           </div>
         ) : agentData ? (
           <div className="p-6 text-center">
-            {/* Avatar - MADE LARGER */}
-            <div className="mb-4">
-              <Avatar className="w-40 h-40 mx-auto">
-                <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                <AvatarFallback className="bg-blue-800 text-white text-4xl">
-                  {agentData.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
+            {/* Large Image - Half Screen Size */}
+            <div className="mb-6">
+              <img 
+                src={agentData.avatar_url} 
+                alt={agentData.name}
+                className="w-full h-80 object-cover rounded-lg mx-auto"
+              />
             </div>
 
             {/* Name */}
