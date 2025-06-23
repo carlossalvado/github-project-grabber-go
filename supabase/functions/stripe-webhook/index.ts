@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -97,8 +98,8 @@ async function handleCheckoutCompleted(supabaseClient: any, stripe: Stripe, even
   const session = event.data.object as Stripe.Checkout.Session;
   logStep("Processing checkout completed", { sessionId: session.id });
 
-  // Check if this is a credit purchase
-  if (session.metadata?.credits && session.metadata?.user_id) {
+  // Check if this is an audio credit purchase
+  if (session.metadata?.credits && session.metadata?.user_id && session.metadata?.credit_type === 'audio') {
     const credits = parseInt(session.metadata.credits);
     const userId = session.metadata.user_id;
     
@@ -114,6 +115,27 @@ async function handleCheckoutCompleted(supabaseClient: any, stripe: Stripe, even
       logStep("Error adding audio credits", { error });
     } else {
       logStep("Audio credits added successfully", { userId, credits });
+    }
+    return;
+  }
+
+  // Check if this is a voice credit purchase
+  if (session.metadata?.credits && session.metadata?.user_id && session.metadata?.credit_type === 'voice') {
+    const credits = parseInt(session.metadata.credits);
+    const userId = session.metadata.user_id;
+    
+    logStep("Processing voice credits purchase", { userId, credits, sessionId: session.id });
+    
+    const { error } = await supabaseClient.rpc('add_voice_credits', {
+      user_uuid: userId,
+      credit_amount: credits,
+      session_id: session.id
+    });
+
+    if (error) {
+      logStep("Error adding voice credits", { error });
+    } else {
+      logStep("Voice credits added successfully", { userId, credits });
     }
     return;
   }

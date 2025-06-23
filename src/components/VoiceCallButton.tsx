@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
 import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
+import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
 import VoiceCallModal from './VoiceCallModal';
+import VoiceCreditsModal from './VoiceCreditsModal';
 
 interface VoiceCallButtonProps {
   agentName?: string;
@@ -23,13 +25,29 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
     endCall 
   } = useElevenLabsConversation();
 
+  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useVoiceCredits();
+
   const [showModal, setShowModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
   const handleClick = async () => {
     if (isConnected) {
       await endCall();
       setShowModal(false);
     } else {
+      // Verificar créditos antes de iniciar chamada
+      if (!hasCredits) {
+        setShowCreditsModal(true);
+        return;
+      }
+      
+      // Consumir crédito IMEDIATAMENTE ao iniciar a chamada
+      const creditConsumed = await consumeCredit();
+      if (!creditConsumed) {
+        setShowCreditsModal(true);
+        return;
+      }
+      
       setShowModal(true);
       await startCall();
     }
@@ -55,20 +73,28 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
   return (
     <>
-      <Button
-        variant={isConnected ? "destructive" : "default"}
-        size="sm"
-        onClick={handleClick}
-        disabled={isConnecting}
-        className={cn(
-          "flex items-center gap-2 transition-all",
-          isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
-          isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
+      <div className="flex flex-col items-center gap-1">
+        <Button
+          variant={isConnected ? "destructive" : "default"}
+          size="sm"
+          onClick={handleClick}
+          disabled={isConnecting}
+          className={cn(
+            "flex items-center gap-2 transition-all",
+            isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
+            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700",
+            !hasCredits && "opacity-50"
+          )}
+        >
+          {getIcon()}
+          {getButtonText()}
+        </Button>
+        {!creditsLoading && (
+          <span className="text-xs text-purple-400 font-medium">
+            {credits}
+          </span>
         )}
-      >
-        {getIcon()}
-        {getButtonText()}
-      </Button>
+      </div>
 
       <VoiceCallModal
         isOpen={showModal}
@@ -78,6 +104,12 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         isConnected={isConnected}
         isSpeaking={isSpeaking}
         isConnecting={isConnecting}
+      />
+
+      <VoiceCreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        currentCredits={credits}
       />
     </>
   );

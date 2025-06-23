@@ -11,6 +11,7 @@ import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useAudioCredits } from '@/hooks/useAudioCredits';
+import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -29,6 +30,7 @@ const ChatTextAudioPage = () => {
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
+  const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
     
   const [input, setInput] = useState('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -111,6 +113,22 @@ const ChatTextAudioPage = () => {
     
     if (creditsCanceled === 'true') {
       toast.error('Compra de créditos cancelada');
+      window.history.replaceState({}, document.title, '/chat-text-audio');
+    }
+
+    // Adicionar tratamento para créditos de voz
+    const voiceCreditsSuccess = urlParams.get('voice_credits_success');
+    const voiceCreditsAmount = urlParams.get('credits');
+    const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
+    
+    if (voiceCreditsSuccess === 'true' && voiceCreditsAmount) {
+      toast.success(`${voiceCreditsAmount} créditos de chamada de voz adicionados com sucesso!`);
+      refreshVoiceCredits();
+      window.history.replaceState({}, document.title, '/chat-text-audio');
+    }
+    
+    if (voiceCreditsCanceled === 'true') {
+      toast.error('Compra de créditos de chamada de voz cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
 
@@ -329,8 +347,6 @@ const ChatTextAudioPage = () => {
     console.log('=== PROCESSANDO MENSAGEM DE ÁUDIO ===');
     console.log('Blob:', blob.size, 'bytes, tipo:', blob.type);
     console.log('URL:', url);
-
-    // REMOVIDO: toast.info("Processando seu áudio...");
 
     try {
       await getAssistantAudioResponse(blob, url);

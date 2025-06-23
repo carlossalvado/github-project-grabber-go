@@ -422,6 +422,87 @@ export type Database = {
         }
         Relationships: []
       }
+      user_voice_credits: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      voice_credit_products: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          name: string
+          price: number
+          stripe_price_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          name: string
+          price: number
+          stripe_price_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          name?: string
+          price?: number
+          stripe_price_id?: string | null
+        }
+        Relationships: []
+      }
+      voice_credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          stripe_session_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          stripe_session_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          stripe_session_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -431,7 +512,15 @@ export type Database = {
         Args: { user_uuid: string; credit_amount: number; session_id?: string }
         Returns: boolean
       }
+      add_voice_credits: {
+        Args: { user_uuid: string; credit_amount: number; session_id?: string }
+        Returns: boolean
+      }
       consume_audio_credit: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      consume_voice_credit: {
         Args: { user_uuid: string }
         Returns: boolean
       }
