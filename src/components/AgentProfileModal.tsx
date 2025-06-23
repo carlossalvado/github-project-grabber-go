@@ -75,8 +75,8 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   );
 
   const KwaiIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF6A00">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-1.5-1.5L11 13l-2.5-2.5L10 9l3 3-3 3zm5-3l-1.5 1.5L11 13l2.5-2.5L12 9l-3 3 3 3z"/>
+    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF6600">
+      <path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0zm-1.5 18l-3-3 1.5-1.5 1.5 1.5 3-3 1.5 1.5-4.5 4.5zm0-6l-3-3 1.5-1.5 1.5 1.5 3-3 1.5 1.5-4.5 4.5z"/>
     </svg>
   );
 
