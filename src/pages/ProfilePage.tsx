@@ -436,9 +436,6 @@ const ProfilePage = () => {
                           <p className="text-pink-400 text-2xl font-bold">
                             U$ 20,99/mês
                           </p>
-                          <p className="text-slate-300 text-sm leading-relaxed">
-                            Dados carregados...
-                          </p>
                         </div>
                       ) : currentPlan && (
                         <div className="space-y-3">
@@ -447,15 +444,6 @@ const ProfilePage = () => {
                           </p>
                           <p className="text-slate-300 text-sm leading-relaxed">
                             {currentPlan.description}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Debug info */}
-                      {planData?.from_supabase && (
-                        <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
-                          <p className="text-xs text-slate-400">
-                            Dados carregados do Supabase
                           </p>
                         </div>
                       )}
@@ -468,7 +456,7 @@ const ProfilePage = () => {
                         </div>
                       )}
                       
-                      {plan && !planData?.from_supabase && !isTrialActive && (
+                      {plan && !planData?.from_supabase && !isTrialActive && !activePlanName?.toLowerCase().includes('text') && (
                         <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
                           <p className="text-xs text-slate-400">
                             Cache: {new Date(plan.cached_at).toLocaleString()}
