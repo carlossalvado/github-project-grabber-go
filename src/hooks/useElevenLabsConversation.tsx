@@ -22,7 +22,7 @@ export const useElevenLabsConversation = () => {
     },
     onError: (error) => {
       console.error('❌ Erro na chamada:', error);
-      toast.error('Erro na chamada de voz: ' + error.message);
+      toast.error('Erro na chamada de voz: ' + error);
       setIsConnecting(false);
       setConversationId(null);
     },
@@ -47,7 +47,7 @@ export const useElevenLabsConversation = () => {
 
       // Iniciar conversação
       const id = await conversation.startSession({ 
-        url: data.signed_url 
+        signedUrl: data.signed_url 
       });
       
       setConversationId(id);
