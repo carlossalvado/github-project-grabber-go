@@ -75,13 +75,19 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   );
 
   const KwaiIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF3D00">
-      <rect width="24" height="24" rx="4" fill="#FF3D00"/>
+    <svg viewBox="0 0 24 24" className="w-10 h-10">
+      <defs>
+        <linearGradient id="kwaiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF6B35" />
+          <stop offset="100%" stopColor="#F7931E" />
+        </linearGradient>
+      </defs>
+      <rect width="24" height="24" rx="5" fill="url(#kwaiGradient)"/>
       <g fill="white">
-        <circle cx="9" cy="8" r="2.5"/>
-        <circle cx="15" cy="8" r="1.5"/>
-        <path d="M6 15c0-1.5 1-3 3-3h6c2 0 3 1.5 3 3v2c0 1-0.5 1.5-1.5 1.5h-9C6.5 18.5 6 18 6 17v-2z"/>
-        <rect x="8" y="13" width="2" height="3" rx="1"/>
+        <path d="M7.5 8.5c0-1.1.9-2 2-2h5c1.1 0 2 .9 2 2v7c0 1.1-.9 2-2 2h-5c-1.1 0-2-.9-2-2v-7z"/>
+        <circle cx="10" cy="11" r="1.5" fill="url(#kwaiGradient)"/>
+        <circle cx="14" cy="11" r="1.5" fill="url(#kwaiGradient)"/>
+        <path d="M9.5 14h5c.3 0 .5.2.5.5s-.2.5-.5.5h-5c-.3 0-.5-.2-.5-.5s.2-.5.5-.5z" fill="url(#kwaiGradient)"/>
       </g>
     </svg>
   );
@@ -134,7 +140,7 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                 {agentData.tiktok_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.tiktok_url!)}
-                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
+                    className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <TikTokIcon />
                     <span className="text-lg font-medium text-white">TikTok</span>
@@ -144,7 +150,7 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                 {agentData.kwai_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.kwai_url!)}
-                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
+                    className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <KwaiIcon />
                     <span className="text-lg font-medium text-white">Kwai</span>
@@ -154,7 +160,7 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                 {agentData.facebook_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.facebook_url!)}
-                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
+                    className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <Facebook size={40} className="text-[#1877F2]" />
                     <span className="text-lg font-medium text-white">Facebook</span>
@@ -164,7 +170,7 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                 {agentData.instagram_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.instagram_url!)}
-                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
+                    className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <Instagram size={40} className="text-[#E4405F]" />
                     <span className="text-lg font-medium text-white">Instagram</span>
