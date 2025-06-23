@@ -19,6 +19,7 @@ export const useSupabaseSync = () => {
             .upsert({
               id: user.id,
               full_name: data.full_name,
+              avatar_url: data.avatar_url,
               plan_name: data.plan_name || null,
               plan_active: data.plan_active || false,
               updated_at: new Date().toISOString()

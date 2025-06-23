@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -5,17 +6,22 @@ import { useUserCache } from '@/hooks/useUserCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, Settings, LogOut, MessageCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { User, Mail, CreditCard, Calendar, Sparkles, Crown, Heart, LogOut, MessageCircle, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import AvatarUpload from '@/components/AvatarUpload';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { userSubscription, plans, checkSubscriptionStatus } = useSubscription();
-  const { plan, profile, hasPlanActive, getPlanName, loadFromCache } = useUserCache();
+  const { plan, profile, hasPlanActive, getPlanName, getAvatarUrl, getFullName, loadFromCache, updateAvatar, saveProfile } = useUserCache();
   const navigate = useNavigate();
   const [planData, setPlanData] = useState<any>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Escutar eventos de atualização do plano
   useEffect(() => {
@@ -29,6 +35,41 @@ const ProfilePage = () => {
     window.addEventListener('planUpdated', handlePlanUpdate);
     return () => window.removeEventListener('planUpdated', handlePlanUpdate);
   }, []);
+
+  // Carregar dados do perfil do Supabase
+  const loadUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar perfil:', error);
+        return;
+      }
+
+      if (data) {
+        setUserProfile(data);
+        setFullName(data.full_name || '');
+        
+        // Salvar no cache
+        saveProfile({
+          id: data.id,
+          full_name: data.full_name,
+          email: user.email || '',
+          avatar_url: data.avatar_url,
+          plan_name: data.plan_name,
+          plan_active: data.plan_active
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
+  };
 
   // Função para carregar dados do plano (cache primeiro, depois Supabase)
   const loadPlanData = async () => {
@@ -60,6 +101,7 @@ const ProfilePage = () => {
   useEffect(() => {
     if (user) {
       loadPlanData();
+      loadUserProfile();
     }
   }, [user]);
 
@@ -86,6 +128,45 @@ const ProfilePage = () => {
     navigate('/', { replace: true });
   };
 
+  const handleSaveName = async () => {
+    if (!user || !fullName.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: fullName.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Atualizar cache
+      saveProfile({
+        id: user.id,
+        full_name: fullName.trim(),
+        email: user.email || '',
+        avatar_url: getAvatarUrl(),
+        plan_name: getPlanName(),
+        plan_active: hasPlanActive()
+      });
+
+      setIsEditingName(false);
+      toast.success('Nome atualizado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao atualizar nome:', error);
+      toast.error('Erro ao atualizar nome');
+    }
+  };
+
+  const handleAvatarUpdate = (avatarUrl: string) => {
+    updateAvatar(avatarUrl);
+    setUserProfile((prev: any) => prev ? { ...prev, avatar_url: avatarUrl } : null);
+  };
+
   const getCurrentPlan = () => {
     // Priorizar dados mais recentes
     if (planData?.plan_active) {
@@ -102,10 +183,6 @@ const ProfilePage = () => {
     if (!userSubscription) return null;
     return userSubscription.plan || plans.find(plan => plan.id === userSubscription.plan_id);
   };
-
-  const currentPlan = getCurrentPlan();
-  const isActivePlan = planData?.plan_active || hasPlanActive();
-  const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
 
   const handleChatRedirect = async () => {
     if (!user) {
@@ -177,6 +254,12 @@ const ProfilePage = () => {
       navigate('/');
     }
   };
+
+  const currentPlan = getCurrentPlan();
+  const isActivePlan = planData?.plan_active || hasPlanActive();
+  const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+  const displayName = fullName || getFullName() || 'Usuário';
+  const avatarUrl = userProfile?.avatar_url || getAvatarUrl();
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
@@ -255,16 +338,11 @@ const ProfilePage = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="relative inline-block">
-            <div className="w-24 h-24 bg-gradient-to-br from-pink-500 to-purple-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-2xl">
-              <User className="w-12 h-12 text-white" />
-            </div>
-            <div className="absolute -top-2 -right-2 w-16 h-16 rounded-full overflow-hidden opacity-40">
-              <img 
-                src="/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png" 
-                alt="AI Avatar" 
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <AvatarUpload 
+              currentAvatarUrl={avatarUrl}
+              onAvatarUpdate={handleAvatarUpdate}
+              userName={displayName}
+            />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent mb-4">
             Meu Perfil
@@ -278,17 +356,42 @@ const ProfilePage = () => {
           {/* Profile Overview Card */}
           <Card className="bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur-sm border-slate-600 shadow-2xl">
             <CardHeader className="text-center pb-4">
-              <div className="relative inline-block">
-                <div className="w-28 h-28 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-4xl text-white font-bold">
-                    {user?.email?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full border-2 border-slate-800"></div>
+              <div className="flex items-center justify-center gap-4 mb-4">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Digite seu nome"
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Button onClick={handleSaveName} size="sm">
+                      Salvar
+                    </Button>
+                    <Button 
+                      onClick={() => setIsEditingName(false)} 
+                      variant="outline" 
+                      size="sm"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-3xl text-white">{displayName}</CardTitle>
+                    <Button
+                      onClick={() => setIsEditingName(true)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
-              <CardTitle className="text-3xl text-white">{user?.email}</CardTitle>
               <CardDescription className="text-lg text-slate-300">
-                Membro ativo da comunidade Isa Date
+                {user?.email}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -418,27 +521,19 @@ const ProfilePage = () => {
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                  <Settings className="w-6 h-6 text-purple-500" />
+                  <User className="w-6 h-6 text-purple-500" />
                 </div>
                 Ações Rápidas
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   onClick={handleChatRedirect}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
                 >
                   <MessageCircle className="w-5 h-5 mr-2" />
                   Ir para Chat
-                </Button>
-                
-                <Button 
-                  onClick={() => navigate('/personalize')}
-                  className="bg-transparent border-2 border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white py-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
-                >
-                  <Settings className="w-5 h-5 mr-2" />
-                  Personalizar
                 </Button>
                 
                 <Button 

@@ -11,6 +11,7 @@ type UserProfile = {
   id: string;
   full_name: string | null;
   email: string;
+  avatar_url?: string | null;
   plan_name?: string | null;
   plan_active?: boolean;
   cached_at: number;
@@ -134,6 +135,20 @@ export const useUserCache = () => {
     return planData;
   };
 
+  // Função para atualizar avatar
+  const updateAvatar = (avatarUrl: string) => {
+    if (profile) {
+      const updatedProfile = {
+        ...profile,
+        avatar_url: avatarUrl,
+        cached_at: Date.now()
+      };
+      localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(updatedProfile));
+      setProfile(updatedProfile);
+      console.log('✅ Avatar atualizado no cache:', avatarUrl);
+    }
+  };
+
   // Limpar todo o cache
   const clearCache = () => {
     localStorage.removeItem(USER_PROFILE_CACHE_KEY);
@@ -155,6 +170,16 @@ export const useUserCache = () => {
     return plan?.plan_name || null;
   };
 
+  // Obter avatar URL
+  const getAvatarUrl = () => {
+    return profile?.avatar_url || null;
+  };
+
+  // Obter nome completo
+  const getFullName = () => {
+    return profile?.full_name || null;
+  };
+
   return {
     profile,
     agent,
@@ -163,9 +188,12 @@ export const useUserCache = () => {
     saveAgent,
     savePlan,
     updatePlanAfterPayment,
+    updateAvatar,
     clearCache,
     loadFromCache,
     hasPlanActive,
-    getPlanName
+    getPlanName,
+    getAvatarUrl,
+    getFullName
   };
 };
