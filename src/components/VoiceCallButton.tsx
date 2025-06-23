@@ -1,36 +1,54 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, PhoneOff, Loader2 } from 'lucide-react';
-import { useElevenLabsWidget } from '@/hooks/useElevenLabsWidget';
+import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
+import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
+import { cn } from '@/lib/utils';
 
 const VoiceCallButton: React.FC = () => {
-  const { isWidgetActive, isLoading, initializeWidget, endCall } = useElevenLabsWidget();
+  const { 
+    isConnecting, 
+    isConnected, 
+    isSpeaking, 
+    startCall, 
+    endCall 
+  } = useElevenLabsConversation();
 
   const handleClick = () => {
-    if (isWidgetActive) {
+    if (isConnected) {
       endCall();
     } else {
-      initializeWidget();
+      startCall();
     }
+  };
+
+  const getButtonText = () => {
+    if (isConnecting) return 'Conectando...';
+    if (isConnected) return 'Encerrar Chamada';
+    return 'Chamada de Voz';
+  };
+
+  const getIcon = () => {
+    if (isConnecting) return <Loader2 size={16} className="animate-spin" />;
+    if (isConnected && isSpeaking) return <Mic size={16} className="animate-pulse" />;
+    if (isConnected) return <PhoneOff size={16} />;
+    return <Phone size={16} />;
   };
 
   return (
     <Button
-      variant={isWidgetActive ? "destructive" : "default"}
+      variant={isConnected ? "destructive" : "default"}
       size="sm"
       onClick={handleClick}
-      disabled={isLoading}
-      className="flex items-center gap-2"
-    >
-      {isLoading ? (
-        <Loader2 size={16} className="animate-spin" />
-      ) : isWidgetActive ? (
-        <PhoneOff size={16} />
-      ) : (
-        <Phone size={16} />
+      disabled={isConnecting}
+      className={cn(
+        "flex items-center gap-2 transition-all",
+        isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
+        isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
       )}
-      {isLoading ? 'Conectando...' : isWidgetActive ? 'Encerrar Chamada' : 'Chamada de Voz'}
+    >
+      {getIcon()}
+      {getButtonText()}
     </Button>
   );
 };
