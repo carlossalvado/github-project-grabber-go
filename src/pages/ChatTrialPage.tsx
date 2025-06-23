@@ -135,6 +135,35 @@ const ChatTrialPage = () => {
     setIsProfileModalOpen(true);
   };
 
+  const handleGoBack = () => {
+    navigate('/profile');
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      // Buscar o plano "Text & Audio" na base de dados
+      const { data: plans, error } = await supabase
+        .from('plans')
+        .select('id, name')
+        .ilike('name', '%text%audio%')
+        .single();
+
+      if (error || !plans) {
+        console.error('Erro ao buscar plano Text & Audio:', error);
+        // Fallback: usar ID 2 se não encontrar
+        navigate('/plan/2');
+        return;
+      }
+
+      // Redirecionar para a página do plano Text & Audio
+      navigate(`/plan/${plans.id}`);
+    } catch (error) {
+      console.error('Erro ao processar upgrade:', error);
+      // Fallback: usar ID 2 se houver erro
+      navigate('/plan/2');
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || n8nLoading || !user || !isTrialActive) return;
 
@@ -410,7 +439,7 @@ const ChatTrialPage = () => {
             variant="ghost"
             size="icon"
             className="text-gray-400 hover:text-white"
-            onClick={() => navigate(-1)}
+            onClick={handleGoBack}
           >
             <ArrowLeft size={20} />
           </Button>
@@ -430,7 +459,7 @@ const ChatTrialPage = () => {
           variant="ghost"
           size="sm"
           className="text-orange-400 hover:text-orange-300"
-          onClick={() => navigate('/')}
+          onClick={handleUpgrade}
         >
           Fazer Upgrade
         </Button>
@@ -444,7 +473,7 @@ const ChatTrialPage = () => {
             <Button 
               variant="link" 
               className="text-orange-400 underline p-0 ml-1"
-              onClick={() => navigate('/')}
+              onClick={handleUpgrade}
             >
               Faça upgrade agora!
             </Button>
