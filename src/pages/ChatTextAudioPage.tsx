@@ -439,7 +439,10 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <VoiceCallButton />
+          <VoiceCallButton 
+            agentName={agentData.name}
+            agentAvatar={agentData.avatar_url}
+          />
           <Button
             variant="ghost"
             size="sm"

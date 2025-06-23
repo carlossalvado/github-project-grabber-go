@@ -1,11 +1,20 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
 import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
 import { cn } from '@/lib/utils';
+import VoiceCallModal from './VoiceCallModal';
 
-const VoiceCallButton: React.FC = () => {
+interface VoiceCallButtonProps {
+  agentName?: string;
+  agentAvatar?: string;
+}
+
+const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
+  agentName = 'Isa',
+  agentAvatar = '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
+}) => {
   const { 
     isConnecting, 
     isConnected, 
@@ -14,12 +23,21 @@ const VoiceCallButton: React.FC = () => {
     endCall 
   } = useElevenLabsConversation();
 
-  const handleClick = () => {
+  const [showModal, setShowModal] = useState(false);
+
+  const handleClick = async () => {
     if (isConnected) {
-      endCall();
+      await endCall();
+      setShowModal(false);
     } else {
-      startCall();
+      setShowModal(true);
+      await startCall();
     }
+  };
+
+  const handleEndCall = async () => {
+    await endCall();
+    setShowModal(false);
   };
 
   const getButtonText = () => {
@@ -36,20 +54,32 @@ const VoiceCallButton: React.FC = () => {
   };
 
   return (
-    <Button
-      variant={isConnected ? "destructive" : "default"}
-      size="sm"
-      onClick={handleClick}
-      disabled={isConnecting}
-      className={cn(
-        "flex items-center gap-2 transition-all",
-        isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
-        isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
-      )}
-    >
-      {getIcon()}
-      {getButtonText()}
-    </Button>
+    <>
+      <Button
+        variant={isConnected ? "destructive" : "default"}
+        size="sm"
+        onClick={handleClick}
+        disabled={isConnecting}
+        className={cn(
+          "flex items-center gap-2 transition-all",
+          isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
+          isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
+        )}
+      >
+        {getIcon()}
+        {getButtonText()}
+      </Button>
+
+      <VoiceCallModal
+        isOpen={showModal}
+        onEndCall={handleEndCall}
+        agentName={agentName}
+        agentAvatar={agentAvatar}
+        isConnected={isConnected}
+        isSpeaking={isSpeaking}
+        isConnecting={isConnecting}
+      />
+    </>
   );
 };
 
