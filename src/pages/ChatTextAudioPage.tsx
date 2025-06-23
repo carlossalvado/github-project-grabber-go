@@ -421,7 +421,7 @@ const ChatTextAudioPage = () => {
 
   if (!user) {
     return (
-      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="h-screen bg-[#2F3349] text-white flex items-center justify-center">
         <p>Por favor, faça login para acessar o chat.</p>
       </div>
     );
@@ -431,25 +431,25 @@ const ChatTextAudioPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
+    <div className="h-screen bg-[#2F3349] text-white flex flex-col w-full relative">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+      <div className="flex items-center justify-between p-4 bg-[#2F3349] border-b border-slate-600/30 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white"
+            className="text-slate-300 hover:text-white hover:bg-slate-700/50"
             onClick={() => navigate(-1)}
           >
             <ArrowLeft size={20} />
           </Button>
           <Avatar className="cursor-pointer" onClick={handleAvatarClick}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-            <AvatarFallback className="bg-purple-600">{agentData.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="bg-slate-600 text-white">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <span className="font-medium">{agentData.name}</span>
-            <span className="text-xs text-gray-400">
+            <span className="font-medium text-white">{agentData.name}</span>
+            <span className="text-xs text-slate-400">
               {isLoading ? 'Pensando...' : 'Online'}
             </span>
           </div>
@@ -462,7 +462,7 @@ const ChatTextAudioPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="text-gray-400 hover:text-white"
+            className="text-slate-300 hover:text-white hover:bg-slate-700/50"
             onClick={clearMessages}
           >
             Limpar Chat
@@ -502,15 +502,15 @@ const ChatTextAudioPage = () => {
       />
 
       {/* Input Area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700">
+      <div className="p-4 bg-[#2F3349] border-t border-slate-600/30">
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
               className={cn(
-                "flex-shrink-0 text-gray-400 hover:text-white",
-                isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+                "flex-shrink-0 text-slate-300 hover:text-white hover:bg-slate-700/50",
+                isRecording && "text-red-400 hover:text-red-300 animate-pulse",
                 !hasCredits && "opacity-50"
               )}
               onClick={handleAudioToggle}
@@ -519,14 +519,14 @@ const ChatTextAudioPage = () => {
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
             {!creditsLoading && (
-              <span className="text-xs text-purple-400 font-medium">
+              <span className="text-xs text-blue-400 font-medium">
                 {credits}
               </span>
             )}
           </div>
           <Input
             ref={inputRef}
-            className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-purple-500"
+            className="bg-slate-700/50 border-slate-600/50 text-white placeholder:text-slate-400 focus-visible:ring-blue-500 focus-visible:border-blue-500"
             placeholder="Digite uma mensagem ou use o áudio..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -539,8 +539,8 @@ const ChatTextAudioPage = () => {
             onClick={handleEmoticonClick}
             className={`flex-shrink-0 ${
               showEmoticonSelector 
-                ? 'text-purple-400 bg-gray-700' 
-                : 'text-gray-400 hover:text-white'
+                ? 'text-blue-400 bg-slate-700/50' 
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
             }`}
             disabled={isLoading}
           >
@@ -552,8 +552,8 @@ const ChatTextAudioPage = () => {
             onClick={handleGiftClick}
             className={`flex-shrink-0 ${
               showGiftSelection 
-                ? 'text-purple-400 bg-gray-700' 
-                : 'text-gray-400 hover:text-white'
+                ? 'text-blue-400 bg-slate-700/50' 
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
             }`}
             disabled={isLoading}
           >
@@ -562,7 +562,7 @@ const ChatTextAudioPage = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 text-gray-400 hover:text-white"
+            className="flex-shrink-0 text-slate-300 hover:text-white hover:bg-slate-700/50"
             onClick={handleSendTextMessage}
             disabled={!input.trim() || isLoading}
           >
