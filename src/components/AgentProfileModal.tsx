@@ -122,13 +122,8 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
                 {agentData.kwai_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.kwai_url!)}
-                    className="flex items-center gap-4 p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
+                    className="flex items-center justify-center p-8 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
-                    <img 
-                      src="/lovable-uploads/96e4826d-6291-4724-a50c-0f2692376c67.png" 
-                      alt="Kwai" 
-                      className="w-10 h-10 object-contain"
-                    />
                     <span className="text-lg font-medium text-white">Kwai</span>
                   </button>
                 )}
