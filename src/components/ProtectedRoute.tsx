@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserCache } from '@/hooks/useUserCache';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,8 +9,6 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
-  const { plan } = useUserCache();
-  const location = useLocation();
   
   // Show loading state while checking auth
   if (loading) {
@@ -22,56 +19,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // If not authenticated, redirect to login/landing
+  // Redirect to profile if user is logged in but trying to access restricted content
   if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Get current path
-  const currentPath = location.pathname;
-
-  // Define allowed paths based on plan
-  const getAllowedPaths = () => {
-    if (!plan || !plan.plan_active) {
-      // No active plan - redirect to profile to choose a plan
-      return ['/profile'];
-    }
-
-    const planName = plan.plan_name?.toLowerCase();
-    
-    if (planName?.includes('trial')) {
-      // Trial plan: chat-trial, profile, and checkout pages
-      return ['/chat-trial', '/profile', '/basic-plan', '/premium-plan', '/ultimate-plan'];
-    } else if (planName?.includes('text') && planName?.includes('audio')) {
-      // Text & Audio plan: chat-text-audio and profile
-      return ['/chat-text-audio', '/profile'];
-    }
-    
-    // Default: only profile access
-    return ['/profile'];
-  };
-
-  const allowedPaths = getAllowedPaths();
-  const isAllowedPath = allowedPaths.includes(currentPath);
-
-  // If current path is not allowed, redirect to appropriate page
-  if (!isAllowedPath) {
-    if (!plan || !plan.plan_active) {
-      return <Navigate to="/profile" replace />;
-    }
-
-    const planName = plan.plan_name?.toLowerCase();
-    
-    if (planName?.includes('trial')) {
-      return <Navigate to="/chat-trial" replace />;
-    } else if (planName?.includes('text') && planName?.includes('audio')) {
-      return <Navigate to="/chat-text-audio" replace />;
-    }
-    
     return <Navigate to="/profile" replace />;
   }
 
-  // Render children if authenticated and on allowed path
+  // Render children if authenticated
   return <>{children}</>;
 };
 
