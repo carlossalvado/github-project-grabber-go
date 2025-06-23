@@ -12,26 +12,41 @@ export type Database = {
       ai_agents: {
         Row: {
           avatar_url: string
+          bio: string | null
           created_at: string
           description: string
+          facebook_url: string | null
           id: string
+          instagram_url: string | null
+          kwai_url: string | null
           name: string
+          tiktok_url: string | null
           updated_at: string
         }
         Insert: {
           avatar_url: string
+          bio?: string | null
           created_at?: string
           description: string
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
+          kwai_url?: string | null
           name: string
+          tiktok_url?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string
+          bio?: string | null
           created_at?: string
           description?: string
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
+          kwai_url?: string | null
           name?: string
+          tiktok_url?: string | null
           updated_at?: string
         }
         Relationships: []

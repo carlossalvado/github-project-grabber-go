@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { supabase } from '@/integrations/supabase/client';
-import ProfileImageModal from '@/components/ProfileImageModal';
+import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
@@ -34,11 +33,12 @@ const ChatTextAudioPage = () => {
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
     
   const [input, setInput] = useState('');
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [agentData, setAgentData] = useState({
+    id: '',
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
@@ -68,7 +68,7 @@ const ChatTextAudioPage = () => {
         if (selectedAgent) {
           const { data: agent, error: agentError } = await supabase
             .from('ai_agents')
-            .select('name, avatar_url')
+            .select('id, name, avatar_url')
             .eq('id', selectedAgent.agent_id)
             .single();
 
@@ -79,6 +79,7 @@ const ChatTextAudioPage = () => {
 
           if (agent) {
             setAgentData({
+              id: agent.id,
               name: agent.name,
               avatar_url: agent.avatar_url
             });
@@ -398,7 +399,7 @@ const ChatTextAudioPage = () => {
   };
 
   const handleAvatarClick = () => {
-    setIsProfileModalOpen(true);
+    setIsAgentProfileModalOpen(true);
   };
 
   const renderMessage = (message: CachedMessage) => {
@@ -502,6 +503,13 @@ const ChatTextAudioPage = () => {
         currentCredits={credits}
       />
 
+      {/* Agent Profile Modal */}
+      <AgentProfileModal
+        isOpen={isAgentProfileModalOpen}
+        onClose={() => setIsAgentProfileModalOpen(false)}
+        agentId={agentData.id}
+      />
+
       {/* Input Area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30">
         <div className="flex items-center gap-2">
@@ -571,14 +579,6 @@ const ChatTextAudioPage = () => {
           </Button>
         </div>
       </div>
-
-      {/* Profile Image Modal */}
-      <ProfileImageModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        imageUrl={agentData.avatar_url}
-        agentName={agentData.name}
-      />
     </div>
   );
 };
