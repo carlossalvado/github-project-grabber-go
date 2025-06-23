@@ -1,5 +1,6 @@
-
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // Chaves do cache
 const USER_PROFILE_CACHE_KEY = 'sweet-ai-user-profile';
@@ -30,6 +31,7 @@ type UserPlan = {
 };
 
 export const useUserCache = () => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [agent, setAgent] = useState<UserAgent | null>(null);
   const [plan, setPlan] = useState<UserPlan | null>(null);
@@ -38,6 +40,75 @@ export const useUserCache = () => {
   useEffect(() => {
     loadFromCache();
   }, []);
+
+  // Sincronizar com Supabase quando o usuário está logado
+  useEffect(() => {
+    if (user) {
+      syncWithSupabase();
+    }
+  }, [user]);
+
+  // Função para sincronizar com Supabase
+  const syncWithSupabase = async () => {
+    if (!user) return;
+
+    try {
+      console.log('useUserCache - Sincronizando com Supabase...');
+      
+      // Buscar perfil atualizado
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('useUserCache - Erro ao buscar perfil:', profileError);
+      } else if (profileData) {
+        console.log('useUserCache - Perfil encontrado no Supabase:', profileData);
+        
+        const updatedProfile: UserProfile = {
+          id: profileData.id,
+          full_name: profileData.full_name,
+          email: user.email || '',
+          avatar_url: profileData.avatar_url,
+          plan_name: profileData.plan_name,
+          plan_active: profileData.plan_active,
+          cached_at: Date.now()
+        };
+        
+        saveProfile(updatedProfile);
+        
+        // Atualizar cache do plano se disponível
+        if (profileData.plan_name) {
+          savePlan({
+            plan_name: profileData.plan_name,
+            plan_active: profileData.plan_active || false
+          });
+        }
+      }
+
+      // Buscar agente selecionado
+      const { data: agentData, error: agentError } = await supabase
+        .from('user_selected_agent')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (agentError) {
+        console.log('useUserCache - Nenhum agente selecionado encontrado');
+      } else if (agentData) {
+        console.log('useUserCache - Agente encontrado no Supabase:', agentData);
+        saveAgent({
+          agent_id: agentData.agent_id,
+          nickname: agentData.nickname
+        });
+      }
+
+    } catch (error) {
+      console.error('useUserCache - Erro na sincronização:', error);
+    }
+  };
 
   // Função para carregar todos os dados do cache
   const loadFromCache = () => {
@@ -71,7 +142,7 @@ export const useUserCache = () => {
   };
 
   // Salvar perfil no cache
-  const saveProfile = (profileData: Omit<UserProfile, 'cached_at'>) => {
+  const saveProfile = (profileData: Omit<UserProfile, 'cached_at'> | UserProfile) => {
     const dataWithTimestamp = {
       ...profileData,
       cached_at: Date.now()
@@ -126,6 +197,11 @@ export const useUserCache = () => {
     };
     
     savePlan(planData);
+    
+    // Forçar sincronização com Supabase
+    if (user) {
+      syncWithSupabase();
+    }
     
     // Forçar atualização do estado para re-renderizar componentes
     window.dispatchEvent(new CustomEvent('planUpdated', { 
@@ -191,6 +267,7 @@ export const useUserCache = () => {
     updateAvatar,
     clearCache,
     loadFromCache,
+    syncWithSupabase,
     hasPlanActive,
     getPlanName,
     getAvatarUrl,

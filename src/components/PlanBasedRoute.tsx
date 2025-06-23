@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserCache } from '@/hooks/useUserCache';
 import { useTrialManager } from '@/hooks/useTrialManager';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PlanBasedRouteProps {
   children: React.ReactNode;
@@ -13,20 +13,68 @@ interface PlanBasedRouteProps {
 
 const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan }) => {
   const { user, loading: authLoading } = useAuth();
-  const { getPlanName, hasPlanActive } = useUserCache();
   const { isTrialActive, loading: trialLoading } = useTrialManager();
+  const [planData, setPlanData] = useState<{
+    planName: string | null;
+    planActive: boolean;
+    loading: boolean;
+  }>({
+    planName: null,
+    planActive: false,
+    loading: true
+  });
 
-  console.log('PlanBasedRoute - Dados:', {
+  console.log('PlanBasedRoute - Dados iniciais:', {
     requiredPlan,
     user: !!user,
     authLoading,
     trialLoading,
-    isTrialActive,
-    userPlanName: getPlanName(),
-    isUserPlanActive: hasPlanActive()
+    isTrialActive
   });
 
-  if (authLoading || trialLoading) {
+  // Buscar dados do plano diretamente do Supabase
+  useEffect(() => {
+    const fetchPlanData = async () => {
+      if (!user) {
+        setPlanData({ planName: null, planActive: false, loading: false });
+        return;
+      }
+
+      try {
+        console.log('PlanBasedRoute - Buscando dados do perfil do usuário...');
+        
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('plan_name, plan_active')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('PlanBasedRoute - Erro ao buscar perfil:', error);
+          setPlanData({ planName: null, planActive: false, loading: false });
+          return;
+        }
+
+        console.log('PlanBasedRoute - Dados do perfil encontrados:', profile);
+        
+        setPlanData({
+          planName: profile?.plan_name || null,
+          planActive: profile?.plan_active || false,
+          loading: false
+        });
+        
+      } catch (error) {
+        console.error('PlanBasedRoute - Erro na busca:', error);
+        setPlanData({ planName: null, planActive: false, loading: false });
+      }
+    };
+
+    if (user && !trialLoading) {
+      fetchPlanData();
+    }
+  }, [user, trialLoading]);
+
+  if (authLoading || trialLoading || planData.loading) {
     return (
       <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="flex items-center gap-2">
@@ -55,12 +103,13 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
   }
 
   // Para outros chats: verificar plano ativo
-  const userPlanName = getPlanName();
-  const isUserPlanActive = hasPlanActive();
+  console.log('PlanBasedRoute - Verificando plano:', { 
+    planName: planData.planName, 
+    planActive: planData.planActive,
+    requiredPlan 
+  });
 
-  console.log('PlanBasedRoute - Verificando plano:', { userPlanName, isUserPlanActive });
-
-  if (!isUserPlanActive || !userPlanName) {
+  if (!planData.planActive || !planData.planName) {
     console.log('PlanBasedRoute - Plano inativo ou inexistente, redirecionando para profile');
     return <Navigate to="/profile" replace />;
   }
@@ -73,10 +122,10 @@ const PlanBasedRoute: React.FC<PlanBasedRouteProps> = ({ children, requiredPlan 
     'Ultimate': 'ultimate'
   };
 
-  const userChatType = planToChatMap[userPlanName];
+  const userChatType = planToChatMap[planData.planName];
   
   console.log('PlanBasedRoute - Mapeamento:', { 
-    userPlanName, 
+    planName: planData.planName, 
     userChatType, 
     requiredPlan,
     hasAccess: userChatType === requiredPlan
