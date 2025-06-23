@@ -53,7 +53,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
       'flex mb-4 max-w-[80%]',
       isUser ? 'ml-auto' : 'mr-auto'
     )}>
-      {/* Avatar do usuário - apenas se for mensagem do usuário */}
+      {/* Avatar - mostrar apenas se for mensagem do usuário */}
       {isUser && (
         <div className="order-2 ml-2">
           <Avatar className="h-8 w-8">
@@ -68,7 +68,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
         </div>
       )}
 
-      {/* Avatar do agente - apenas se for mensagem do assistente */}
+      {/* Avatar do agente - mostrar apenas se for mensagem do assistente */}
       {!isUser && agentData && (
         <div className="order-1 mr-2">
           <Avatar className="h-8 w-8">
