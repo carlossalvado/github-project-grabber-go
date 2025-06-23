@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useUserCache } from '@/hooks/useUserCache';
+import { useTrialManager } from '@/hooks/useTrialManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { userSubscription, plans, checkSubscriptionStatus } = useSubscription();
   const { plan, profile, hasPlanActive, getPlanName, getAvatarUrl, getFullName, loadFromCache, updateAvatar, saveProfile } = useUserCache();
+  const { trialData, isTrialActive, loading: trialLoading } = useTrialManager();
   const navigate = useNavigate();
   const [planData, setPlanData] = useState<any>(null);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -184,6 +186,23 @@ const ProfilePage = () => {
     return userSubscription.plan || plans.find(plan => plan.id === userSubscription.plan_id);
   };
 
+  const hasAnyActivePlan = () => {
+    // Verificar trial ativo primeiro
+    if (isTrialActive) return true;
+    
+    // Verificar plano pago ativo
+    const isActivePlan = planData?.plan_active || hasPlanActive();
+    return isActivePlan;
+  };
+
+  const getActivePlanName = () => {
+    // Se trial ativo, retornar "Trial"
+    if (isTrialActive) return "Trial";
+    
+    // Caso contrário, retornar nome do plano pago
+    return planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+  };
+
   const handleChatRedirect = async () => {
     if (!user) {
       toast.error('Você precisa estar logado para acessar o chat');
@@ -204,25 +223,13 @@ const ProfilePage = () => {
       }
 
       // Se não tem plano Text & Audio ativo, verificar se tem trial ativo
-      const { data: trialData, error: trialError } = await supabase
-        .from('user_trials')
-        .select('trial_end')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!trialError && trialData) {
-        const trialEndDate = new Date(trialData.trial_end);
-        const now = new Date();
-        
-        if (trialEndDate > now) {
-          // Trial ainda ativo - redirecionar para chat trial
-          navigate('/chat-trial');
-          toast.success('Redirecionando para o chat trial');
-          return;
-        }
+      if (isTrialActive) {
+        navigate('/chat-trial');
+        toast.success('Redirecionando para o chat trial');
+        return;
       }
 
-      // Se não tem plano ativo nem trial, redirecionar para chat trial mesmo assim
+      // Fallback para chat trial
       navigate('/chat-trial');
       toast.info('Redirecionando para o chat trial');
     } catch (error: any) {
@@ -233,8 +240,7 @@ const ProfilePage = () => {
   };
 
   const currentPlan = getCurrentPlan();
-  const isActivePlan = planData?.plan_active || hasPlanActive();
-  const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+  const activePlanName = getActivePlanName();
   const displayName = fullName || getFullName() || 'Usuário';
   const avatarUrl = userProfile?.avatar_url || getAvatarUrl();
 
@@ -388,16 +394,21 @@ const ProfilePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {isActivePlan && activePlanName ? (
+                {hasAnyActivePlan() && activePlanName ? (
                   <div className="space-y-6">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-3 mb-4">
-                        {currentPlan?.name === 'Ultimate' && <Crown className="w-8 h-8 text-yellow-500" />}
-                        {currentPlan?.name === 'Premium' && <Sparkles className="w-8 h-8 text-purple-500" />}
-                        {currentPlan?.name === 'Basic' && <Heart className="w-8 h-8 text-pink-500" />}
+                        {activePlanName === 'Ultimate' && <Crown className="w-8 h-8 text-yellow-500" />}
+                        {activePlanName === 'Premium' && <Sparkles className="w-8 h-8 text-purple-500" />}
+                        {activePlanName === 'Basic' && <Heart className="w-8 h-8 text-pink-500" />}
+                        {activePlanName === 'Trial' && <Heart className="w-8 h-8 text-green-500" />}
                         <Badge 
                           variant="default" 
-                          className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xl px-6 py-2 font-bold shadow-lg"
+                          className={`text-xl px-6 py-2 font-bold shadow-lg ${
+                            activePlanName === 'Trial' 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                              : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white'
+                          }`}
                         >
                           {activePlanName}
                         </Badge>
@@ -410,7 +421,16 @@ const ProfilePage = () => {
                         <span className="text-green-400 font-semibold text-lg">Ativo</span>
                       </div>
                       
-                      {currentPlan && (
+                      {isTrialActive ? (
+                        <div className="space-y-3">
+                          <p className="text-green-400 text-2xl font-bold">
+                            Grátis
+                          </p>
+                          <p className="text-slate-300 text-sm leading-relaxed">
+                            Trial de 72 horas - Acesso completo por tempo limitado
+                          </p>
+                        </div>
+                      ) : currentPlan && (
                         <div className="space-y-3">
                           <p className="text-pink-400 text-2xl font-bold">
                             R$ {currentPlan.price}/mês
@@ -430,7 +450,15 @@ const ProfilePage = () => {
                         </div>
                       )}
                       
-                      {plan && !planData?.from_supabase && (
+                      {isTrialActive && (
+                        <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
+                          <p className="text-xs text-slate-400">
+                            Trial ativo
+                          </p>
+                        </div>
+                      )}
+                      
+                      {plan && !planData?.from_supabase && !isTrialActive && (
                         <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
                           <p className="text-xs text-slate-400">
                             Cache: {new Date(plan.cached_at).toLocaleString()}
@@ -508,13 +536,16 @@ const ProfilePage = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button 
-                  onClick={handleChatRedirect}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
-                >
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Ir para Chat
-                </Button>
+                {/* Só mostrar o botão se tiver um plano ativo */}
+                {hasAnyActivePlan() && (
+                  <Button 
+                    onClick={handleChatRedirect}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+                  >
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                    Ir para Chat
+                  </Button>
+                )}
                 
                 <Button 
                   onClick={handleSignOut}

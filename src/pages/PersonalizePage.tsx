@@ -9,11 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useUserCache } from '@/hooks/useUserCache';
+import { useTrialManager } from '@/hooks/useTrialManager';
 
 const PersonalizePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPlanActive } = useUserCache();
+  const { startTrial } = useTrialManager();
   const [selectedPersonality, setSelectedPersonality] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState('');
@@ -190,60 +192,89 @@ const PersonalizePage = () => {
       return;
     }
 
-    // Salvar personalização no cache
-    const personalizationData = {
-      personality: selectedPersonality,
-      interests: selectedInterests,
-      selectedAvatar,
-      nickname: nickname.trim(),
-      personalizationCompleted: true
-    };
-    
-    // Atualizar dados do usuário no cache
-    const updatedUserData = {
-      ...userData,
-      ...personalizationData
-    };
-    localStorage.setItem('userData', JSON.stringify(updatedUserData));
+    setLoading(true);
 
-    // Salvar no Supabase se possível
-    if (user && selectedAvatar) {
-      try {
-        const { error } = await supabase
-          .from('user_selected_agent')
-          .upsert({
-            user_id: user.id,
-            agent_id: selectedAvatar,
-            nickname: nickname.trim(),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id'
-          });
+    try {
+      // Salvar personalização no cache
+      const personalizationData = {
+        personality: selectedPersonality,
+        interests: selectedInterests,
+        selectedAvatar,
+        nickname: nickname.trim(),
+        personalizationCompleted: true
+      };
+      
+      // Atualizar dados do usuário no cache
+      const updatedUserData = {
+        ...userData,
+        ...personalizationData
+      };
+      localStorage.setItem('userData', JSON.stringify(updatedUserData));
 
-        if (error) {
-          console.error('Erro ao salvar agente selecionado:', error);
+      // Salvar no Supabase se possível
+      if (user && selectedAvatar) {
+        try {
+          const { error } = await supabase
+            .from('user_selected_agent')
+            .upsert({
+              user_id: user.id,
+              agent_id: selectedAvatar,
+              nickname: nickname.trim(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (error) {
+            console.error('Erro ao salvar agente selecionado:', error);
+          }
+        } catch (error) {
+          console.error('Erro ao salvar no Supabase:', error);
         }
-      } catch (error) {
-        console.error('Erro ao salvar no Supabase:', error);
       }
-    }
-    
-    // Verificar se é plano trial ou pago
-    const isTrialPlan = userData?.selectedPlan?.name?.toLowerCase().includes('trial');
-    
-    if (isTrialPlan) {
-      // Para trial, ir direto para o profile
-      toast.success('Personalização concluída! Bem-vindo ao trial de 72 horas!');
-      navigate('/profile');
-    } else {
-      // Para planos pagos, ir para a página do produto único (SinglePlanCard)
-      const selectedPlanId = localStorage.getItem('selectedPlanId');
-      if (selectedPlanId) {
-        navigate(`/plan/${selectedPlanId}`);
+      
+      // Verificar se é plano trial ou pago
+      const isTrialPlan = userData?.selectedPlan?.name?.toLowerCase().includes('trial');
+      
+      if (isTrialPlan) {
+        // Para trial, iniciar o trial e ir para o profile
+        console.log('🚀 Iniciando trial para o usuário...');
+        const trialStarted = await startTrial();
+        
+        if (trialStarted) {
+          console.log('✅ Trial iniciado com sucesso!');
+          // Salvar informações do trial no cache
+          const trialUserData = {
+            ...updatedUserData,
+            selectedPlan: {
+              ...userData.selectedPlan,
+              plan_active: true,
+              trial_active: true
+            }
+          };
+          localStorage.setItem('userData', JSON.stringify(trialUserData));
+          
+          toast.success('Trial iniciado! Bem-vindo ao trial de 72 horas!');
+          navigate('/profile');
+        } else {
+          console.error('❌ Erro ao iniciar trial');
+          toast.error('Erro ao iniciar trial');
+        }
       } else {
-        // Fallback - ir para home se não tiver plano ID
-        navigate('/home');
+        // Para planos pagos, ir para a página do produto único (SinglePlanCard)
+        const selectedPlanId = localStorage.getItem('selectedPlanId');
+        if (selectedPlanId) {
+          navigate(`/plan/${selectedPlanId}`);
+        } else {
+          // Fallback - ir para home se não tiver plano ID
+          navigate('/home');
+        }
       }
+    } catch (error) {
+      console.error('Erro ao processar personalização:', error);
+      toast.error('Erro ao salvar personalização');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -499,11 +530,11 @@ const PersonalizePage = () => {
             ) : (
               <Button
                 onClick={handleContinue}
-                disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0}
+                disabled={!selectedPersonality || !selectedAvatar || !nickname.trim() || selectedInterests.length === 0 || loading}
                 className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 text-lg rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <Sparkles className="w-5 h-5 mr-2" />
-                {userData?.selectedPlan?.name?.toLowerCase().includes('trial') ? 'Finalizar Trial' : 'Continuar para Pagamento'}
+                {loading ? 'Processando...' : userData?.selectedPlan?.name?.toLowerCase().includes('trial') ? 'Finalizar Trial' : 'Continuar para Pagamento'}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             )}
