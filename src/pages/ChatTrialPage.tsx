@@ -12,10 +12,14 @@ import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useTrialManager } from '@/hooks/useTrialManager';
+import { useAudioCredits } from '@/hooks/useAudioCredits';
+import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
+import AudioCreditsModal from '@/components/AudioCreditsModal';
+import VoiceCallButton from '@/components/VoiceCallButton';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
@@ -30,13 +34,17 @@ const ChatTrialPage = () => {
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
+  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
+  const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   
   const [input, setInput] = useState('');
   const [messageCount, setMessageCount] = useState(0);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
@@ -45,6 +53,35 @@ const ChatTrialPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const maxTrialMessages = 10;
+
+  // Carregar avatar do usuário do Supabase
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Erro ao buscar avatar do usuário:', error);
+          return;
+        }
+
+        if (profile?.avatar_url) {
+          setUserAvatarUrl(profile.avatar_url);
+          console.log('Avatar do usuário carregado:', profile.avatar_url);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar avatar do usuário:', error);
+      }
+    };
+
+    fetchUserAvatar();
+  }, [user?.id]);
 
   // Verificar se o trial expirou
   useEffect(() => {
@@ -115,6 +152,37 @@ const ChatTrialPage = () => {
   // Check for gift success/cancel parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const creditsSuccess = urlParams.get('credits_success');
+    const creditsAmount = urlParams.get('credits');
+    const creditsCanceled = urlParams.get('credits_canceled');
+    
+    if (creditsSuccess === 'true' && creditsAmount) {
+      toast.success(`${creditsAmount} créditos adicionados com sucesso!`);
+      refreshCredits();
+      window.history.replaceState({}, document.title, '/chat-trial');
+    }
+    
+    if (creditsCanceled === 'true') {
+      toast.error('Compra de créditos cancelada');
+      window.history.replaceState({}, document.title, '/chat-trial');
+    }
+
+    // Adicionar tratamento para créditos de voz
+    const voiceCreditsSuccess = urlParams.get('voice_credits_success');
+    const voiceCreditsAmount = urlParams.get('credits');
+    const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
+    
+    if (voiceCreditsSuccess === 'true' && voiceCreditsAmount) {
+      toast.success(`${voiceCreditsAmount} créditos de chamada de voz adicionados com sucesso!`);
+      refreshVoiceCredits();
+      window.history.replaceState({}, document.title, '/chat-trial');
+    }
+    
+    if (voiceCreditsCanceled === 'true') {
+      toast.error('Compra de créditos de chamada de voz cancelada');
+      window.history.replaceState({}, document.title, '/chat-trial');
+    }
+
     const giftSuccess = urlParams.get('gift_success');
     const giftId = urlParams.get('gift_id');
     const giftName = urlParams.get('gift_name');
@@ -324,6 +392,20 @@ const ChatTrialPage = () => {
           toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
           return;
         }
+        
+        // Verificar créditos antes de iniciar gravação
+        if (!hasCredits) {
+          setShowCreditsModal(true);
+          return;
+        }
+        
+        // Consumir crédito IMEDIATAMENTE ao iniciar a gravação
+        const creditConsumed = await consumeCredit();
+        if (!creditConsumed) {
+          setShowCreditsModal(true);
+          return;
+        }
+        
         startRecording();
     }
   };
@@ -436,14 +518,20 @@ const ChatTrialPage = () => {
             </Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-orange-400 hover:text-orange-300"
-          onClick={handleUpgrade}
-        >
-          Fazer Upgrade
-        </Button>
+        <div className="flex gap-2 items-center">
+          <VoiceCallButton 
+            agentName={agentData.name}
+            agentAvatar={agentData.avatar_url}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-orange-400 hover:text-orange-300"
+            onClick={handleUpgrade}
+          >
+            Fazer Upgrade
+          </Button>
+        </div>
       </div>
 
       {/* Trial Warning */}
@@ -505,9 +593,13 @@ const ChatTrialPage = () => {
 
                   {isUserMessage && (
                     <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
-                      </AvatarFallback>
+                      {userAvatarUrl ? (
+                        <AvatarImage src={userAvatarUrl} alt="User" />
+                      ) : (
+                        <AvatarFallback className="bg-blue-600 text-white">
+                          {user.email?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                   )}
                 </div>
@@ -535,20 +627,35 @@ const ChatTrialPage = () => {
         />
       )}
 
+      {/* Audio Credits Modal */}
+      <AudioCreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        currentCredits={credits}
+      />
+
       {/* Input Area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "flex-shrink-0 text-gray-400 hover:text-orange-400",
-            isRecording && "text-red-500 hover:text-red-600 animate-pulse"
+        <div className="flex flex-col items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "flex-shrink-0 text-gray-400 hover:text-orange-400",
+              isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+              !hasCredits && "opacity-50"
+            )}
+            onClick={handleAudioToggle}
+            disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+          >
+            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+          </Button>
+          {!creditsLoading && (
+            <span className="text-xs text-purple-400 font-medium">
+              {credits}
+            </span>
           )}
-          onClick={handleAudioToggle}
-          disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
-        >
-          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-        </Button>
+        </div>
         <Input
           ref={inputRef}
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-orange-500"
