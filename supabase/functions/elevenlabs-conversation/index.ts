@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const ELEVENLABS_API_KEY = 'sk_2a65579efa5d083faa245e7ba5bbc261b557ba531780a305';
-const AGENT_ID = 'agent_01jxwps2rffj1tnfjqnzxdvktd';
+const AGENT_ID = 'agent_01jx1kp62fe4fanqa1774cdq1c';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
