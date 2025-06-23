@@ -291,19 +291,6 @@ async function updateUserSubscriptionStatus(
       } else {
         logStep("Successfully updated subscriptions", { userId: user.id });
       }
-
-      // DAR CRÉDITOS BASEADO NO PLANO APÓS PAGAMENTO CONFIRMADO
-      logStep("Giving plan credits after payment", { userId: user.id, planName });
-      const { error: creditsError } = await supabaseClient.rpc('give_plan_credits', {
-        user_uuid: user.id,
-        plan_name_param: planName
-      });
-
-      if (creditsError) {
-        logStep("Error giving plan credits", { error: creditsError });
-      } else {
-        logStep("Successfully gave plan credits", { userId: user.id, planName });
-      }
     }
 
   } catch (error) {

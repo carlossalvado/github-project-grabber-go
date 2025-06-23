@@ -23,8 +23,6 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProtectedRoute from "./components/ProtectedRoute";
-import LoggedOutOnlyRoute from "./components/LoggedOutOnlyRoute";
-import PlanBasedRoute from "./components/PlanBasedRoute";
 
 const queryClient = new QueryClient();
 
@@ -38,32 +36,23 @@ function App() {
             <SubscriptionProvider>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
-                <Route 
-                  path="/index" 
-                  element={
-                    <LoggedOutOnlyRoute>
-                      <Index />
-                    </LoggedOutOnlyRoute>
-                  } 
-                />
+                <Route path="/index" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route
                   path="/home"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <Home />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/chat-trial"
                   element={
                     <ProtectedRoute>
-                      <PlanBasedRoute requiredPlan="trial">
-                        <ChatTrialPage />
-                      </PlanBasedRoute>
+                      <ChatTrialPage />
                     </ProtectedRoute>
                   }
                 />
@@ -71,66 +60,64 @@ function App() {
                   path="/chat-text-audio"
                   element={
                     <ProtectedRoute>
-                      <PlanBasedRoute requiredPlan="text-audio">
-                        <ChatTextAudioPage />
-                      </PlanBasedRoute>
+                      <ChatTextAudioPage />
                     </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/personalize"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <PersonalizePage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <PlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/selected-plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <SelectedPlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/free-plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <FreePlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/basic-plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <BasicPlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/premium-plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <PremiumPlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/ultimate-plan"
                   element={
-                    <LoggedOutOnlyRoute>
+                    <ProtectedRoute>
                       <UltimatePlanPage />
-                    </LoggedOutOnlyRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route

@@ -215,33 +215,6 @@ export type Database = {
         }
         Relationships: []
       }
-      plan_credits_config: {
-        Row: {
-          created_at: string
-          id: string
-          initial_audio_credits: number
-          initial_voice_credits: number
-          plan_name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          initial_audio_credits?: number
-          initial_voice_credits?: number
-          plan_name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          initial_audio_credits?: number
-          initial_voice_credits?: number
-          plan_name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       plans: {
         Row: {
           description: string
@@ -567,10 +540,6 @@ export type Database = {
       }
       consume_voice_credit: {
         Args: { user_uuid: string }
-        Returns: boolean
-      }
-      give_plan_credits: {
-        Args: { user_uuid: string; plan_name_param: string }
         Returns: boolean
       }
       is_trial_active: {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,12 +22,6 @@ const LandingPage = () => {
     // Redirecionar para a página de cadastro
     navigate('/signup');
   };
-
-  // Filter out "Text Only" and "Premium" plans
-  const filteredPlans = plans.filter(plan => 
-    !plan.name.includes('Text Only') && 
-    !plan.name.includes('Premium')
-  );
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
@@ -235,90 +230,78 @@ const LandingPage = () => {
           {loading ? (
             <div className="text-center text-white">Carregando planos...</div>
           ) : (
-            <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl">
-                {filteredPlans.map((plan) => (
-                  <Card 
-                    key={plan.id} 
-                    className={`bg-slate-800/80 backdrop-blur-sm border-slate-700 relative ${
-                      plan.id === 2 ? 'scale-105 border-pink-500/50' : ''
-                    }`}
-                  >
-                    {plan.id === 2 && (
-                      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-pink-500 text-white px-4 py-1">
-                          <Star className="w-4 h-4 mr-1" />
-                          Mais Popular
-                        </Badge>
-                      </div>
-                    )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+              {plans.map((plan) => (
+                <Card 
+                  key={plan.id} 
+                  className={`bg-slate-800/80 backdrop-blur-sm border-slate-700 relative ${
+                    plan.id === 3 ? 'scale-105 border-pink-500/50' : ''
+                  }`}
+                >
+                  {plan.id === 3 && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-pink-500 text-white px-4 py-1">
+                        <Star className="w-4 h-4 mr-1" />
+                        Mais Popular
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <CardHeader className="text-center">
+                    <div className={`w-12 h-12 ${plan.id === 3 ? 'bg-pink-500' : 'bg-slate-700'} rounded-xl mx-auto mb-4 flex items-center justify-center`}>
+                      {plan.id === 4 ? <Crown className="w-6 h-6 text-white" /> : <Heart className="w-6 h-6 text-white" />}
+                    </div>
+                    <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
+                    <CardDescription className="text-slate-300 mb-4">{plan.description}</CardDescription>
+                    <div className="text-3xl font-bold text-pink-500">
+                      {plan.price === 0 
+                        ? "Grátis" 
+                        : `US$${(plan.price / 100).toFixed(2)}`}
+                      {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <ul className="space-y-3 mb-6">
+                      {plan.features.text && (
+                        <li className="flex items-center text-slate-300">
+                          <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
+                          <span className="text-sm">Mensagens de Texto</span>
+                        </li>
+                      )}
+                      {plan.features.audio && (
+                        <li className="flex items-center text-slate-300">
+                          <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
+                          <span className="text-sm">Mensagens de Áudio</span>
+                        </li>
+                      )}
+                      {plan.features.premium && (
+                        <li className="flex items-center text-slate-300">
+                          <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
+                          <span className="text-sm">Recursos Premium</span>
+                        </li>
+                      )}
+                      {plan.trial_days > 0 && (
+                        <li className="flex items-center text-slate-300">
+                          <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
+                          <span className="text-sm">{plan.trial_days} dias grátis</span>
+                        </li>
+                      )}
+                    </ul>
                     
-                    <CardHeader className="text-center">
-                      <div className={`w-12 h-12 ${plan.id === 2 ? 'bg-pink-500' : 'bg-slate-700'} rounded-xl mx-auto mb-4 flex items-center justify-center`}>
-                        {plan.id === 4 ? <Crown className="w-6 h-6 text-white" /> : <Heart className="w-6 h-6 text-white" />}
-                      </div>
-                      <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
-                      <CardDescription className="text-slate-300 mb-4">{plan.description}</CardDescription>
-                      <div className="text-3xl font-bold text-pink-500">
-                        {plan.price === 0 
-                          ? "Grátis" 
-                          : `US$${(plan.price / 100).toFixed(2)}`}
-                        {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <ul className="space-y-3 mb-6">
-                        {plan.features.text && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Texto (Ilimitado)' : 'Mensagens de Texto'}
-                            </span>
-                          </li>
-                        )}
-                        {plan.features.audio && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Áudio - (10 Mensagens)' : 'Mensagens de Áudio'}
-                            </span>
-                          </li>
-                        )}
-                        {plan.name === 'Text & Audio' && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">Ligações de Voz - (2 Ligações)</span>
-                          </li>
-                        )}
-                        {plan.features.premium && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">Recursos Premium</span>
-                          </li>
-                        )}
-                        {plan.trial_days > 0 && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{plan.trial_days} dias grátis</span>
-                          </li>
-                        )}
-                      </ul>
-                      
-                      <Button
-                        onClick={() => handlePlanSelect(plan.id)}
-                        className={`w-full ${
-                          plan.id === 2 
-                            ? 'bg-pink-500 hover:bg-pink-600 text-white' 
-                            : 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
-                        } font-semibold py-3 rounded-xl`}
-                      >
-                        {plan.price === 0 ? 'Começar Grátis' : 'Escolher Plano'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                    <Button
+                      onClick={() => handlePlanSelect(plan.id)}
+                      className={`w-full ${
+                        plan.id === 3 
+                          ? 'bg-pink-500 hover:bg-pink-600 text-white' 
+                          : 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
+                      } font-semibold py-3 rounded-xl`}
+                    >
+                      {plan.price === 0 ? 'Começar Grátis' : 'Escolher Plano'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </section>
