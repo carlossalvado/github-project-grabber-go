@@ -186,6 +186,35 @@ const ChatTextAudioPage = () => {
     }
   }, []);
 
+  const getAssistantResponse = async (messageText: string) => {
+    if (!user) return;
+    
+    console.log('=== PROCESSAMENTO DE MENSAGEM DE TEXTO ===');
+    console.log('Usando webhook N8N para texto');
+    
+    try {
+      const result = await sendToN8n(messageText, user.email!);
+      
+      addMessage({
+        type: 'assistant',
+        transcription: result.message || 'Desculpe, não consegui processar sua mensagem.',
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('=== ERRO NO PROCESSAMENTO DE TEXTO ===');
+      console.error('Erro:', error);
+      
+      addMessage({
+        type: 'assistant',
+        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`,
+        timestamp: new Date().toISOString()
+      });
+      
+      toast.error('Erro ao processar mensagem');
+    }
+  };
+
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
     if (!user) return;
     
