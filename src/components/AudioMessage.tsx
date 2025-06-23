@@ -71,10 +71,10 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
     )}>
       {/* Avatar do agente - mostrar apenas se for mensagem do assistente à esquerda */}
       {!isUser && agentData && (
-        <div className="mr-2 flex-shrink-0">
-          <Avatar className="h-8 w-8 cursor-pointer" onClick={handleAvatarClick}>
+        <div className="mr-3 flex-shrink-0">
+          <Avatar className="h-16 w-16 cursor-pointer" onClick={handleAvatarClick}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-            <AvatarFallback className="bg-purple-600 text-white text-sm">
+            <AvatarFallback className="bg-purple-600 text-white text-lg">
               {agentData.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
@@ -138,12 +138,12 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
 
       {/* Avatar do usuário - mostrar apenas se for mensagem do usuário à direita */}
       {isUser && (
-        <div className="ml-2 flex-shrink-0">
-          <Avatar className="h-8 w-8 cursor-pointer" onClick={handleAvatarClick}>
+        <div className="ml-3 flex-shrink-0">
+          <Avatar className="h-16 w-16 cursor-pointer" onClick={handleAvatarClick}>
             {userAvatarUrl ? (
               <AvatarImage src={userAvatarUrl} alt="Você" />
             ) : (
-              <AvatarFallback className="bg-blue-600 text-white text-sm">
+              <AvatarFallback className="bg-blue-600 text-white text-lg">
                 {getUserInitials()}
               </AvatarFallback>
             )}
