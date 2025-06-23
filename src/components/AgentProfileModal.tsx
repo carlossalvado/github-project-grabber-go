@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,8 +75,14 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   );
 
   const KwaiIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF6600">
-      <path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0zm-1.5 18l-3-3 1.5-1.5 1.5 1.5 3-3 1.5 1.5-4.5 4.5zm0-6l-3-3 1.5-1.5 1.5 1.5 3-3 1.5 1.5-4.5 4.5z"/>
+    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF3D00">
+      <rect width="24" height="24" rx="4" fill="#FF3D00"/>
+      <g fill="white">
+        <circle cx="9" cy="8" r="2.5"/>
+        <circle cx="15" cy="8" r="1.5"/>
+        <path d="M6 15c0-1.5 1-3 3-3h6c2 0 3 1.5 3 3v2c0 1-0.5 1.5-1.5 1.5h-9C6.5 18.5 6 18 6 17v-2z"/>
+        <rect x="8" y="13" width="2" height="3" rx="1"/>
+      </g>
     </svg>
   );
 
@@ -85,17 +91,15 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] mx-auto bg-[#1a1d29] border border-blue-800/30 text-white overflow-auto">
-        {/* Close Button */}
-        <DialogClose asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full z-10"
-            onClick={onClose}
-          >
-            <X size={20} />
-          </Button>
-        </DialogClose>
+        {/* Custom Close Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full z-10"
+          onClick={onClose}
+        >
+          <X size={20} />
+        </Button>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
