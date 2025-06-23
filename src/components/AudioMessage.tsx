@@ -51,26 +51,11 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
   return (
     <div className={cn(
       'flex mb-4 max-w-[80%]',
-      isUser ? 'ml-auto' : 'mr-auto'
+      isUser ? 'ml-auto justify-end' : 'mr-auto justify-start'
     )}>
-      {/* Avatar - mostrar apenas se for mensagem do usuário */}
-      {isUser && (
-        <div className="order-2 ml-2">
-          <Avatar className="h-8 w-8">
-            {userAvatarUrl ? (
-              <AvatarImage src={userAvatarUrl} alt="Você" />
-            ) : (
-              <AvatarFallback className="bg-blue-600 text-white text-sm">
-                {getUserInitials()}
-              </AvatarFallback>
-            )}
-          </Avatar>
-        </div>
-      )}
-
-      {/* Avatar do agente - mostrar apenas se for mensagem do assistente */}
+      {/* Avatar do agente - mostrar apenas se for mensagem do assistente à esquerda */}
       {!isUser && agentData && (
-        <div className="order-1 mr-2">
+        <div className="mr-2 flex-shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-purple-600 text-white text-sm">
@@ -82,7 +67,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
 
       <div className={cn(
         'flex flex-col gap-2',
-        isUser ? 'order-1' : 'order-2'
+        isUser ? 'items-end' : 'items-start'
       )}>
         {/* Audio Player */}
         {audioUrl && (
@@ -132,6 +117,21 @@ const AudioMessage: React.FC<AudioMessageProps> = ({
           {formatTime(timestamp)}
         </div>
       </div>
+
+      {/* Avatar do usuário - mostrar apenas se for mensagem do usuário à direita */}
+      {isUser && (
+        <div className="ml-2 flex-shrink-0">
+          <Avatar className="h-8 w-8">
+            {userAvatarUrl ? (
+              <AvatarImage src={userAvatarUrl} alt="Você" />
+            ) : (
+              <AvatarFallback className="bg-blue-600 text-white text-sm">
+                {getUserInitials()}
+              </AvatarFallback>
+            )}
+          </Avatar>
+        </div>
+      )}
     </div>
   );
 };
