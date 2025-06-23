@@ -192,7 +192,18 @@ const ProfilePage = () => {
     }
 
     try {
-      // Primeiro verificar se o usuário tem trial ativo
+      // Verificar se tem plano Text & Audio ativo
+      const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+      const isActivePlan = planData?.plan_active || hasPlanActive();
+      
+      if (isActivePlan && activePlanName && 
+          (activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio'))) {
+        navigate('/chat-text-audio');
+        toast.success('Redirecionando para o chat Text & Audio');
+        return;
+      }
+
+      // Se não tem plano Text & Audio ativo, verificar se tem trial ativo
       const { data: trialData, error: trialError } = await supabase
         .from('user_trials')
         .select('trial_end')
@@ -211,66 +222,13 @@ const ProfilePage = () => {
         }
       }
 
-      // Se não tem trial ativo, verificar planos pagos
-      const { data: subscription, error: subError } = await supabase
-        .from('subscriptions')
-        .select('plan_name, status')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single();
-
-      if (subError && subError.code !== 'PGRST116') {
-        console.error('Erro ao consultar subscription:', subError);
-        throw subError;
-      }
-
-      // Se não encontrou subscription ativa, verificar no profiles
-      let userPlanName = subscription?.plan_name;
-      
-      if (!userPlanName) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('plan_name, plan_active')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Erro ao consultar profile:', profileError);
-          throw profileError;
-        }
-
-        if (profile?.plan_active) {
-          userPlanName = profile.plan_name;
-        }
-      }
-
-      // Redirecionar baseado no plano
-      if (!userPlanName) {
-        toast.info('Nenhum plano ativo encontrado, redirecionando para plano gratuito');
-        navigate('/');
-        return;
-      }
-
-      const lowerPlanName = userPlanName.toLowerCase();
-      
-      if (lowerPlanName.includes('text only') || lowerPlanName === 'text only') {
-        navigate('/chat-text-only');
-      } else if (lowerPlanName.includes('text') && lowerPlanName.includes('audio')) {
-        navigate('/chat-text-audio');
-      } else if (lowerPlanName.includes('premium')) {
-        navigate('/chat-premium');
-      } else if (lowerPlanName.includes('ultimate')) {
-        navigate('/chat-ultimate');
-      } else {
-        // Fallback para o chat básico
-        navigate('/chat-text-only');
-      }
-
-      toast.success(`Redirecionando para o chat do plano ${userPlanName}`);
+      // Se não tem plano ativo nem trial, redirecionar para chat trial mesmo assim
+      navigate('/chat-trial');
+      toast.info('Redirecionando para o chat trial');
     } catch (error: any) {
       console.error('Erro ao verificar plano do usuário:', error);
-      toast.error('Erro ao verificar seu plano. Redirecionando para página inicial.');
-      navigate('/');
+      navigate('/chat-trial');
+      toast.info('Redirecionando para o chat trial');
     }
   };
 
