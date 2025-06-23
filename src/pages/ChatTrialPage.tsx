@@ -134,6 +134,10 @@ const ChatTrialPage = () => {
     setIsProfileModalOpen(true);
   };
 
+  const handleBackClick = () => {
+    navigate('/profile');
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || n8nLoading || !user || !isTrialActive) return;
 
@@ -384,10 +388,10 @@ const ChatTrialPage = () => {
           <h2 className="text-2xl font-bold mb-2">Trial Expirado</h2>
           <p className="text-gray-300 mb-6">Seu trial de 72 horas expirou. Faça upgrade para continuar!</p>
           <Button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/profile')}
             className="bg-orange-600 hover:bg-orange-700"
           >
-            Escolher Plano
+            Voltar ao Perfil
           </Button>
         </div>
       </div>
@@ -406,7 +410,7 @@ const ChatTrialPage = () => {
             variant="ghost"
             size="icon"
             className="text-gray-400 hover:text-white"
-            onClick={() => navigate(-1)}
+            onClick={handleBackClick}
           >
             <ArrowLeft size={20} />
           </Button>
@@ -426,7 +430,7 @@ const ChatTrialPage = () => {
           variant="ghost"
           size="sm"
           className="text-orange-400 hover:text-orange-300"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/profile')}
         >
           Fazer Upgrade
         </Button>
@@ -440,9 +444,9 @@ const ChatTrialPage = () => {
             <Button 
               variant="link" 
               className="text-orange-400 underline p-0 ml-1"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/profile')}
             >
-              Faça upgrade agora!
+              Voltar ao Perfil
             </Button>
           </p>
         </div>

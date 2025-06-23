@@ -3,9 +3,11 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NotFound = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
   useEffect(() => {
     console.error(
@@ -13,6 +15,14 @@ const NotFound = () => {
       location.pathname
     );
   }, [location.pathname]);
+
+  const handleGoBack = () => {
+    if (user) {
+      window.location.href = '/profile';
+    } else {
+      window.location.href = '/';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -23,10 +33,10 @@ const NotFound = () => {
         <h1 className="text-4xl font-bold text-pink-500 mb-4">404</h1>
         <p className="text-xl text-slate-300 mb-6">Oops! Página não encontrada</p>
         <Button 
-          onClick={() => window.location.href = '/'}
+          onClick={handleGoBack}
           className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-xl"
         >
-          Voltar ao Início
+          {user ? 'Voltar ao Perfil' : 'Voltar ao Início'}
         </Button>
       </div>
     </div>

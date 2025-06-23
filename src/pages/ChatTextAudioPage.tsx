@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -498,6 +497,10 @@ const ChatTextAudioPage = () => {
     );
   };
 
+  const handleBackClick = () => {
+    navigate('/profile');
+  };
+
   if (!user) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
@@ -518,7 +521,7 @@ const ChatTextAudioPage = () => {
             variant="ghost"
             size="icon"
             className="text-blue-200 hover:text-white hover:bg-blue-900/50"
-            onClick={() => navigate(-1)}
+            onClick={handleBackClick}
           >
             <ArrowLeft size={20} />
           </Button>
