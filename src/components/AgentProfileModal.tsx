@@ -69,13 +69,13 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
 
   // Ícones customizados para TikTok e Kwai usando SVG
   const TikTokIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF0050">
       <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-1.183-.11 6.44 6.44 0 0 0-6.5 6.4 6.443 6.443 0 0 0 11.5 4.087V8.862a8.25 8.25 0 0 0 5.416 2.049v-3.225a4.813 4.813 0 0 1-1 0z"/>
     </svg>
   );
 
   const KwaiIcon = () => (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#FF6A00">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-1.5-1.5L11 13l-2.5-2.5L10 9l3 3-3 3zm5-3l-1.5 1.5L11 13l2.5-2.5L12 9l-3 3 3 3z"/>
     </svg>
   );
@@ -126,44 +126,44 @@ const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-blue-300 mb-4">Redes Sociais</h3>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-6">
                 {agentData.tiktok_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.tiktok_url!)}
-                    className="flex items-center gap-2 p-3 bg-blue-900/30 hover:bg-blue-900/50 rounded-lg transition-colors border border-blue-800/50"
+                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <TikTokIcon />
-                    <span className="text-sm font-medium">TikTok</span>
+                    <span className="text-lg font-medium text-white">TikTok</span>
                   </button>
                 )}
 
                 {agentData.kwai_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.kwai_url!)}
-                    className="flex items-center gap-2 p-3 bg-blue-900/30 hover:bg-blue-900/50 rounded-lg transition-colors border border-blue-800/50"
+                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
                     <KwaiIcon />
-                    <span className="text-sm font-medium">Kwai</span>
+                    <span className="text-lg font-medium text-white">Kwai</span>
                   </button>
                 )}
 
                 {agentData.facebook_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.facebook_url!)}
-                    className="flex items-center gap-2 p-3 bg-blue-900/30 hover:bg-blue-900/50 rounded-lg transition-colors border border-blue-800/50"
+                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
-                    <Facebook size={20} />
-                    <span className="text-sm font-medium">Facebook</span>
+                    <Facebook size={40} className="text-[#1877F2]" />
+                    <span className="text-lg font-medium text-white">Facebook</span>
                   </button>
                 )}
 
                 {agentData.instagram_url && (
                   <button
                     onClick={() => handleSocialClick(agentData.instagram_url!)}
-                    className="flex items-center gap-2 p-3 bg-blue-900/30 hover:bg-blue-900/50 rounded-lg transition-colors border border-blue-800/50"
+                    className="flex items-center gap-4 p-6 bg-gray-900/50 hover:bg-gray-800/70 rounded-lg transition-colors border border-gray-700/50"
                   >
-                    <Instagram size={20} />
-                    <span className="text-sm font-medium">Instagram</span>
+                    <Instagram size={40} className="text-[#E4405F]" />
+                    <span className="text-lg font-medium text-white">Instagram</span>
                   </button>
                 )}
               </div>
