@@ -169,41 +169,6 @@ const ProfilePage = () => {
     setUserProfile((prev: any) => prev ? { ...prev, avatar_url: avatarUrl } : null);
   };
 
-  // --- CÓDIGO EDITADO ABAIXO ---
-  // Função de navegação para o chat, agora simplificada e mais robusta
-  const handleGoToChat = () => {
-    // Mantendo a verificação de segurança para garantir que o usuário está logado
-    if (!user) {
-      toast.error('Você precisa estar logado para acessar o chat');
-      navigate('/login');
-      return;
-    }
-
-    // 1. Verifica o Trial primeiro, pois tem prioridade.
-    if (isTrialActive) {
-      toast.success('Redirecionando para o chat trial...');
-      navigate('/chat-trial');
-      return;
-    }
-
-    // 2. Verifica o plano ativo (de qualquer fonte, priorizando o mais recente)
-    const activePlan = getActivePlanName(); 
-
-    if (activePlan && activePlan.toLowerCase().includes('text') && activePlan.toLowerCase().includes('audio')) {
-      toast.success('Redirecionando para o chat Text & Audio...');
-      navigate('/chat-text-audio');
-      return;
-    }
-    
-    // Adicione outras verificações de planos aqui se necessário (ex: 'Premium', 'Ultimate')
-    // else if (activePlan === 'Premium') { ... }
-
-    // 3. Se nenhuma condição acima for atendida, não há plano válido para o chat.
-    toast.info('Escolha um plano para poder acessar o chat.');
-    navigate('/'); // Navega para a página inicial/de planos.
-  };
-  // --- FIM DO CÓDIGO EDITADO ---
-
   const getCurrentPlan = () => {
     // Priorizar dados mais recentes
     if (planData?.plan_active) {
@@ -236,6 +201,42 @@ const ProfilePage = () => {
     
     // Caso contrário, retornar nome do plano pago
     return planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+  };
+
+  const handleChatRedirect = async () => {
+    if (!user) {
+      toast.error('Você precisa estar logado para acessar o chat');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Verificar se tem plano Text & Audio ativo
+      const activePlanName = planData?.plan_name || getPlanName() || userSubscription?.plan_name;
+      const isActivePlan = planData?.plan_active || hasPlanActive();
+      
+      if (isActivePlan && activePlanName && 
+          (activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio'))) {
+        navigate('/chat-text-audio');
+        toast.success('Redirecionando para o chat Text & Audio');
+        return;
+      }
+
+      // Se não tem plano Text & Audio ativo, verificar se tem trial ativo
+      if (isTrialActive) {
+        navigate('/chat-trial');
+        toast.success('Redirecionando para o chat trial');
+        return;
+      }
+
+      // Fallback para chat trial
+      navigate('/chat-trial');
+      toast.info('Redirecionando para o chat trial');
+    } catch (error: any) {
+      console.error('Erro ao verificar plano do usuário:', error);
+      navigate('/chat-trial');
+      toast.info('Redirecionando para o chat trial');
+    }
   };
 
   const currentPlan = getCurrentPlan();
@@ -533,14 +534,16 @@ const ProfilePage = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Botão aparece sempre, mas com comportamento inteligente */}
-                <Button 
-                  onClick={handleGoToChat}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
-                >
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  {hasAnyActivePlan() ? 'Ir para Chat' : 'Escolher Plano'}
-                </Button>
+                {/* Só mostrar o botão se tiver um plano ativo */}
+                {hasAnyActivePlan() && (
+                  <Button 
+                    onClick={handleChatRedirect}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white py-4 rounded-xl font-semibold shadow-lg transition-all duration-300 hover:scale-105"
+                  >
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                    Ir para Chat
+                  </Button>
+                )}
                 
                 <Button 
                   onClick={handleSignOut}
