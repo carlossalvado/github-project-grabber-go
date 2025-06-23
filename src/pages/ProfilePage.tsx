@@ -402,6 +402,7 @@ const ProfilePage = () => {
                         {activePlanName === 'Premium' && <Sparkles className="w-8 h-8 text-purple-500" />}
                         {activePlanName === 'Basic' && <Heart className="w-8 h-8 text-pink-500" />}
                         {activePlanName === 'Trial' && <Heart className="w-8 h-8 text-green-500" />}
+                        {activePlanName && activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio') && <Heart className="w-8 h-8 text-pink-500" />}
                         <Badge 
                           variant="default" 
                           className={`text-xl px-6 py-2 font-bold shadow-lg ${
@@ -428,6 +429,12 @@ const ProfilePage = () => {
                           </p>
                           <p className="text-slate-300 text-sm leading-relaxed">
                             Trial de 72 horas - Acesso completo por tempo limitado
+                          </p>
+                        </div>
+                      ) : activePlanName && activePlanName.toLowerCase().includes('text') && activePlanName.toLowerCase().includes('audio') ? (
+                        <div className="space-y-3">
+                          <p className="text-slate-300 text-sm leading-relaxed">
+                            Dados carregados...
                           </p>
                         </div>
                       ) : currentPlan && (
