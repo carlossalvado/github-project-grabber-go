@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,13 +41,11 @@ const ProfilePage = () => {
     }
   }, [profile]);
 
-  // Forçar atualização dos dados quando a página carrega
+  // CORREÇÃO APLICADA AQUI: Carrega os dados apenas uma vez quando a página é montada.
   useEffect(() => {
-    if (user?.id) {
-      console.log('🔄 ProfilePage: Forçando atualização dos dados do usuário...');
-      fetchUserData(true); // Force refresh
-    }
-  }, [user?.id, fetchUserData]);
+    console.log('🔄 ProfilePage montada. Forçando atualização dos dados do usuário...');
+    fetchUserData(true); // Force refresh
+  }, []); // <-- Array de dependências vazio para executar apenas uma vez.
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
@@ -91,7 +89,7 @@ const ProfilePage = () => {
   };
 
   const handleRefreshData = () => {
-    console.log('🔄 Atualizando dados do usuário...');
+    console.log('🔄 Atualizando dados do usuário manualmente...');
     fetchUserData(true);
     toast.info('Atualizando dados...');
   };
@@ -221,9 +219,7 @@ const ProfilePage = () => {
                   </div>
                 </div>
               </div>
-
-              {/* CORREÇÃO APLICADA AQUI */}
-              {/* Trial Information - SÓ MOSTRA SE NÃO HOUVER UM PLANO PAGO ATIVO */}
+              
               {!currentPlanActive && trialActive && (
                 <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
                   <div className="flex items-center gap-2 mb-2">
@@ -256,15 +252,6 @@ const ProfilePage = () => {
                 <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
                   <p className="text-xs text-isa-muted mb-1">Status da Conta</p>
                   <p className="text-green-400 font-medium">Verificada</p>
-                </div>
-
-                <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
-                  <p className="text-xs text-isa-muted mb-1">Última Atualização</p>
-                  <p className="text-isa-light font-medium">
-                    {/* A propriedade 'cached_at' não existe no objeto 'profile' do seu hook */}
-                    {/* Removido para evitar erros. Pode ser re-adicionado se o hook for atualizado */}
-                    {new Date().toLocaleString('pt-BR')}
-                  </p>
                 </div>
               </div>
             </CardContent>
