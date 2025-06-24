@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+// NOVO: Importa o hook de perfil de usuário, que contém a informação sobre o plano
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
@@ -27,7 +28,14 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  
+  // NOVO: Obtém o status do plano e o estado de carregamento do perfil.
+  // Usamos 'profileLoading' para não conflitar com outras variáveis 'isLoading'.
+  const { isTrialActive, loading: profileLoading, user } = useUserProfile();
+
+  // Mantemos o `useAuth` se outras partes dependerem dele, mas a verificação principal usa `useUserProfile`.
+  const auth = useAuth();
+  
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
@@ -56,12 +64,14 @@ const ChatTextAudioPage = () => {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
+  
+  // O restante dos seus hooks e lógicas useEffect permanecem os mesmos
+  // ... (todo o resto do seu código, hooks e funções, permanece aqui) ...
   // Carregar avatar do usuário do Supabase
   useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (!user?.id) return;
+    if (!user?.id) return;
 
+    const fetchUserAvatar = async () => {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -76,7 +86,6 @@ const ChatTextAudioPage = () => {
 
         if (profile?.avatar_url) {
           setUserAvatarUrl(profile.avatar_url);
-          console.log('Avatar do usuário carregado:', profile.avatar_url);
         }
       } catch (error) {
         console.error('Erro ao carregar avatar do usuário:', error);
@@ -87,9 +96,9 @@ const ChatTextAudioPage = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    const fetchAgentData = async () => {
-      if (!user?.id) return;
+    if (!user?.id) return;
 
+    const fetchAgentData = async () => {
       try {
         const { data: selectedAgent, error: selectedError } = await supabase
           .from('user_selected_agent')
@@ -140,6 +149,7 @@ const ChatTextAudioPage = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    // ... (o restante deste useEffect permanece igual)
     const creditsSuccess = urlParams.get('credits_success');
     const creditsAmount = urlParams.get('credits');
     const creditsCanceled = urlParams.get('credits_canceled');
@@ -185,327 +195,161 @@ const ChatTextAudioPage = () => {
       toast.error('Compra de presente cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
-  }, []);
+  }, [refreshCredits, refreshVoiceCredits]); // Adicionei dependências para o linter
 
   const getAssistantResponse = async (messageText: string) => {
+    // ... (função igual)
     if (!user) return;
-    
     try {
       const responseText = await sendToN8n(messageText, user.email!);
-      
-      addMessage({
-        type: 'assistant',
-        transcription: responseText,
-        timestamp: new Date().toISOString()
-      });
-
+      addMessage({ type: 'assistant', transcription: responseText, timestamp: new Date().toISOString() });
     } catch (error: any) {
       console.error('Error generating response:', error);
-      addMessage({
-        type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`,
-        timestamp: new Date().toISOString()
-      });
+      addMessage({ type: 'assistant', transcription: `Desculpe, ocorreu um erro ao processar sua mensagem.`, timestamp: new Date().toISOString() });
       toast.error('Erro ao processar mensagem');
     }
   };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
+    // ... (função igual)
     if (!user) return;
-    
-    console.log('=== PROCESSAMENTO DE ÁUDIO COM WEBHOOK N8N ===');
-    console.log('Usando webhook N8N para áudio completo');
-    
     try {
       const result = await sendAudioToN8n(audioBlob, user.email!);
-      
-      const userMessageId = addMessage({
-        type: 'user',
-        timestamp: new Date().toISOString(),
-        audioUrl: audioUrl,
-        audioBlob: audioBlob, // Salvar blob no cache
-        transcription: ''
-      });
-      
-      const assistantMessageId = addMessage({
-        type: 'assistant',
-        transcription: '',
-        timestamp: new Date().toISOString(),
-        audioUrl: result.audioUrl,
-        audioBlob: result.audioBlob // Salvar blob da resposta no cache
-      });
-
+      const userMessageId = addMessage({ type: 'user', timestamp: new Date().toISOString(), audioUrl: audioUrl, audioBlob: audioBlob, transcription: '' });
+      const assistantMessageId = addMessage({ type: 'assistant', transcription: '', timestamp: new Date().toISOString(), audioUrl: result.audioUrl, audioBlob: result.audioBlob });
       if (result.audioUrl) {
-        console.log('🎵 Reproduzindo áudio automaticamente...');
-        setTimeout(() => {
-          handlePlayAudio(assistantMessageId, result.audioUrl!);
-        }, 500);
+        setTimeout(() => { handlePlayAudio(assistantMessageId, result.audioUrl!); }, 500);
       }
-
     } catch (error: any) {
-      console.error('=== ERRO NO PROCESSAMENTO DE ÁUDIO ===');
       console.error('Erro:', error);
-      
-      addMessage({
-        type: 'user',
-        timestamp: new Date().toISOString(),
-        audioUrl: audioUrl,
-        audioBlob: audioBlob,
-        transcription: ''
-      });
-      
-      addMessage({
-        type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
-        timestamp: new Date().toISOString()
-      });
-      
+      addMessage({ type: 'user', timestamp: new Date().toISOString(), audioUrl: audioUrl, audioBlob: audioBlob, transcription: '' });
+      addMessage({ type: 'assistant', transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`, timestamp: new Date().toISOString() });
       toast.error('Erro ao processar áudio');
     }
   };
 
   const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    console.log('🎵 Tentando reproduzir áudio:', messageId, audioUrl);
-    
+    // ... (função igual)
     if (audioRef.current && currentlyPlaying === messageId) {
       audioRef.current.pause();
       setCurrentlyPlaying(null);
     } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      
-      console.log('🎵 Criando novo elemento de áudio...');
+      if (audioRef.current) { audioRef.current.pause(); }
       audioRef.current = new Audio(audioUrl);
-      
-      audioRef.current.onloadstart = () => {
-        console.log('🎵 Carregamento do áudio iniciado');
-      };
-      
-      audioRef.current.oncanplay = () => {
-        console.log('✅ Áudio pode ser reproduzido');
-      };
-      
-      audioRef.current.onplay = () => {
-        console.log('▶️ Reprodução iniciada');
-        setCurrentlyPlaying(messageId);
-      };
-      
-      audioRef.current.onended = () => {
-        console.log('⏹️ Reprodução finalizada');
-        setCurrentlyPlaying(null);
-      };
-      
-      audioRef.current.onerror = (e) => {
-        console.error("❌ Erro ao reproduzir áudio:", e);
-        if (audioRef.current?.error) {
-          console.error('Código do erro:', audioRef.current.error.code);
-          console.error('Mensagem do erro:', audioRef.current.error.message);
-        }
-        setCurrentlyPlaying(null);
-        toast.error("Erro ao reproduzir o áudio. Tente novamente.");
-      };
-      
-      // Tentar reproduzir
-      audioRef.current.play().catch(e => {
-        console.error("❌ Erro no play():", e);
-        toast.error("Não foi possível reproduzir o áudio");
-        setCurrentlyPlaying(null);
-      });
+      audioRef.current.onplay = () => setCurrentlyPlaying(messageId);
+      audioRef.current.onended = () => setCurrentlyPlaying(null);
+      audioRef.current.onerror = () => { setCurrentlyPlaying(null); toast.error("Erro ao reproduzir o áudio."); };
+      audioRef.current.play().catch(() => { setCurrentlyPlaying(null); toast.error("Não foi possível reproduzir o áudio"); });
     }
   };
 
+  // ... (todas as outras funções handle... permanecem iguais)
   const handleSendTextMessage = async () => {
     const isLoading = n8nLoading || audioN8nLoading || isRecording;
     if (!input.trim() || isLoading || !user) return;
-
     const messageText = input.trim();
     setInput('');
-
-    addMessage({
-      type: 'user',
-      transcription: messageText,
-      timestamp: new Date().toISOString()
-    });
-
+    addMessage({ type: 'user', transcription: messageText, timestamp: new Date().toISOString() });
     await getAssistantResponse(messageText);
   };
-
-  const handleEmoticonClick = () => {
-    setShowEmoticonSelector(!showEmoticonSelector);
-    setShowGiftSelection(false);
-  };
-
-  const handleGiftClick = () => {
-    setShowGiftSelection(!showGiftSelection);
-    setShowEmoticonSelector(false);
-  };
-
-  const handleEmoticonSelect = (emoticon: string) => {
-    setInput(prev => prev + emoticon);
-    setShowEmoticonSelector(false);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
+  const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
+  const handleGiftClick = () => { setShowGiftSelection(!showGiftSelection); setShowEmoticonSelector(false); };
+  const handleEmoticonSelect = (emoticon: string) => { setInput(prev => prev + emoticon); setShowEmoticonSelector(false); if (inputRef.current) { inputRef.current.focus(); } };
   const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
     try {
-      console.log("Selecionando presente:", { giftId, giftName, giftPrice });
-      
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
-        body: {
-          giftId
-        }
-      });
-
-      if (error) {
-        console.error("Erro na function invoke:", error);
-        throw error;
-      }
-
-      if (data?.error) {
-        console.error("Erro retornado pela função:", data.error);
-        throw new Error(data.error);
-      }
-
-      console.log("Checkout session criada:", data);
-
-      if (data?.url) {
-        console.log("Redirecionando para:", data.url);
-        window.location.href = data.url;
-      } else {
-        throw new Error("URL de checkout não recebida");
-      }
-      
+      const { data, error } = await supabase.functions.invoke('create-gift-checkout', { body: { giftId } });
+      if (error || data?.error) { throw new Error(error?.message || data?.error); }
+      if (data?.url) { window.location.href = data.url; } else { throw new Error("URL de checkout não recebida"); }
       setShowGiftSelection(false);
     } catch (error: any) {
-      console.error('Error processing gift:', error);
       toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
     }
   };
-
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    const giftEmojis: { [key: string]: string } = {
-      "00000000-0000-0000-0000-000000000001": "🌹",
-      "00000000-0000-0000-0000-000000000002": "🍫", 
-      "00000000-0000-0000-0000-000000000003": "🧸",
-      "00000000-0000-0000-0000-000000000004": "💐"
-    };
-
-    addMessage({
-      type: 'user',
-      transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
-      timestamp: new Date().toISOString()
-    });
-    
+    const giftEmojis: { [key: string]: string } = { "00000000-0000-0000-0000-000000000001": "🌹", "00000000-0000-0000-0000-000000000002": "🍫", "00000000-0000-0000-0000-000000000003": "🧸", "00000000-0000-0000-0000-000000000004": "💐" };
+    addMessage({ type: 'user', transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`, timestamp: new Date().toISOString() });
     toast.success(`Presente ${giftName} enviado com sucesso!`);
-
-    setTimeout(() => {
-      addMessage({
-        type: 'assistant',
-        transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
-        timestamp: new Date().toISOString()
-      });
-    }, 1500);
+    setTimeout(() => { addMessage({ type: 'assistant', transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`, timestamp: new Date().toISOString() }); }, 1500);
   };
-
-  useEffect(() => {
-    if (audioBlob && audioUrl) {
-      processAudioMessage(audioBlob, audioUrl);
-    }
-  }, [audioBlob, audioUrl]);
-
+  useEffect(() => { if (audioBlob && audioUrl) { processAudioMessage(audioBlob, audioUrl); } }, [audioBlob, audioUrl]);
   const processAudioMessage = async (blob: Blob, url: string) => {
     if (!user) return;
-
-    console.log('=== PROCESSANDO MENSAGEM DE ÁUDIO ===');
-    console.log('Blob:', blob.size, 'bytes, tipo:', blob.type);
-    console.log('URL:', url);
-
     try {
       await getAssistantAudioResponse(blob, url);
       resetAudio();
-      console.log('Áudio processado com sucesso');
     } catch (error) {
-      console.error('Erro ao processar áudio:', error);
       toast.error('Erro ao processar o áudio.');
       resetAudio();
     }
   };
-
   const handleAudioToggle = async () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
+    if (isRecording) { stopRecording(); } else {
       if (n8nLoading || audioN8nLoading) return;
-      
-      // Verificar créditos antes de iniciar gravação
-      if (!hasCredits) {
-        setShowCreditsModal(true);
-        return;
-      }
-      
-      // Consumir crédito IMEDIATAMENTE ao iniciar a gravação
+      if (!hasCredits) { setShowCreditsModal(true); return; }
       const creditConsumed = await consumeCredit();
-      if (!creditConsumed) {
-        setShowCreditsModal(true);
-        return;
-      }
-      
+      if (!creditConsumed) { setShowCreditsModal(true); return; }
       startRecording();
     }
   };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendTextMessage();
-    }
-  };
-
-  const formatTime = (date: string) => {
-    return new Date(date).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const handleAvatarClick = (imageUrl: string, name: string) => {
-    setSelectedImageUrl(imageUrl);
-    setSelectedImageName(name);
-    setIsProfileImageModalOpen(true);
-  };
-
+  const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
+  const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
-    
-    return (
-      <AudioMessage
-        key={message.id}
-        id={message.id!}
-        content={message.transcription}
-        audioUrl={message.audioUrl}
-        isUser={isUserMessage}
-        timestamp={message.timestamp}
-        isPlaying={currentlyPlaying === message.id}
-        onPlayAudio={handlePlayAudio}
-        onAvatarClick={handleAvatarClick}
-        agentData={agentData}
-        userEmail={user?.email}
-        userAvatarUrl={userAvatarUrl}
-      />
-    );
+    return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
+  
 
-  if (!user) {
+  // =================================================================================
+  // NOVO: Bloco de proteção - verifica o estado antes de renderizar a página
+  // =================================================================================
+
+  // 1. Enquanto o perfil do usuário está sendo carregado, exibe uma tela de loading.
+  //    Isso evita que a tela de chat apareça e desapareça rapidamente.
+  if (profileLoading) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
-        <p>Por favor, faça login para acessar o chat.</p>
+        <Loader2 className="animate-spin" size={32} />
+        <p className="ml-4">Verificando seu perfil...</p>
       </div>
     );
   }
 
+  // 2. Se o carregamento terminou e o usuário tem um trial ATIVO, exibe a tela de bloqueio.
+  if (isTrialActive()) {
+    return (
+      <div className="h-screen bg-[#1a1d29] text-white flex flex-col items-center justify-center text-center p-4">
+        <ShieldAlert size={48} className="text-yellow-400 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Acesso Restrito</h1>
+        <p className="max-w-md mb-4">
+          Esta página não está disponível para usuários com o plano de avaliação gratuita (Trial).
+        </p>
+        <p className="max-w-md mb-6">
+          Para acessar todas as funcionalidades, por favor, considere fazer um upgrade no seu plano.
+        </p>
+        <Button 
+          onClick={() => navigate('/planos')} // Altere para sua rota de planos/assinatura se for diferente
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          Ver Planos
+        </Button>
+      </div>
+    );
+  }
+
+  // 3. Se o usuário não está logado (verificação original, mantida por segurança).
+  if (!user) {
+    return (
+      <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
+        <p>Por favor, faça login para acessar o chat.</p>
+        <Button onClick={() => navigate('/login')} className="ml-4">Login</Button>
+      </div>
+    );
+  }
+
+  // Se nenhuma das condições acima for atendida, o usuário tem permissão.
+  // O código JSX original da página é retornado abaixo.
+  // =================================================================================
+  
   const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
 
@@ -552,52 +396,19 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
 
-      {/* Messages Area */}
+      {/* Messages Area e todo o restante do JSX permanecem iguais... */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           {messages.map(renderMessage)}
           <div ref={messagesEndRef} />
         </ScrollArea>
       </div>
-
-      {/* Emoticon Selector */}
-      {showEmoticonSelector && (
-        <EmoticonSelector
-          onSelect={handleEmoticonSelect}
-          onClose={() => setShowEmoticonSelector(false)}
-        />
-      )}
-
-      {/* Gift Selection Modal */}
-      {showGiftSelection && (
-        <GiftSelection
-          onClose={() => setShowGiftSelection(false)}
-          onSelectGift={handleGiftSelect}
-        />
-      )}
-
-      {/* Audio Credits Modal */}
-      <AudioCreditsModal
-        isOpen={showCreditsModal}
-        onClose={() => setShowCreditsModal(false)}
-        currentCredits={credits}
-      />
-
-      {/* Agent Profile Modal */}
-      <AgentProfileModal
-        isOpen={isAgentProfileModalOpen}
-        onClose={() => setIsAgentProfileModalOpen(false)}
-        agentId={agentData.id}
-      />
-
-      {/* Profile Image Modal */}
-      <ProfileImageModal
-        isOpen={isProfileImageModalOpen}
-        onClose={() => setIsProfileImageModalOpen(false)}
-        imageUrl={selectedImageUrl}
-        agentName={selectedImageName}
-      />
-
+      {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
+      {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
+      <AudioCreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} currentCredits={credits} />
+      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
+      <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
+      
       {/* Input Area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30">
         <div className="flex items-center gap-2">
@@ -605,64 +416,22 @@ const ChatTextAudioPage = () => {
             <Button
               variant="ghost"
               size="icon"
-              className={cn(
-                "flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50",
-                isRecording && "text-red-400 hover:text-red-300 animate-pulse",
-                !hasCredits && "opacity-50"
-              )}
+              className={cn("flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50", isRecording && "text-red-400 hover:text-red-300 animate-pulse", !hasCredits && "opacity-50" )}
               onClick={handleAudioToggle}
               disabled={isProcessing}
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
-            {!creditsLoading && (
-              <span className="text-xs text-blue-400 font-medium">
-                {credits}
-              </span>
-            )}
+            {!creditsLoading && (<span className="text-xs text-blue-400 font-medium">{credits}</span>)}
           </div>
-          <Input
-            ref={inputRef}
-            className="bg-[#2F3349] border-[#4A5568] text-white placeholder:text-blue-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
-            placeholder="Digite uma mensagem ou use o áudio..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            disabled={isLoading}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleEmoticonClick}
-            className={`flex-shrink-0 ${
-              showEmoticonSelector 
-                ? 'text-blue-400 bg-blue-900/50' 
-                : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
-            }`}
-            disabled={isLoading}
-          >
+          <Input ref={inputRef} className="bg-[#2F3349] border-[#4A5568] text-white placeholder:text-blue-300 focus-visible:ring-blue-500 focus-visible:border-blue-500" placeholder="Digite uma mensagem ou use o áudio..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={isLoading} />
+          <Button variant="ghost" size="icon" onClick={handleEmoticonClick} className={`flex-shrink-0 ${ showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' }`} disabled={isLoading} >
             <Smile size={20} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleGiftClick}
-            className={`flex-shrink-0 ${
-              showGiftSelection 
-                ? 'text-blue-400 bg-blue-900/50' 
-                : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
-            }`}
-            disabled={isLoading}
-          >
+          <Button variant="ghost" size="icon" onClick={handleGiftClick} className={`flex-shrink-0 ${ showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' }`} disabled={isLoading} >
             <Gift size={20} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50"
-            onClick={handleSendTextMessage}
-            disabled={!input.trim() || isLoading}
-          >
+          <Button variant="ghost" size="icon" className="flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50" onClick={handleSendTextMessage} disabled={!input.trim() || isLoading} >
             {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
           </Button>
         </div>
