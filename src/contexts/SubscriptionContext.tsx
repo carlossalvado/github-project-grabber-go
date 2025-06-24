@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -328,28 +329,44 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      // Buscar especificamente o plano "Text & Audio"
+      console.log("🔍 Buscando plano Text & Audio...");
+      
+      // Buscar especificamente o plano "Text & Audio" ou similar
       const textAudioPlan = plans.find(plan => 
         plan.name.toLowerCase().includes('text') && 
         plan.name.toLowerCase().includes('audio')
       );
       
       if (!textAudioPlan) {
+        console.error("❌ Plano Text & Audio não encontrado nos planos:", plans);
         throw new Error("Plano Text & Audio não encontrado");
       }
+
+      console.log("✅ Plano Text & Audio encontrado:", textAudioPlan);
+
+      // Salvar o plano selecionado no localStorage antes do checkout
+      localStorage.setItem('selectedPlanId', textAudioPlan.id.toString());
+      console.log("💾 Plano salvo no localStorage:", textAudioPlan.id);
 
       // Se tem Stripe price ID, criar checkout session
       if (textAudioPlan.stripe_price_id) {
         console.log("💳 Criando checkout Stripe para Text & Audio:", textAudioPlan);
+        
         const { data, error } = await supabase.functions.invoke('create-checkout', {
           body: { 
-            planId: textAudioPlan.id,
-            returnUrl: '/profile'
+            planId: textAudioPlan.id
           }
         });
         
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
+        if (error) {
+          console.error("❌ Erro na function invoke:", error);
+          throw error;
+        }
+        
+        if (data.error) {
+          console.error("❌ Erro retornado pela função:", data.error);
+          throw new Error(data.error);
+        }
         
         console.log("🔗 Redirecionando para checkout:", data.url);
         window.location.href = data.url;
@@ -371,9 +388,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       await saveToSupabase('plan', planData);
       
       toast.success(`✅ Plano ${textAudioPlan.name} ativado com sucesso!`);
-      navigate('/profile');
+      navigate('/chat-text-audio');
+      
     } catch (error: any) {
-      console.error("Error selecting Text & Audio plan:", error);
+      console.error("❌ Error selecting Text & Audio plan:", error);
       toast.error(error.message || "Falha ao selecionar o plano Text & Audio");
     }
   };
