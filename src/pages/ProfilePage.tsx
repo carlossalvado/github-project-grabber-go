@@ -84,139 +84,57 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAvatarUpdate = (avatarUrl: string) => {
-    setShowAvatarUpload(false);
-    loadFromCache(); // Reload cache to get updated avatar
-    toast.success('Avatar atualizado com sucesso!');
-  };
-
   const currentPlanName = getPlanName() || 'Nenhum plano ativo';
   const currentPlanActive = hasPlanActive();
 
   return (
-    <div className="min-h-screen bg-sweetheart-bg">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-sweetheart-bg p-4">
+      <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gradient-isa mb-2">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gradient-isa mb-2">
             Meu Perfil
           </h1>
-          <p className="text-isa-muted text-lg">
-            Gerencie suas informações e personalize sua experiência
+          <p className="text-isa-muted">
+            Gerencie suas informações pessoais e configurações
           </p>
         </div>
 
-        {/* User Info Card */}
+        {/* Avatar Section */}
         <Card className="card-isa">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center space-y-4">
-              {/* Avatar */}
-              <div className="relative">
-                <Avatar 
-                  className="w-20 h-20 cursor-pointer border-2 border-isa-purple hover:border-isa-pink transition-colors"
-                  onClick={() => setShowAvatarUpload(true)}
-                >
-                  <AvatarImage 
-                    src={getAvatarUrl() || undefined} 
-                    alt="Avatar do usuário" 
-                  />
-                  <AvatarFallback className="bg-isa-card text-isa-light text-xl">
-                    <User className="w-8 h-8" />
-                  </AvatarFallback>
-                </Avatar>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0 bg-isa-purple hover:bg-isa-pink border-isa-purple"
-                  onClick={() => setShowAvatarUpload(true)}
-                >
-                  <Camera className="w-3 h-3 text-white" />
-                </Button>
-              </div>
-
-              {/* User Name */}
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-isa-light">
-                  {getFullName() || 'Usuário'}
-                </h2>
-                <p className="text-isa-muted">{user?.email}</p>
-              </div>
+          <CardHeader className="text-center">
+            <CardTitle className="text-isa-light">Foto do Perfil</CardTitle>
+            <CardDescription className="text-isa-muted">
+              Clique na foto para alterar
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="relative inline-block">
+              <Avatar 
+                className="w-24 h-24 mx-auto cursor-pointer border-2 border-isa-purple hover:border-isa-pink transition-colors"
+                onClick={() => setShowAvatarUpload(true)}
+              >
+                <AvatarImage 
+                  src={getAvatarUrl() || undefined} 
+                  alt="Avatar do usuário" 
+                />
+                <AvatarFallback className="bg-isa-card text-isa-light text-xl">
+                  <User className="w-8 h-8" />
+                </AvatarFallback>
+              </Avatar>
+              <Button
+                size="sm"
+                variant="outline"
+                className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 bg-isa-purple hover:bg-isa-pink border-isa-purple"
+                onClick={() => setShowAvatarUpload(true)}
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Plan Information */}
-          <Card className="card-isa">
-            <CardHeader>
-              <CardTitle className="text-isa-pink flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-isa-pink to-isa-purple rounded"></div>
-                Plano Atual
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-isa-card/50 p-4 rounded-lg border border-isa-purple/30">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {currentPlanActive && (
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      )}
-                      <span className="px-3 py-1 bg-isa-purple/20 text-isa-purple rounded-full text-sm font-medium">
-                        {currentPlanName}
-                      </span>
-                    </div>
-                    <p className="text-sm text-isa-muted mt-2">
-                      Status: {currentPlanActive ? 
-                        <span className="text-green-400 font-medium">Ativo</span> : 
-                        <span className="text-yellow-400 font-medium">Inativo</span>
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {currentPlanName === 'trial' && (
-                <div className="text-center">
-                  <p className="text-isa-muted text-sm mb-3">
-                    Trial de 72 horas - Acesso completo por tempo limitado
-                  </p>
-                  <Button 
-                    onClick={() => window.location.href = '/plan'}
-                    className="btn-isa-secondary w-full"
-                  >
-                    Trial ativo
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Account Information */}
-          <Card className="card-isa">
-            <CardHeader>
-              <CardTitle className="text-isa-light flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-isa-purple rounded"></div>
-                Informações da Conta
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
-                  <p className="text-xs text-isa-muted mb-1">Email</p>
-                  <p className="text-isa-light font-medium">{user?.email}</p>
-                </div>
-                
-                <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
-                  <p className="text-xs text-isa-muted mb-1">Status da Conta</p>
-                  <p className="text-green-400 font-medium">Verificada</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Personal Information */}
+        {/* Profile Information */}
         <Card className="card-isa">
           <CardHeader>
             <CardTitle className="text-isa-light">Informações Pessoais</CardTitle>
@@ -266,41 +184,65 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Plan Information */}
         <Card className="card-isa">
           <CardHeader>
-            <CardTitle className="text-isa-pink flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-r from-isa-pink to-red-500 rounded"></div>
-              Ações Rápidas
-            </CardTitle>
+            <CardTitle className="text-isa-light">Plano Atual</CardTitle>
+            <CardDescription className="text-isa-muted">
+              Informações sobre sua assinatura
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button 
-                onClick={() => window.location.href = '/chat-trial'}
-                className="btn-isa-primary flex items-center justify-center gap-2"
-              >
-                Ir para Chat
-              </Button>
-              
-              <Button 
-                onClick={handleSignOut}
-                variant="destructive"
-                className="w-full"
-              >
-                Sair da Conta
-              </Button>
+            <div className="flex items-center justify-between p-4 bg-isa-card rounded-lg border border-isa-purple/30">
+              <div>
+                <p className="font-semibold text-isa-light">{currentPlanName}</p>
+                <p className="text-sm text-isa-muted">
+                  Status: {currentPlanActive ? 
+                    <span className="text-green-400">Ativo</span> : 
+                    <span className="text-yellow-400">Inativo</span>
+                  }
+                </p>
+              </div>
+              {currentPlanActive && (
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              )}
             </div>
+
+            {currentPlanName === 'trial' && (
+              <div className="text-center">
+                <Button 
+                  onClick={() => window.location.href = '/plan'}
+                  className="btn-isa-secondary"
+                >
+                  Fazer Upgrade
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Logout Section */}
+        <Card className="card-isa">
+          <CardContent className="pt-6">
+            <Button 
+              onClick={handleSignOut}
+              variant="destructive"
+              className="w-full"
+            >
+              Sair da Conta
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Avatar Upload Component */}
+      {/* Avatar Upload Modal */}
       {showAvatarUpload && (
         <AvatarUpload 
-          currentAvatarUrl={getAvatarUrl()}
-          onAvatarUpdate={handleAvatarUpdate}
-          userName={getFullName()}
+          onClose={() => setShowAvatarUpload(false)}
+          onAvatarUpdated={() => {
+            setShowAvatarUpload(false);
+            toast.success('Avatar atualizado com sucesso!');
+          }}
         />
       )}
     </div>
