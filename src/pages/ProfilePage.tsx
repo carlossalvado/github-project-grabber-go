@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useUserProfile } from '@/hooks/useUserProfile';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, User, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import AvatarUpload from '@/components/AvatarUpload';
 
 const ProfilePage = () => {
@@ -221,8 +222,9 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* Trial Information */}
-              {trialActive && (
+              {/* CORREÇÃO APLICADA AQUI */}
+              {/* Trial Information - SÓ MOSTRA SE NÃO HOUVER UM PLANO PAGO ATIVO */}
+              {!currentPlanActive && trialActive && (
                 <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
@@ -259,10 +261,9 @@ const ProfilePage = () => {
                 <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
                   <p className="text-xs text-isa-muted mb-1">Última Atualização</p>
                   <p className="text-isa-light font-medium">
-                    {profile?.cached_at ? 
-                      new Date(profile.cached_at).toLocaleString('pt-BR') : 
-                      'Agora'
-                    }
+                    {/* A propriedade 'cached_at' não existe no objeto 'profile' do seu hook */}
+                    {/* Removido para evitar erros. Pode ser re-adicionado se o hook for atualizado */}
+                    {new Date().toLocaleString('pt-BR')}
                   </p>
                 </div>
               </div>
