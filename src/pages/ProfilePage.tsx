@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, User, Save, RefreshCw } from 'lucide-react';
+import { Camera, User, Save, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import AvatarUpload from '@/components/AvatarUpload';
 
@@ -82,6 +82,12 @@ const ProfilePage = () => {
       console.error('Erro no logout:', error);
       toast.error('Erro ao fazer logout');
     }
+  };
+
+  const handleAvatarUpdate = (avatarUrl: string) => {
+    setShowAvatarUpload(false);
+    loadFromCache(); // Reload cache to get updated avatar
+    toast.success('Avatar atualizado com sucesso!');
   };
 
   const currentPlanName = getPlanName() || 'Nenhum plano ativo';
@@ -237,13 +243,28 @@ const ProfilePage = () => {
 
       {/* Avatar Upload Modal */}
       {showAvatarUpload && (
-        <AvatarUpload 
-          onClose={() => setShowAvatarUpload(false)}
-          onAvatarUpdated={() => {
-            setShowAvatarUpload(false);
-            toast.success('Avatar atualizado com sucesso!');
-          }}
-        />
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-isa-dark border border-isa-purple/30 rounded-lg p-6 w-full max-w-md relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 text-isa-muted hover:text-isa-white"
+              onClick={() => setShowAvatarUpload(false)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            
+            <h3 className="text-lg font-semibold text-isa-light mb-4 text-center">
+              Alterar Foto do Perfil
+            </h3>
+            
+            <AvatarUpload 
+              currentAvatarUrl={getAvatarUrl()}
+              onAvatarUpdate={handleAvatarUpdate}
+              userName={getFullName()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
