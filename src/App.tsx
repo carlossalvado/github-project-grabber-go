@@ -11,6 +11,7 @@ import ChatTextAudioPage from "./pages/ChatTextAudioPage";
 import PersonalizePage from "./pages/PersonalizePage";
 import PlanPage from "./pages/PlanPage";
 import SelectedPlanPage from "./pages/SelectedPlanPage";
+import SinglePlanProductPage from "./pages/SinglePlanProductPage";
 import FreePlanPage from "./pages/FreePlanPage";
 import BasicPlanPage from "./pages/BasicPlanPage";
 import PremiumPlanPage from "./pages/PremiumPlanPage";
@@ -77,6 +78,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PlanPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/plan/:planId"
+                  element={
+                    <ProtectedRoute>
+                      <SinglePlanProductPage />
                     </ProtectedRoute>
                   }
                 />
