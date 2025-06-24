@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Adicionado o useCallback
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// As interfaces permanecem as mesmas
 interface UserProfile {
   id: string;
   full_name: string | null;
@@ -41,120 +42,8 @@ export const useUserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Função para buscar dados completos do usuário do Supabase
-  const fetchUserData = async (forceRefresh = false) => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      console.log('🔄 Buscando dados do usuário do Supabase...', { userId: user.id, forceRefresh });
-
-      // 1. Buscar perfil do usuário
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Erro ao buscar perfil:', profileError);
-        throw new Error(`Erro ao buscar perfil: ${profileError.message}`);
-      }
-
-      // 2. Buscar agente selecionado
-      const { data: agentData, error: agentError } = await supabase
-        .from('user_selected_agent')
-        .select('agent_id, nickname')
-        .eq('user_id', user.id)
-        .single();
-
-      if (agentError && agentError.code !== 'PGRST116') {
-        console.error('Erro ao buscar agente:', agentError);
-      }
-
-      // 3. Buscar dados do trial
-      const { data: trialData, error: trialError } = await supabase
-        .from('user_trials')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (trialError && trialError.code !== 'PGRST116') {
-        console.error('Erro ao buscar trial:', trialError);
-      }
-
-      // Processar dados do perfil
-      const userProfile: UserProfile = {
-        id: user.id,
-        full_name: profileData?.full_name || null,
-        email: user.email || '',
-        avatar_url: profileData?.avatar_url || null,
-        plan_name: profileData?.plan_name || null,
-        plan_active: profileData?.plan_active || false
-      };
-
-      // Processar dados do agente
-      const userAgent: UserAgent | null = agentData ? {
-        agent_id: agentData.agent_id,
-        nickname: agentData.nickname
-      } : null;
-
-      // Processar dados do plano
-      const userPlan: UserPlan = {
-        plan_name: profileData?.plan_name || 'Nenhum plano',
-        plan_active: profileData?.plan_active || false
-      };
-
-      // Processar dados do trial
-      let userTrial: TrialData | null = null;
-      if (trialData) {
-        const now = new Date();
-        const trialEnd = new Date(trialData.trial_end);
-        const isActive = trialData.trial_active && trialEnd > now;
-        const hoursRemaining = isActive ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0;
-
-        userTrial = {
-          ...trialData,
-          isActive,
-          hoursRemaining
-        };
-      }
-
-      // Atualizar estados
-      setProfile(userProfile);
-      setAgent(userAgent);
-      setPlan(userPlan);
-      setTrial(userTrial);
-
-      // Salvar no cache do navegador
-      saveToCache('profile', userProfile);
-      if (userAgent) saveToCache('agent', userAgent);
-      saveToCache('plan', userPlan);
-      if (userTrial) saveToCache('trial', userTrial);
-
-      console.log('✅ Dados do usuário atualizados com sucesso:', {
-        profile: userProfile,
-        agent: userAgent,
-        plan: userPlan,
-        trial: userTrial
-      });
-
-    } catch (error: any) {
-      console.error('❌ Erro ao buscar dados do usuário:', error);
-      setError(error.message);
-      toast.error('Erro ao carregar dados do perfil');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Função para salvar no cache
-  const saveToCache = (type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
+  // OTIMIZAÇÃO: Função para salvar no cache envolvida com useCallback
+  const saveToCache = useCallback((type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
     try {
       const cacheKey = `sweet-ai-user-${type}`;
       const dataWithTimestamp = {
@@ -166,80 +55,82 @@ export const useUserProfile = () => {
     } catch (error) {
       console.error(`Erro ao salvar ${type} no cache:`, error);
     }
-  };
+  }, []); // Sem dependências, pois não usa nada do escopo do hook
 
-  // Função para carregar do cache (apenas como fallback)
-  const loadFromCache = () => {
+  // OTIMIZAÇÃO: Função principal de busca de dados envolvida com useCallback
+  const fetchUserData = useCallback(async (forceRefresh = false) => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Carregar perfil
+      setLoading(true);
+      setError(null);
+      console.log('🔄 Buscando dados do usuário do Supabase...', { userId: user.id, forceRefresh });
+
+      // As buscas no Supabase continuam iguais
+      const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (profileError && profileError.code !== 'PGRST116') throw new Error(`Erro ao buscar perfil: ${profileError.message}`);
+
+      const { data: agentData, error: agentError } = await supabase.from('user_selected_agent').select('agent_id, nickname').eq('user_id', user.id).single();
+      if (agentError && agentError.code !== 'PGRST116') console.error('Erro ao buscar agente:', agentError);
+
+      const { data: trialData, error: trialError } = await supabase.from('user_trials').select('*').eq('user_id', user.id).single();
+      if (trialError && trialError.code !== 'PGRST116') console.error('Erro ao buscar trial:', trialError);
+
+      // O processamento dos dados continua igual
+      const userProfile: UserProfile = { id: user.id, full_name: profileData?.full_name || null, email: user.email || '', avatar_url: profileData?.avatar_url || null, plan_name: profileData?.plan_name || null, plan_active: profileData?.plan_active || false };
+      const userAgent: UserAgent | null = agentData ? { agent_id: agentData.agent_id, nickname: agentData.nickname } : null;
+      const userPlan: UserPlan = { plan_name: profileData?.plan_name || 'Nenhum plano', plan_active: profileData?.plan_active || false };
+      
+      let userTrial: TrialData | null = null;
+      if (trialData) {
+        const now = new Date();
+        const trialEnd = new Date(trialData.trial_end);
+        const isActive = trialData.trial_active && trialEnd > now;
+        const hoursRemaining = isActive ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0;
+        userTrial = { ...trialData, isActive, hoursRemaining };
+      }
+
+      setProfile(userProfile);
+      setAgent(userAgent);
+      setPlan(userPlan);
+      setTrial(userTrial);
+
+      saveToCache('profile', userProfile);
+      if (userAgent) saveToCache('agent', userAgent);
+      saveToCache('plan', userPlan);
+      if (userTrial) saveToCache('trial', userTrial);
+
+      console.log('✅ Dados do usuário atualizados com sucesso');
+    } catch (error: any) {
+      console.error('❌ Erro ao buscar dados do usuário:', error);
+      setError(error.message);
+      toast.error('Erro ao carregar dados do perfil');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, saveToCache]); // Depende do user.id e da função saveToCache
+
+  // OTIMIZAÇÃO: Função de carregar do cache envolvida com useCallback
+  const loadFromCache = useCallback(() => {
+    try {
       const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
-      if (cachedProfile) {
-        const profileData = JSON.parse(cachedProfile);
-        setProfile(profileData);
-      }
-
-      // Carregar agente
+      if (cachedProfile) setProfile(JSON.parse(cachedProfile));
       const cachedAgent = localStorage.getItem('sweet-ai-user-agent');
-      if (cachedAgent) {
-        const agentData = JSON.parse(cachedAgent);
-        setAgent(agentData);
-      }
-
-      // Carregar plano
+      if (cachedAgent) setAgent(JSON.parse(cachedAgent));
       const cachedPlan = localStorage.getItem('sweet-ai-user-plan');
-      if (cachedPlan) {
-        const planData = JSON.parse(cachedPlan);
-        setPlan(planData);
-      }
-
-      // Carregar trial
+      if (cachedPlan) setPlan(JSON.parse(cachedPlan));
       const cachedTrial = localStorage.getItem('sweet-ai-user-trial');
-      if (cachedTrial) {
-        const trialData = JSON.parse(cachedTrial);
-        setTrial(trialData);
-      }
+      if (cachedTrial) setTrial(JSON.parse(cachedTrial));
     } catch (error) {
       console.error('Erro ao carregar cache:', error);
     }
-  };
+  }, []);
 
-  // Função para atualizar perfil
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user?.id) return false;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Erro ao atualizar perfil:', error);
-        toast.error('Erro ao atualizar perfil');
-        return false;
-      }
-
-      // Recarregar dados após atualização
-      await fetchUserData(true);
-      toast.success('Perfil atualizado com sucesso!');
-      return true;
-    } catch (error: any) {
-      console.error('Erro ao atualizar perfil:', error);
-      toast.error('Erro ao atualizar perfil');
-      return false;
-    }
-  };
-
-  // Função para atualizar avatar
-  const updateAvatar = async (avatarUrl: string) => {
-    return await updateProfile({ avatar_url: avatarUrl });
-  };
-
-  // Função para limpar cache
-  const clearCache = () => {
+  // OTIMIZAÇÃO: Função para limpar cache envolvida com useCallback
+  const clearCache = useCallback(() => {
     localStorage.removeItem('sweet-ai-user-profile');
     localStorage.removeItem('sweet-ai-user-agent');
     localStorage.removeItem('sweet-ai-user-plan');
@@ -249,19 +140,45 @@ export const useUserProfile = () => {
     setPlan(null);
     setTrial(null);
     console.log('🗑️ Cache do usuário limpo');
-  };
+  }, []);
 
   // Carregar dados quando o usuário muda
   useEffect(() => {
     if (user?.id) {
-      // Primeiro carrega do cache para exibição imediata
       loadFromCache();
-      // Depois busca dados atualizados do Supabase
       fetchUserData(true);
     } else {
       clearCache();
     }
-  }, [user?.id]);
+  }, [user?.id, fetchUserData, loadFromCache, clearCache]); // Adicionadas as dependências estáveis
+
+  // OTIMIZAÇÃO: Funções de update envolvidas com useCallback
+  const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
+    if (!user?.id) return false;
+    try {
+      const { error } = await supabase.from('profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', user.id);
+      if (error) {
+        throw error;
+      }
+      await fetchUserData(true);
+      toast.success('Perfil atualizado com sucesso!');
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao atualizar perfil:', error);
+      toast.error('Erro ao atualizar perfil');
+      return false;
+    }
+  }, [user?.id, fetchUserData]);
+
+  const updateAvatar = useCallback(async (avatarUrl: string) => {
+    return await updateProfile({ avatar_url: avatarUrl });
+  }, [updateProfile]);
+
+  // =================================================================================
+  // CORREÇÃO DA LÓGICA DE NEGÓCIO E OTIMIZAÇÃO DOS HELPERS
+  // =================================================================================
+  const hasPlanActive = useCallback(() => plan?.plan_active || false, [plan]);
+  const isTrialCurrentlyActive = useCallback(() => trial?.isActive || false, [trial]);
 
   return {
     // Estados
@@ -282,8 +199,12 @@ export const useUserProfile = () => {
     getFullName: () => profile?.full_name || 'Usuário',
     getAvatarUrl: () => profile?.avatar_url || null,
     getPlanName: () => plan?.plan_name || 'Nenhum plano',
-    hasPlanActive: () => plan?.plan_active || false,
-    isTrialActive: () => trial?.isActive || false,
+    hasPlanActive: hasPlanActive,
+    
+    // CORREÇÃO PRINCIPAL APLICADA AQUI
+    // Um usuário só é considerado "em trial" se o trial estiver ativo E ele não tiver um plano pago ativo.
+    isTrialActive: () => isTrialCurrentlyActive() && !hasPlanActive(),
+    
     getTrialHoursRemaining: () => trial?.hoursRemaining || 0
   };
 };
