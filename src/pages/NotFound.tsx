@@ -1,13 +1,11 @@
 
-import { useLocation, Navigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 
 const NotFound = () => {
   const location = useLocation();
-  const { user, loading } = useAuth();
 
   useEffect(() => {
     console.error(
@@ -15,20 +13,6 @@ const NotFound = () => {
       location.pathname
     );
   }, [location.pathname]);
-
-  // Show loading while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
-      </div>
-    );
-  }
-
-  // If user is logged in, redirect to profile
-  if (user) {
-    return <Navigate to="/profile" replace />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
