@@ -1,76 +1,73 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserCache } from '@/hooks/useUserCache';
-import { useSupabaseSync } from '@/hooks/useSupabaseSync';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, User, Save, RefreshCw } from 'lucide-react';
+import { Camera, User, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import AvatarUpload from '@/components/AvatarUpload';
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { profile, plan, getFullName, getAvatarUrl, getPlanName, hasPlanActive, loadFromCache } = useUserCache();
-  const { saveToSupabase } = useSupabaseSync();
+  const {
+    profile,
+    plan,
+    trial,
+    loading,
+    error,
+    fetchUserData,
+    updateProfile,
+    updateAvatar,
+    getFullName,
+    getAvatarUrl,
+    getPlanName,
+    hasPlanActive,
+    isTrialActive,
+    getTrialHoursRemaining
+  } = useUserProfile();
+
   const [fullName, setFullName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
 
-  // Carregar dados iniciais
+  // Atualizar estado local quando o perfil carrega
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
     }
   }, [profile]);
 
-  // Escutar atualizações do plano após pagamento
+  // Forçar atualização dos dados quando a página carrega
   useEffect(() => {
-    const handlePlanUpdate = (event: any) => {
-      console.log('📱 ProfilePage: Plano atualizado via evento:', event.detail);
-      // Recarregar cache para garantir dados atualizados
-      loadFromCache();
-      toast.success('✅ Plano atualizado com sucesso!');
-    };
-
-    window.addEventListener('planUpdated', handlePlanUpdate);
-    
-    return () => {
-      window.removeEventListener('planUpdated', handlePlanUpdate);
-    };
-  }, [loadFromCache]);
+    if (user?.id) {
+      console.log('🔄 ProfilePage: Forçando atualização dos dados do usuário...');
+      fetchUserData(true); // Force refresh
+    }
+  }, [user?.id, fetchUserData]);
 
   const handleSaveProfile = async () => {
-    if (!user) {
-      toast.error('Você precisa estar logado');
-      return;
-    }
-
     if (!fullName.trim()) {
       toast.error('Nome completo é obrigatório');
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
-      const profileData = {
-        id: user.id,
-        full_name: fullName.trim(),
-        email: user.email || '',
-        plan_name: getPlanName(),
-        plan_active: hasPlanActive()
-      };
+      const success = await updateProfile({
+        full_name: fullName.trim()
+      });
 
-      await saveToSupabase('profile', profileData);
-      toast.success('Perfil salvo com sucesso!');
+      if (success) {
+        toast.success('Perfil salvo com sucesso!');
+      }
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
       toast.error('Erro ao salvar perfil');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -84,23 +81,71 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAvatarUpdate = (avatarUrl: string) => {
-    setShowAvatarUpload(false);
-    loadFromCache(); // Reload cache to get updated avatar
-    toast.success('Avatar atualizado com sucesso!');
+  const handleAvatarUpdate = async (avatarUrl: string) => {
+    const success = await updateAvatar(avatarUrl);
+    if (success) {
+      setShowAvatarUpload(false);
+      toast.success('Avatar atualizado com sucesso!');
+    }
   };
 
-  const currentPlanName = getPlanName() || 'Nenhum plano ativo';
+  const handleRefreshData = () => {
+    console.log('🔄 Atualizando dados do usuário...');
+    fetchUserData(true);
+    toast.info('Atualizando dados...');
+  };
+
+  if (loading && !profile) {
+    return (
+      <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
+          <p className="text-slate-300">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-sweetheart-bg flex items-center justify-center">
+        <Card className="card-isa max-w-md">
+          <CardContent className="pt-6 text-center">
+            <p className="text-red-400 mb-4">Erro ao carregar perfil: {error}</p>
+            <Button onClick={handleRefreshData} className="btn-isa-primary">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar Novamente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentPlanName = getPlanName();
   const currentPlanActive = hasPlanActive();
+  const trialActive = isTrialActive();
+  const trialHours = getTrialHoursRemaining();
 
   return (
     <div className="min-h-screen bg-sweetheart-bg">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gradient-isa mb-2">
-            Meu Perfil
-          </h1>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <h1 className="text-4xl font-bold text-gradient-isa">
+              Meu Perfil
+            </h1>
+            <Button
+              onClick={handleRefreshData}
+              variant="ghost"
+              size="sm"
+              className="text-isa-purple hover:text-isa-pink"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <p className="text-isa-muted text-lg">
             Gerencie suas informações e personalize sua experiência
           </p>
@@ -137,7 +182,7 @@ const ProfilePage = () => {
               {/* User Name */}
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-isa-light">
-                  {getFullName() || 'Usuário'}
+                  {getFullName()}
                 </h2>
                 <p className="text-isa-muted">{user?.email}</p>
               </div>
@@ -176,17 +221,16 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {currentPlanName === 'trial' && (
-                <div className="text-center">
-                  <p className="text-isa-muted text-sm mb-3">
-                    Trial de 72 horas - Acesso completo por tempo limitado
+              {/* Trial Information */}
+              {trialActive && (
+                <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                    <span className="text-orange-400 font-medium">Trial Ativo</span>
+                  </div>
+                  <p className="text-sm text-isa-muted">
+                    {trialHours > 0 ? `${trialHours} horas restantes` : 'Expirando em breve'}
                   </p>
-                  <Button 
-                    onClick={() => window.location.href = '/plan'}
-                    className="btn-isa-secondary w-full"
-                  >
-                    Trial ativo
-                  </Button>
                 </div>
               )}
             </CardContent>
@@ -210,6 +254,16 @@ const ProfilePage = () => {
                 <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
                   <p className="text-xs text-isa-muted mb-1">Status da Conta</p>
                   <p className="text-green-400 font-medium">Verificada</p>
+                </div>
+
+                <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
+                  <p className="text-xs text-isa-muted mb-1">Última Atualização</p>
+                  <p className="text-isa-light font-medium">
+                    {profile?.cached_at ? 
+                      new Date(profile.cached_at).toLocaleString('pt-BR') : 
+                      'Agora'
+                    }
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -248,10 +302,10 @@ const ProfilePage = () => {
 
             <Button 
               onClick={handleSaveProfile}
-              disabled={loading}
+              disabled={saving || loading}
               className="btn-isa-primary w-full"
             >
-              {loading ? (
+              {saving ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   Salvando...
@@ -277,7 +331,7 @@ const ProfilePage = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button 
-                onClick={() => window.location.href = '/chat-trial'}
+                onClick={() => window.location.href = '/chat-text-audio'}
                 className="btn-isa-primary flex items-center justify-center gap-2"
               >
                 Ir para Chat
