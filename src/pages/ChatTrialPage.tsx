@@ -190,13 +190,11 @@ const ChatTrialPage = () => {
     
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-trial');
     }
     
     if (giftCanceled === 'true') {
       toast.error('Compra de presente cancelada');
-      // Clean URL
       window.history.replaceState({}, document.title, '/chat-trial');
     }
   }, []);
@@ -491,12 +489,34 @@ const ChatTrialPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative">
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden">
+      <style>{`
+        /* Hide scrollbars for mobile */
+        .scrollbar-hide {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        
+        /* Ensure full viewport height on mobile */
+        .mobile-viewport {
+          height: 100vh;
+          height: 100dvh; /* Dynamic viewport height for mobile */
+        }
+        
+        /* Safe area padding for mobile */
+        .pb-safe {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      `}</style>
+      
       {/* Trial Timer - Apenas para usuários trial */}
       <TrialTimer />
 
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+      {/* Header - Fixed */}
+      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -526,7 +546,7 @@ const ChatTrialPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="text-orange-400 hover:text-orange-300"
+            className="text-orange-400 hover:text-orange-300 hidden sm:flex"
             onClick={handleUpgrade}
           >
             Fazer Upgrade
@@ -536,7 +556,7 @@ const ChatTrialPage = () => {
 
       {/* Trial Warning */}
       {(hoursRemaining <= 12 || remainingMessages <= 3) && (
-        <div className="bg-orange-600/20 border-b border-orange-500/30 p-3 text-center">
+        <div className="bg-orange-600/20 border-b border-orange-500/30 p-3 text-center flex-shrink-0">
           <p className="text-orange-300 text-sm">
             ⚠️ {hoursRemaining <= 12 ? `${hoursRemaining} horas restantes no seu trial` : `${remainingMessages} mensagens restantes`}. 
             <Button 
@@ -550,9 +570,13 @@ const ChatTrialPage = () => {
         </div>
       )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full p-4">
+      {/* Messages Area - Flexible with mobile-friendly scroll */}
+      <div className="flex-1 min-h-0 relative">
+        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4 pb-safe" style={{ 
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch'
+        }}>
           <div className="space-y-4">
             {messages.map((message) => {
               const isUserMessage = message.type === 'user';
@@ -608,10 +632,10 @@ const ChatTrialPage = () => {
           </div>
           
           <div ref={messagesEndRef} />
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* Emoticon Selector */}
+      {/* Modals and Selectors */}
       {showEmoticonSelector && (
         <EmoticonSelector
           onSelect={handleEmoticonSelect}
@@ -619,7 +643,6 @@ const ChatTrialPage = () => {
         />
       )}
 
-      {/* Gift Selection Modal */}
       {showGiftSelection && (
         <GiftSelection
           onClose={() => setShowGiftSelection(false)}
@@ -627,15 +650,14 @@ const ChatTrialPage = () => {
         />
       )}
 
-      {/* Audio Credits Modal */}
       <AudioCreditsModal
         isOpen={showCreditsModal}
         onClose={() => setShowCreditsModal(false)}
         currentCredits={credits}
       />
 
-      {/* Input Area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2">
+      {/* Input Area - Fixed Footer */}
+      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0 sticky bottom-0 pb-safe">
         <div className="flex flex-col items-center gap-1">
           <Button
             variant="ghost"

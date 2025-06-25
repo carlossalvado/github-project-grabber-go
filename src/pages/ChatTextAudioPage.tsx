@@ -322,7 +322,7 @@ const ChatTextAudioPage = () => {
           Para acessar todas as funcionalidades, por favor, considere fazer um upgrade no seu plano.
         </p>
         <Button 
-          onClick={() => navigate('/planos')} // Altere para sua rota de planos/assinatura se for diferente
+          onClick={() => navigate('/planos')}
           className="bg-blue-600 hover:bg-blue-700"
         >
           Ver Planos
