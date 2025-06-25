@@ -31,10 +31,10 @@ const ChatTextAudioPage = () => {
   
   // NOVO: Obtém o status do plano e o estado de carregamento do perfil.
   // Usamos 'profileLoading' para não conflitar com outras variáveis 'isLoading'.
-  const { isTrialActive, loading: profileLoading, user } = useUserProfile();
+  const { isTrialActive, loading: profileLoading } = useUserProfile();
 
-  // Mantemos o `useAuth` se outras partes dependerem dele, mas a verificação principal usa `useUserProfile`.
-  const auth = useAuth();
+  // Mantemos o `useAuth` para obter o usuário autenticado
+  const { user } = useAuth();
   
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
@@ -149,7 +149,6 @@ const ChatTextAudioPage = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    // ... (o restante deste useEffect permanece igual)
     const creditsSuccess = urlParams.get('credits_success');
     const creditsAmount = urlParams.get('credits');
     const creditsCanceled = urlParams.get('credits_canceled');
@@ -195,10 +194,9 @@ const ChatTextAudioPage = () => {
       toast.error('Compra de presente cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
-  }, [refreshCredits, refreshVoiceCredits]); // Adicionei dependências para o linter
+  }, [refreshCredits, refreshVoiceCredits]);
 
   const getAssistantResponse = async (messageText: string) => {
-    // ... (função igual)
     if (!user) return;
     try {
       const responseText = await sendToN8n(messageText, user.email!);
@@ -211,7 +209,6 @@ const ChatTextAudioPage = () => {
   };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
-    // ... (função igual)
     if (!user) return;
     try {
       const result = await sendAudioToN8n(audioBlob, user.email!);
@@ -229,7 +226,6 @@ const ChatTextAudioPage = () => {
   };
 
   const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    // ... (função igual)
     if (audioRef.current && currentlyPlaying === messageId) {
       audioRef.current.pause();
       setCurrentlyPlaying(null);
@@ -243,7 +239,6 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  // ... (todas as outras funções handle... permanecem iguais)
   const handleSendTextMessage = async () => {
     const isLoading = n8nLoading || audioN8nLoading || isRecording;
     if (!input.trim() || isLoading || !user) return;
