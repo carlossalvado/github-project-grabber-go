@@ -65,8 +65,6 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   
-  // O restante dos seus hooks e lógicas useEffect permanecem os mesmos
-  // ... (todo o resto do seu código, hooks e funções, permanece aqui) ...
   // Carregar avatar do usuário do Supabase
   useEffect(() => {
     if (!user?.id) return;
@@ -350,6 +348,23 @@ const ChatTextAudioPage = () => {
 
   return (
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden">
+      <style>{`
+        .scrollbar-hide {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .mobile-viewport {
+          height: 100vh;
+          height: 100dvh;
+        }
+        .pb-safe {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      `}</style>
+      
       {/* Header - Fixed */}
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-3">
@@ -398,11 +413,6 @@ const ChatTextAudioPage = () => {
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch'
         }}>
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
           {messages.map(renderMessage)}
           <div ref={messagesEndRef} />
         </div>
