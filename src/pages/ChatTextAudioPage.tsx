@@ -349,9 +349,9 @@ const ChatTextAudioPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0">
+    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden">
+      {/* Header - Fixed */}
+      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -383,7 +383,7 @@ const ChatTextAudioPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="text-blue-200 hover:text-white hover:bg-blue-900/50"
+            className="text-blue-200 hover:text-white hover:bg-blue-900/50 hidden sm:flex"
             onClick={clearMessages}
           >
             Limpar Chat
@@ -391,21 +391,32 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
 
-      {/* Messages Area e todo o restante do JSX permanecem iguais... */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full p-4">
+      {/* Messages Area - Flexible with mobile-friendly scroll */}
+      <div className="flex-1 min-h-0 relative">
+        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4 pb-safe" style={{ 
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
           {messages.map(renderMessage)}
           <div ref={messagesEndRef} />
-        </ScrollArea>
+        </div>
       </div>
+
+      {/* Modals and Selectors */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
       <AudioCreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} currentCredits={credits} />
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
-      {/* Input Area */}
-      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30">
+      {/* Input Area - Fixed Footer */}
+      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 pb-safe">
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-center gap-1">
             <Button
