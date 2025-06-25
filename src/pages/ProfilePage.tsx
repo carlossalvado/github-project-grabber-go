@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, User, Save, RefreshCw, Loader2 } from 'lucide-react';
+import { Camera, User, Save, RefreshCw, Loader2, MessageCircle, Star } from 'lucide-react'; // Adicionei ícones para diferenciar os botões
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -39,12 +39,6 @@ const ProfilePage = () => {
     }
   }, [profile]);
 
-  useEffect(() => {
-    // Este useEffect não é mais necessário pois o hook já lida com o fetch inicial.
-    // Manter pode causar re-fetches. Removido para otimização.
-    // fetchUserData(true);
-  }, []); // Deixado vazio de propósito
-
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
       toast.error('Nome completo é obrigatório');
@@ -52,10 +46,7 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
-      const success = await updateProfile({ full_name: fullName.trim() });
-      if (success) {
-        // O toast de sucesso já é mostrado dentro do hook
-      }
+      await updateProfile({ full_name: fullName.trim() });
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
       toast.error('Erro ao salvar perfil');
@@ -78,7 +69,6 @@ const ProfilePage = () => {
     const success = await updateAvatar(avatarUrl);
     if (success) {
       setShowAvatarUpload(false);
-      // O toast de sucesso já é mostrado dentro do hook
     }
   };
 
@@ -87,24 +77,11 @@ const ProfilePage = () => {
     toast.info('Atualizando dados...');
   };
 
-  // ✅ LÓGICA DE NAVEGAÇÃO CORRIGIDA E SIMPLIFICADA
-  const handleNavigateToChat = () => {
-    const planIsActive = hasPlanActive();
-    const trialIsActive = isTrialActive();
-
-    // 1. Prioridade máxima: se o plano pago está ativo, vai para o chat principal.
-    if (planIsActive) {
-      navigate('/chat-text-audio');
-    } 
-    // 2. Se não tem plano pago, verifica se há um trial ativo.
-    else if (trialIsActive) {
-      navigate('/chat-trial');
-    } 
-    // 3. Se não tem nenhum dos dois, informa o usuário.
-    else {
-      toast.info('Você não possui um plano ou trial ativos para acessar o chat.');
-    }
-  };
+  // Renderização e estados para os botões
+  const planIsActive = hasPlanActive();
+  const trialIsActive = isTrialActive();
+  const currentPlanName = getPlanName();
+  const trialHours = getTrialHoursRemaining();
 
   if (loading && !profile) {
     return (
@@ -132,10 +109,6 @@ const ProfilePage = () => {
       </div>
     );
   }
-  
-  const currentPlanName = getPlanName();
-  const currentPlanActive = hasPlanActive();
-  const trialHours = getTrialHoursRemaining();
 
   return (
     <div className="min-h-screen bg-sweetheart-bg">
@@ -211,7 +184,7 @@ const ProfilePage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      {currentPlanActive && (
+                      {planIsActive && (
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                       )}
                       <span className="px-3 py-1 bg-isa-purple/20 text-isa-purple rounded-full text-sm font-medium">
@@ -219,7 +192,7 @@ const ProfilePage = () => {
                       </span>
                     </div>
                     <p className="text-sm text-isa-muted mt-2">
-                      Status: {currentPlanActive ?
+                      Status: {planIsActive ?
                         <span className="text-green-400 font-medium">Ativo</span> :
                         <span className="text-yellow-400 font-medium">Inativo</span>
                       }
@@ -228,7 +201,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {isTrialActive() && (
+              {trialIsActive && (
                 <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
@@ -324,23 +297,37 @@ const ProfilePage = () => {
               Ações Rápidas
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button
-                onClick={handleNavigateToChat}
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* ✅ BOTÃO #1: SÓ APARECE SE O PLANO PAGO ESTIVER ATIVO */}
+            {planIsActive && (
+               <Button
+                onClick={() => navigate('/chat-text-audio')}
                 className="btn-isa-primary flex items-center justify-center gap-2"
               >
+                <MessageCircle className="w-4 h-4" />
                 Ir para Chat
               </Button>
+            )}
 
-              <Button
-                onClick={handleSignOut}
-                variant="destructive"
-                className="w-full"
+            {/* ✅ BOTÃO #2: SÓ APARECE SE O TRIAL ESTIVER ATIVO E O PLANO PAGO NÃO */}
+            {!planIsActive && trialIsActive && (
+               <Button
+                onClick={() => navigate('/chat-trial')}
+                className="btn-isa-primary flex items-center justify-center gap-2"
               >
-                Sair da Conta
+                <Star className="w-4 h-4" />
+                Acessar Chat Trial
               </Button>
-            </div>
+            )}
+            
+            <Button
+              onClick={handleSignOut}
+              variant="destructive"
+              className="w-full"
+            >
+              Sair da Conta
+            </Button>
           </CardContent>
         </Card>
       </div>
