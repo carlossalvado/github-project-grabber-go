@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+// ATUALIZADO: Adicionado 'Navigate' para o redirecionamento
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-// NOVO: Importa o hook de perfil de usuário, que contém a informação sobre o plano
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
@@ -29,11 +29,7 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   
-  // NOVO: Obtém o status do plano e o estado de carregamento do perfil.
-  // Usamos 'profileLoading' para não conflitar com outras variáveis 'isLoading'.
   const { isTrialActive, loading: profileLoading } = useUserProfile();
-
-  // Mantemos o `useAuth` para obter o usuário autenticado
   const { user } = useAuth();
   
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
@@ -43,7 +39,7 @@ const ChatTextAudioPage = () => {
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   const { getAvatarUrl } = useUserCache();
-    
+      
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
@@ -65,26 +61,18 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   
-  // Configurar viewport para mobile fullscreen
   useEffect(() => {
-    // Configurar viewport meta tag para experiência fullscreen
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
     }
-
-    // Adicionar listener para esconder a barra de endereços em mobile
     const handleScroll = () => {
       if (window.innerHeight < window.outerHeight) {
         window.scrollTo(0, 1);
       }
     };
-
-    // Executar após um pequeno delay para garantir que a página carregou
     setTimeout(handleScroll, 100);
     window.addEventListener('scroll', handleScroll, { passive: true });
-
-    // Cleanup
     return () => {
       window.removeEventListener('scroll', handleScroll);
       if (viewport) {
@@ -93,7 +81,6 @@ const ChatTextAudioPage = () => {
     };
   }, []);
   
-  // Carregar avatar do usuário do Supabase
   useEffect(() => {
     if (!user?.id) return;
 
@@ -104,12 +91,10 @@ const ChatTextAudioPage = () => {
           .select('avatar_url')
           .eq('id', user.id)
           .single();
-
         if (error) {
           console.error('Erro ao buscar avatar do usuário:', error);
           return;
         }
-
         if (profile?.avatar_url) {
           setUserAvatarUrl(profile.avatar_url);
         }
@@ -190,7 +175,6 @@ const ChatTextAudioPage = () => {
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
 
-    // Adicionar tratamento para créditos de voz
     const voiceCreditsSuccess = urlParams.get('voice_credits_success');
     const voiceCreditsAmount = urlParams.get('credits');
     const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
@@ -320,11 +304,10 @@ const ChatTextAudioPage = () => {
   };
 
   // =================================================================================
-  // NOVO: Bloco de proteção - verifica o estado antes de renderizar a página
+  // Bloco de proteção - ATUALIZADO PARA REDIRECIONAR
   // =================================================================================
 
   // 1. Enquanto o perfil do usuário está sendo carregado, exibe uma tela de loading.
-  //    Isso evita que a tela de chat apareça e desapareça rapidamente.
   if (profileLoading) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
@@ -334,26 +317,12 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  // 2. Se o carregamento terminou e o usuário tem um trial ATIVO, exibe a tela de bloqueio.
+  // 2. Se o carregamento terminou e o usuário tem um trial ATIVO, ele é redirecionado.
   if (isTrialActive()) {
-    return (
-      <div className="h-screen bg-[#1a1d29] text-white flex flex-col items-center justify-center text-center p-4">
-        <ShieldAlert size={48} className="text-yellow-400 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Acesso Restrito</h1>
-        <p className="max-w-md mb-4">
-          Esta página não está disponível para usuários com o plano de avaliação gratuita (Trial).
-        </p>
-        <p className="max-w-md mb-6">
-          Para acessar todas as funcionalidades, por favor, considere fazer um upgrade no seu plano.
-        </p>
-        <Button 
-          onClick={() => navigate('/planos')}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          Ver Planos
-        </Button>
-      </div>
-    );
+    // Em vez de mostrar um bloqueio, usamos o componente Navigate para redirecionar
+    // o usuário para a página específica do plano Trial.
+    // O atributo 'replace' garante que a página atual não seja adicionada ao histórico de navegação.
+    return <Navigate to="/chat-trial" replace />;
   }
 
   // 3. Se o usuário não está logado (verificação original, mantida por segurança).
