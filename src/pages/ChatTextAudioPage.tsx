@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, Phone } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 // NOVO: Importa o hook de perfil de usuário, que contém a informação sobre o plano
@@ -316,22 +316,7 @@ const ChatTextAudioPage = () => {
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
-    return (
-      <AudioMessage 
-        key={message.id} 
-        id={message.id!} 
-        content={message.transcription} 
-        audioUrl={message.audioUrl} 
-        isUser={isUserMessage} 
-        timestamp={message.timestamp} 
-        isPlaying={currentlyPlaying === message.id} 
-        onPlayAudio={handlePlayAudio} 
-        onAvatarClick={handleAvatarClick} 
-        agentData={agentData} 
-        userEmail={user?.email} 
-        userAvatarUrl={userAvatarUrl} 
-      />
-    );
+    return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
   // =================================================================================
@@ -390,45 +375,43 @@ const ChatTextAudioPage = () => {
 
   return (
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
-      <style>
-        {`
-          .scrollbar-hide {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-          .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-          }
-          .mobile-fullscreen {
-            height: 100vh;
-            height: 100dvh;
+      <style>{`
+        .scrollbar-hide {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .mobile-fullscreen {
+          height: 100vh;
+          height: 100dvh;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
+        }
+        .pb-safe {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+        .pt-safe {
+          padding-top: env(safe-area-inset-top);
+        }
+        @media (max-width: 768px) {
+          body {
+            overflow: hidden;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 9999;
+            width: 100%;
+            height: 100%;
           }
-          .pb-safe {
-            padding-bottom: env(safe-area-inset-bottom);
+          html {
+            overflow: hidden;
+            height: 100%;
           }
-          .pt-safe {
-            padding-top: env(safe-area-inset-top);
-          }
-          @media (max-width: 768px) {
-            body {
-              overflow: hidden;
-              position: fixed;
-              width: 100%;
-              height: 100%;
-            }
-            html {
-              overflow: hidden;
-              height: 100%;
-            }
-          }
-        `}
-      </style>
+        }
+      `}</style>
       
       {/* Header - Fixed at top with safe area */}
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
@@ -456,13 +439,10 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-blue-200 hover:text-white hover:bg-blue-900/50"
-          >
-            <Phone size={20} />
-          </Button>
+          <VoiceCallButton 
+            agentName={agentData.name}
+            agentAvatar={agentData.avatar_url}
+          />
           <Button
             variant="ghost"
             size="sm"
