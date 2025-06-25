@@ -65,6 +65,34 @@ const ChatTextAudioPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   
+  // Configurar viewport para mobile fullscreen
+  useEffect(() => {
+    // Configurar viewport meta tag para experiência fullscreen
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
+    }
+
+    // Adicionar listener para esconder a barra de endereços em mobile
+    const handleScroll = () => {
+      if (window.innerHeight < window.outerHeight) {
+        window.scrollTo(0, 1);
+      }
+    };
+
+    // Executar após um pequeno delay para garantir que a página carregou
+    setTimeout(handleScroll, 100);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    };
+  }, []);
+  
   // Carregar avatar do usuário do Supabase
   useEffect(() => {
     if (!user?.id) return;
@@ -290,7 +318,6 @@ const ChatTextAudioPage = () => {
     const isUserMessage = message.type === 'user';
     return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
-  
 
   // =================================================================================
   // NOVO: Bloco de proteção - verifica o estado antes de renderizar a página
@@ -347,7 +374,7 @@ const ChatTextAudioPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden">
+    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
       <style>{`
         .scrollbar-hide {
           scrollbar-width: none;
@@ -356,23 +383,44 @@ const ChatTextAudioPage = () => {
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
-        .mobile-viewport {
+        .mobile-fullscreen {
           height: 100vh;
           height: 100dvh;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
         }
         .pb-safe {
           padding-bottom: env(safe-area-inset-bottom);
         }
+        .pt-safe {
+          padding-top: env(safe-area-inset-top);
+        }
+        @media (max-width: 768px) {
+          body {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+          }
+          html {
+            overflow: hidden;
+            height: 100%;
+          }
+        }
       `}</style>
       
-      {/* Header - Fixed */}
-      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-10">
+      {/* Header - Fixed at top with safe area */}
+      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             className="text-blue-200 hover:text-white hover:bg-blue-900/50"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/profile')}
           >
             <ArrowLeft size={20} />
           </Button>
@@ -407,8 +455,8 @@ const ChatTextAudioPage = () => {
       </div>
 
       {/* Messages Area - Flexible with mobile-friendly scroll */}
-      <div className="flex-1 min-h-0 relative">
-        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4 pb-safe" style={{ 
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch'
@@ -425,8 +473,8 @@ const ChatTextAudioPage = () => {
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
-      {/* Input Area - Fixed Footer */}
-      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 pb-safe">
+      {/* Input Area - Fixed at bottom with safe area */}
+      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-center gap-1">
             <Button

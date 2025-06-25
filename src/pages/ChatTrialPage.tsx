@@ -54,6 +54,34 @@ const ChatTrialPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const maxTrialMessages = 10;
 
+  // Configurar viewport para mobile fullscreen
+  useEffect(() => {
+    // Configurar viewport meta tag para experiência fullscreen
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
+    }
+
+    // Adicionar listener para esconder a barra de endereços em mobile
+    const handleScroll = () => {
+      if (window.innerHeight < window.outerHeight) {
+        window.scrollTo(0, 1);
+      }
+    };
+
+    // Executar após um pequeno delay para garantir que a página carregou
+    setTimeout(handleScroll, 100);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    };
+  }, []);
+
   // Carregar avatar do usuário do Supabase
   useEffect(() => {
     const fetchUserAvatar = async () => {
@@ -489,9 +517,8 @@ const ChatTrialPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden">
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
       <style>{`
-        /* Hide scrollbars for mobile */
         .scrollbar-hide {
           scrollbar-width: none;
           -ms-overflow-style: none;
@@ -499,24 +526,41 @@ const ChatTrialPage = () => {
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
-        
-        /* Ensure full viewport height on mobile */
-        .mobile-viewport {
+        .mobile-fullscreen {
           height: 100vh;
-          height: 100dvh; /* Dynamic viewport height for mobile */
+          height: 100dvh;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
         }
-        
-        /* Safe area padding for mobile */
         .pb-safe {
           padding-bottom: env(safe-area-inset-bottom);
+        }
+        .pt-safe {
+          padding-top: env(safe-area-inset-top);
+        }
+        @media (max-width: 768px) {
+          body {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+          }
+          html {
+            overflow: hidden;
+            height: 100%;
+          }
         }
       `}</style>
       
       {/* Trial Timer - Apenas para usuários trial */}
       <TrialTimer />
 
-      {/* Header - Fixed */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-10">
+      {/* Header - Fixed with safe area */}
+      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -571,8 +615,8 @@ const ChatTrialPage = () => {
       )}
 
       {/* Messages Area - Flexible with mobile-friendly scroll */}
-      <div className="flex-1 min-h-0 relative">
-        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4 pb-safe" style={{ 
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch'
@@ -656,8 +700,8 @@ const ChatTrialPage = () => {
         currentCredits={credits}
       />
 
-      {/* Input Area - Fixed Footer */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0 sticky bottom-0 pb-safe">
+      {/* Input Area - Fixed at bottom with safe area */}
+      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex flex-col items-center gap-1">
           <Button
             variant="ghost"
