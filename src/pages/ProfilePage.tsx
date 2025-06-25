@@ -126,6 +126,11 @@ const ProfilePage = () => {
   const trialActive = isTrialActive();
   const trialHours = getTrialHoursRemaining();
 
+  console.log('ProfilePage - currentPlanActive:', currentPlanActive);
+  console.log('ProfilePage - trialActive:', trialActive);
+  console.log('ProfilePage - loading:', loading);
+  console.log('ProfilePage - error:', error);
+
   return (
     <div className="min-h-screen bg-sweetheart-bg">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
