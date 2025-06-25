@@ -54,11 +54,15 @@ const ProfilePage = () => {
     }
   };
 
+  // CÓDIGO DA FUNÇÃO DE LOGOUT ATUALIZADO
   const handleSignOut = async () => {
     try {
       await signOut();
+      navigate('/'); // <-- AQUI A MUDANÇA: Redireciona para a home
+      toast.info('Você saiu da sua conta.'); // Feedback para o usuário
     } catch (error: any) {
       console.error('Erro no logout:', error);
+      toast.error('Não foi possível sair. Tente novamente.');
     }
   };
 
@@ -73,32 +77,27 @@ const ProfilePage = () => {
     fetchUserData(true);
     toast.info('Atualizando dados...');
   };
-
-  // ✅ LÓGICA DE NAVEGAÇÃO FINAL, BASEADA NA PRIORIDADE
+  
   const handleNavigateToChat = () => {
     const planIsActive = hasPlanActive();
     const trialIsActive = isTrialActive();
 
-    // Regra 1: Se o plano pago estiver ativo, ele tem prioridade máxima.
     if (planIsActive) {
       navigate('/chat-text-audio');
-      return; // Encerra a função aqui
+      return;
     }
 
-    // Regra 2: Se não tem plano pago, mas tem trial ativo.
     if (trialIsActive) {
       navigate('/chat-trial');
-      return; // Encerra a função aqui
+      return;
     }
-
-    // Regra 3: Se não tem nenhum dos dois (não deve acontecer se o botão estiver desabilitado).
+    
     toast.info('Nenhum plano ativo encontrado para acessar o chat.');
   };
 
-  // Variáveis para controle da UI
   const planIsActive = hasPlanActive();
   const trialIsActive = isTrialActive();
-  const canAccessChat = planIsActive || trialIsActive; // O usuário pode acessar o chat se tiver um dos dois
+  const canAccessChat = planIsActive || trialIsActive;
 
   if (loading && !profile) {
     return (
@@ -130,7 +129,6 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-sweetheart-bg">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* ... (código do Header, User Info Card, etc - sem alterações) ... */}
         {/* User Info Card */}
         <Card className="card-isa">
           <CardContent className="pt-6">
@@ -232,7 +230,7 @@ const ProfilePage = () => {
           </Card>
         </div>
 
-        {/* ... (código de Personal Information - sem alterações) ... */}
+        {/* Personal Information */}
         <Card className="card-isa">
           <CardHeader>
             <CardTitle className="text-isa-light">Informações Pessoais</CardTitle>
@@ -291,7 +289,7 @@ const ProfilePage = () => {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={handleNavigateToChat}
-              disabled={!canAccessChat} // O botão é desabilitado se o usuário não tiver acesso
+              disabled={!canAccessChat}
               className="btn-isa-primary flex items-center justify-center gap-2"
             >
               <MessageCircle className="w-4 h-4" />
