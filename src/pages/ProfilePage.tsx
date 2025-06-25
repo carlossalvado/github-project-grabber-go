@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom'; // Garantir que está importado
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import AvatarUpload from '@/components/AvatarUpload';
 
 const ProfilePage = () => {
+  const navigate = useNavigate(); // <-- MUDANÇA AQUI (1): Hook de navegação instanciado
   const { user, signOut } = useAuth();
   const {
     profile,
@@ -34,18 +35,15 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
 
-  // Atualizar estado local quando o perfil carrega
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
     }
   }, [profile]);
 
-  // CORREÇÃO APLICADA AQUI: Carrega os dados apenas uma vez quando a página é montada.
   useEffect(() => {
-    console.log('🔄 ProfilePage montada. Forçando atualização dos dados do usuário...');
-    fetchUserData(true); // Force refresh
-  }, []); // <-- Array de dependências vazio para executar apenas uma vez.
+    fetchUserData(true);
+  }, []);
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
@@ -89,9 +87,27 @@ const ProfilePage = () => {
   };
 
   const handleRefreshData = () => {
-    console.log('🔄 Atualizando dados do usuário manualmente...');
     fetchUserData(true);
     toast.info('Atualizando dados...');
+  };
+
+  // <-- MUDANÇA AQUI (2): Função com a lógica de navegação condicional
+  const handleNavigateToChat = () => {
+    const trial = isTrialActive();
+    const planActive = hasPlanActive();
+
+    // Se o usuário está em trial e não tem um plano principal ativo
+    if (trial && !planActive) {
+      navigate('/chat-trial');
+    } 
+    // Se o usuário tem um plano principal ativo
+    else if (planActive) {
+      navigate('/chat-text-audio');
+    } 
+    // Fallback: caso não tenha nenhum acesso
+    else {
+      toast.info('Você não possui um plano ativo ou trial para acessar o chat.');
+    }
   };
 
   if (loading && !profile) {
@@ -154,7 +170,6 @@ const ProfilePage = () => {
         <Card className="card-isa">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-4">
-              {/* Avatar */}
               <div className="relative">
                 <Avatar 
                   className="w-20 h-20 cursor-pointer border-2 border-isa-purple hover:border-isa-pink transition-colors"
@@ -177,8 +192,6 @@ const ProfilePage = () => {
                   <Camera className="w-3 h-3 text-white" />
                 </Button>
               </div>
-
-              {/* User Name */}
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-isa-light">
                   {getFullName()}
@@ -318,8 +331,9 @@ const ProfilePage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* <-- MUDANÇA AQUI (3): Botão atualizado para usar a nova função */}
               <Button 
-                onClick={() => window.location.href = '/chat-text-audio'}
+                onClick={handleNavigateToChat}
                 className="btn-isa-primary flex items-center justify-center gap-2"
               >
                 Ir para Chat
