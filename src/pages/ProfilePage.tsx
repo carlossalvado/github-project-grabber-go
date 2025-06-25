@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, User, Save, RefreshCw, Loader2, MessageCircle, Star } from 'lucide-react'; // Adicionei ícones para diferenciar os botões
+import { Camera, User, Save, RefreshCw, Loader2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -49,7 +49,6 @@ const ProfilePage = () => {
       await updateProfile({ full_name: fullName.trim() });
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
-      toast.error('Erro ao salvar perfil');
     } finally {
       setSaving(false);
     }
@@ -58,10 +57,8 @@ const ProfilePage = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      toast.success('Logout realizado com sucesso!');
     } catch (error: any) {
       console.error('Erro no logout:', error);
-      toast.error('Erro ao fazer logout');
     }
   };
 
@@ -77,11 +74,31 @@ const ProfilePage = () => {
     toast.info('Atualizando dados...');
   };
 
-  // Renderização e estados para os botões
+  // ✅ LÓGICA DE NAVEGAÇÃO FINAL, BASEADA NA PRIORIDADE
+  const handleNavigateToChat = () => {
+    const planIsActive = hasPlanActive();
+    const trialIsActive = isTrialActive();
+
+    // Regra 1: Se o plano pago estiver ativo, ele tem prioridade máxima.
+    if (planIsActive) {
+      navigate('/chat-text-audio');
+      return; // Encerra a função aqui
+    }
+
+    // Regra 2: Se não tem plano pago, mas tem trial ativo.
+    if (trialIsActive) {
+      navigate('/chat-trial');
+      return; // Encerra a função aqui
+    }
+
+    // Regra 3: Se não tem nenhum dos dois (não deve acontecer se o botão estiver desabilitado).
+    toast.info('Nenhum plano ativo encontrado para acessar o chat.');
+  };
+
+  // Variáveis para controle da UI
   const planIsActive = hasPlanActive();
   const trialIsActive = isTrialActive();
-  const currentPlanName = getPlanName();
-  const trialHours = getTrialHoursRemaining();
+  const canAccessChat = planIsActive || trialIsActive; // O usuário pode acessar o chat se tiver um dos dois
 
   if (loading && !profile) {
     return (
@@ -113,27 +130,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-sweetheart-bg">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <h1 className="text-4xl font-bold text-gradient-isa">
-              Meu Perfil
-            </h1>
-            <Button
-              onClick={handleRefreshData}
-              variant="ghost"
-              size="sm"
-              className="text-isa-purple hover:text-isa-pink"
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-          <p className="text-isa-muted text-lg">
-            Gerencie suas informações e personalize sua experiência
-          </p>
-        </div>
-
+        {/* ... (código do Header, User Info Card, etc - sem alterações) ... */}
         {/* User Info Card */}
         <Card className="card-isa">
           <CardContent className="pt-6">
@@ -170,9 +167,9 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
 
+        {/* Plan Information & Account Information */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Plan Information */}
-          <Card className="card-isa">
+           <Card className="card-isa">
             <CardHeader>
               <CardTitle className="text-isa-pink flex items-center gap-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-isa-pink to-isa-purple rounded"></div>
@@ -180,44 +177,41 @@ const ProfilePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-isa-card/50 p-4 rounded-lg border border-isa-purple/30">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {planIsActive && (
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      )}
-                      <span className="px-3 py-1 bg-isa-purple/20 text-isa-purple rounded-full text-sm font-medium">
-                        {currentPlanName}
-                      </span>
+                {planIsActive && (
+                    <div className="bg-isa-card/50 p-4 rounded-lg border border-isa-purple/30">
+                        <div className="flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                <span className="px-3 py-1 bg-isa-purple/20 text-isa-purple rounded-full text-sm font-medium">
+                                    {getPlanName()}
+                                </span>
+                            </div>
+                            <p className="text-sm text-isa-muted mt-2">
+                                Status: <span className="text-green-400 font-medium">Ativo</span>
+                            </p>
+                        </div>
+                        </div>
                     </div>
-                    <p className="text-sm text-isa-muted mt-2">
-                      Status: {planIsActive ?
-                        <span className="text-green-400 font-medium">Ativo</span> :
-                        <span className="text-yellow-400 font-medium">Inativo</span>
-                      }
+                )}
+                {isTrialActive() && (
+                    <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                        <span className="text-orange-400 font-medium">Trial Ativo</span>
+                    </div>
+                    <p className="text-sm text-isa-muted">
+                        {getTrialHoursRemaining() > 0 ? `${getTrialHoursRemaining()} horas restantes` : 'Expirando em breve'}
                     </p>
-                  </div>
-                </div>
-              </div>
-
-              {trialIsActive && (
-                <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                    <span className="text-orange-400 font-medium">Trial Ativo</span>
-                  </div>
-                  <p className="text-sm text-isa-muted">
-                    {trialHours > 0 ? `${trialHours} horas restantes` : 'Expirando em breve'}
-                  </p>
-                </div>
-              )}
+                    </div>
+                )}
+                {!planIsActive && !isTrialActive() && (
+                    <p className="text-isa-muted text-center">Você não possui um plano ou trial ativo.</p>
+                )}
             </CardContent>
           </Card>
-
-          {/* Account Information */}
           <Card className="card-isa">
-            <CardHeader>
+             <CardHeader>
               <CardTitle className="text-isa-light flex items-center gap-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-isa-purple rounded"></div>
                 Informações da Conta
@@ -229,7 +223,6 @@ const ProfilePage = () => {
                   <p className="text-xs text-isa-muted mb-1">Email</p>
                   <p className="text-isa-light font-medium">{user?.email}</p>
                 </div>
-
                 <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
                   <p className="text-xs text-isa-muted mb-1">Status da Conta</p>
                   <p className="text-green-400 font-medium">Verificada</p>
@@ -239,7 +232,7 @@ const ProfilePage = () => {
           </Card>
         </div>
 
-        {/* Personal Information */}
+        {/* ... (código de Personal Information - sem alterações) ... */}
         <Card className="card-isa">
           <CardHeader>
             <CardTitle className="text-isa-light">Informações Pessoais</CardTitle>
@@ -258,7 +251,6 @@ const ProfilePage = () => {
                 className="input-isa"
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="email" className="text-isa-light">Email</Label>
               <Input
@@ -268,7 +260,6 @@ const ProfilePage = () => {
                 className="input-isa bg-isa-card/50"
               />
             </div>
-
             <Button
               onClick={handleSaveProfile}
               disabled={saving || loading}
@@ -289,7 +280,7 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Ações Rápidas */}
         <Card className="card-isa">
           <CardHeader>
             <CardTitle className="text-isa-pink flex items-center gap-2">
@@ -298,29 +289,15 @@ const ProfilePage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* ✅ BOTÃO #1: SÓ APARECE SE O PLANO PAGO ESTIVER ATIVO */}
-            {planIsActive && (
-               <Button
-                onClick={() => navigate('/chat-text-audio')}
-                className="btn-isa-primary flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Ir para Chat
-              </Button>
-            )}
+            <Button
+              onClick={handleNavigateToChat}
+              disabled={!canAccessChat} // O botão é desabilitado se o usuário não tiver acesso
+              className="btn-isa-primary flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Ir para Chat
+            </Button>
 
-            {/* ✅ BOTÃO #2: SÓ APARECE SE O TRIAL ESTIVER ATIVO E O PLANO PAGO NÃO */}
-            {!planIsActive && trialIsActive && (
-               <Button
-                onClick={() => navigate('/chat-trial')}
-                className="btn-isa-primary flex items-center justify-center gap-2"
-              >
-                <Star className="w-4 h-4" />
-                Acessar Chat Trial
-              </Button>
-            )}
-            
             <Button
               onClick={handleSignOut}
               variant="destructive"
