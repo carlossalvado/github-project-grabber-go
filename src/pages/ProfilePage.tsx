@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Garantir que está importado
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,12 +12,10 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import AvatarUpload from '@/components/AvatarUpload';
 
 const ProfilePage = () => {
-  const navigate = useNavigate(); // <-- MUDANÇA AQUI (1): Hook de navegação instanciado
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const {
     profile,
-    plan,
-    trial,
     loading,
     error,
     fetchUserData,
@@ -44,20 +41,16 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchUserData(true);
-  }, []);
+  }, [fetchUserData]);
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
       toast.error('Nome completo é obrigatório');
       return;
     }
-
     setSaving(true);
     try {
-      const success = await updateProfile({
-        full_name: fullName.trim()
-      });
-
+      const success = await updateProfile({ full_name: fullName.trim() });
       if (success) {
         toast.success('Perfil salvo com sucesso!');
       }
@@ -92,23 +85,30 @@ const ProfilePage = () => {
     toast.info('Atualizando dados...');
   };
 
-  // <-- MUDANÇA AQUI (2): Função com a lógica de navegação condicional
+  // Versão final e correta da função de navegação
   const handleNavigateToChat = () => {
-    const trial = isTrialActive();
+    const trialActive = isTrialActive();
     const planActive = hasPlanActive();
 
-    // Se o usuário está em trial e não tem um plano principal ativo
-    if (trial && !planActive) {
+    // Console.log para a verificação final
+    console.log("--- Depuração Final ---");
+    console.log("Resultado de isTrialActive():", trialActive);
+    console.log("Resultado de hasPlanActive():", planActive);
+
+    if (trialActive) {
+      // Se isTrialActive() é true, o hook JÁ GARANTIU que não há plano pago.
+      console.log("DECISÃO: Usuário em TRIAL. Redirecionando para /chat-trial");
       navigate('/chat-trial');
-    } 
-    // Se o usuário tem um plano principal ativo
-    else if (planActive) {
+    } else if (planActive) {
+      // Se chegou aqui, trialActive é falso. Verificamos se há um plano ativo.
+      console.log("DECISÃO: Usuário com PLANO PAGO. Redirecionando para /chat-text-audio");
       navigate('/chat-text-audio');
-    } 
-    // Fallback: caso não tenha nenhum acesso
-    else {
-      toast.info('Você não possui um plano ativo ou trial para acessar o chat.');
+    } else {
+      // Se não caiu em nenhum dos casos acima, o usuário não tem acesso.
+      console.log("DECISÃO: Usuário sem acesso.");
+      toast.info('Você não possui um plano ou trial ativos para acessar o chat.');
     }
+    console.log("--- Fim da Depuração Final ---");
   };
 
   if (loading && !profile) {
@@ -140,7 +140,6 @@ const ProfilePage = () => {
 
   const currentPlanName = getPlanName();
   const currentPlanActive = hasPlanActive();
-  const trialActive = isTrialActive();
   const trialHours = getTrialHoursRemaining();
 
   return (
@@ -172,13 +171,13 @@ const ProfilePage = () => {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
-                <Avatar 
+                <Avatar
                   className="w-20 h-20 cursor-pointer border-2 border-isa-purple hover:border-isa-pink transition-colors"
                   onClick={() => setShowAvatarUpload(true)}
                 >
-                  <AvatarImage 
-                    src={getAvatarUrl() || undefined} 
-                    alt="Avatar do usuário" 
+                  <AvatarImage
+                    src={getAvatarUrl() || undefined}
+                    alt="Avatar do usuário"
                   />
                   <AvatarFallback className="bg-isa-card text-isa-light text-xl">
                     <User className="w-8 h-8" />
@@ -225,16 +224,16 @@ const ProfilePage = () => {
                       </span>
                     </div>
                     <p className="text-sm text-isa-muted mt-2">
-                      Status: {currentPlanActive ? 
-                        <span className="text-green-400 font-medium">Ativo</span> : 
+                      Status: {currentPlanActive ?
+                        <span className="text-green-400 font-medium">Ativo</span> :
                         <span className="text-yellow-400 font-medium">Inativo</span>
                       }
                     </p>
                   </div>
                 </div>
               </div>
-              
-              {!currentPlanActive && trialActive && (
+
+              {!currentPlanActive && isTrialActive() && (
                 <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
@@ -262,7 +261,7 @@ const ProfilePage = () => {
                   <p className="text-xs text-isa-muted mb-1">Email</p>
                   <p className="text-isa-light font-medium">{user?.email}</p>
                 </div>
-                
+
                 <div className="bg-isa-card/50 p-3 rounded-lg border border-isa-purple/20">
                   <p className="text-xs text-isa-muted mb-1">Status da Conta</p>
                   <p className="text-green-400 font-medium">Verificada</p>
@@ -302,7 +301,7 @@ const ProfilePage = () => {
               />
             </div>
 
-            <Button 
+            <Button
               onClick={handleSaveProfile}
               disabled={saving || loading}
               className="btn-isa-primary w-full"
@@ -332,15 +331,14 @@ const ProfilePage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* <-- MUDANÇA AQUI (3): Botão atualizado para usar a nova função */}
-              <Button 
+              <Button
                 onClick={handleNavigateToChat}
                 className="btn-isa-primary flex items-center justify-center gap-2"
               >
                 Ir para Chat
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={handleSignOut}
                 variant="destructive"
                 className="w-full"
@@ -352,9 +350,8 @@ const ProfilePage = () => {
         </Card>
       </div>
 
-      {/* Avatar Upload Component */}
       {showAvatarUpload && (
-        <AvatarUpload 
+        <AvatarUpload
           currentAvatarUrl={getAvatarUrl()}
           onAvatarUpdate={handleAvatarUpdate}
           userName={getFullName()}
@@ -365,4 +362,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-```
