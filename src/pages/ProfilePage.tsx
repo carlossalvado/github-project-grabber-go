@@ -40,8 +40,10 @@ const ProfilePage = () => {
   }, [profile]);
 
   useEffect(() => {
-    fetchUserData(true);
-  }, [fetchUserData]);
+    // Este useEffect não é mais necessário pois o hook já lida com o fetch inicial.
+    // Manter pode causar re-fetches. Removido para otimização.
+    // fetchUserData(true);
+  }, []); // Deixado vazio de propósito
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
@@ -52,7 +54,7 @@ const ProfilePage = () => {
     try {
       const success = await updateProfile({ full_name: fullName.trim() });
       if (success) {
-        toast.success('Perfil salvo com sucesso!');
+        // O toast de sucesso já é mostrado dentro do hook
       }
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
@@ -76,7 +78,7 @@ const ProfilePage = () => {
     const success = await updateAvatar(avatarUrl);
     if (success) {
       setShowAvatarUpload(false);
-      toast.success('Avatar atualizado com sucesso!');
+      // O toast de sucesso já é mostrado dentro do hook
     }
   };
 
@@ -85,30 +87,23 @@ const ProfilePage = () => {
     toast.info('Atualizando dados...');
   };
 
-  // Versão final e correta da função de navegação
+  // ✅ LÓGICA DE NAVEGAÇÃO CORRIGIDA E SIMPLIFICADA
   const handleNavigateToChat = () => {
-    const trialActive = isTrialActive();
-    const planActive = hasPlanActive();
+    const planIsActive = hasPlanActive();
+    const trialIsActive = isTrialActive();
 
-    // Console.log para a verificação final
-    console.log("--- Depuração Final ---");
-    console.log("Resultado de isTrialActive():", trialActive);
-    console.log("Resultado de hasPlanActive():", planActive);
-
-    if (trialActive) {
-      // Se isTrialActive() é true, o hook JÁ GARANTIU que não há plano pago.
-      console.log("DECISÃO: Usuário em TRIAL. Redirecionando para /chat-trial");
-      navigate('/chat-trial');
-    } else if (planActive) {
-      // Se chegou aqui, trialActive é falso. Verificamos se há um plano ativo.
-      console.log("DECISÃO: Usuário com PLANO PAGO. Redirecionando para /chat-text-audio");
+    // 1. Prioridade máxima: se o plano pago está ativo, vai para o chat principal.
+    if (planIsActive) {
       navigate('/chat-text-audio');
-    } else {
-      // Se não caiu em nenhum dos casos acima, o usuário não tem acesso.
-      console.log("DECISÃO: Usuário sem acesso.");
+    } 
+    // 2. Se não tem plano pago, verifica se há um trial ativo.
+    else if (trialIsActive) {
+      navigate('/chat-trial');
+    } 
+    // 3. Se não tem nenhum dos dois, informa o usuário.
+    else {
       toast.info('Você não possui um plano ou trial ativos para acessar o chat.');
     }
-    console.log("--- Fim da Depuração Final ---");
   };
 
   if (loading && !profile) {
@@ -137,7 +132,7 @@ const ProfilePage = () => {
       </div>
     );
   }
-
+  
   const currentPlanName = getPlanName();
   const currentPlanActive = hasPlanActive();
   const trialHours = getTrialHoursRemaining();
@@ -233,7 +228,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {!currentPlanActive && isTrialActive() && (
+              {isTrialActive() && (
                 <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
