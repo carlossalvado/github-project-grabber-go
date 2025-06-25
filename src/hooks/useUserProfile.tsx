@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'; // Adicionado o useCallback
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// As interfaces permanecem as mesmas
 interface UserProfile {
   id: string;
   full_name: string | null;
@@ -42,7 +41,6 @@ export const useUserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // OTIMIZAÇÃO: Função para salvar no cache envolvida com useCallback
   const saveToCache = useCallback((type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
     try {
       const cacheKey = `sweet-ai-user-${type}`;
@@ -51,13 +49,11 @@ export const useUserProfile = () => {
         cached_at: Date.now()
       };
       localStorage.setItem(cacheKey, JSON.stringify(dataWithTimestamp));
-      console.log(`💾 ${type} salvo no cache:`, dataWithTimestamp);
     } catch (error) {
       console.error(`Erro ao salvar ${type} no cache:`, error);
     }
-  }, []); // Sem dependências, pois não usa nada do escopo do hook
+  }, []);
 
-  // OTIMIZAÇÃO: Função principal de busca de dados envolvida com useCallback
   const fetchUserData = useCallback(async (forceRefresh = false) => {
     if (!user?.id) {
       setLoading(false);
@@ -67,9 +63,7 @@ export const useUserProfile = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Buscando dados do usuário do Supabase...', { userId: user.id, forceRefresh });
 
-      // As buscas no Supabase continuam iguais
       const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (profileError && profileError.code !== 'PGRST116') throw new Error(`Erro ao buscar perfil: ${profileError.message}`);
 
@@ -79,7 +73,6 @@ export const useUserProfile = () => {
       const { data: trialData, error: trialError } = await supabase.from('user_trials').select('*').eq('user_id', user.id).single();
       if (trialError && trialError.code !== 'PGRST116') console.error('Erro ao buscar trial:', trialError);
 
-      // O processamento dos dados continua igual
       const userProfile: UserProfile = { id: user.id, full_name: profileData?.full_name || null, email: user.email || '', avatar_url: profileData?.avatar_url || null, plan_name: profileData?.plan_name || null, plan_active: profileData?.plan_active || false };
       const userAgent: UserAgent | null = agentData ? { agent_id: agentData.agent_id, nickname: agentData.nickname } : null;
       const userPlan: UserPlan = { plan_name: profileData?.plan_name || 'Nenhum plano', plan_active: profileData?.plan_active || false };
@@ -103,17 +96,15 @@ export const useUserProfile = () => {
       saveToCache('plan', userPlan);
       if (userTrial) saveToCache('trial', userTrial);
 
-      console.log('✅ Dados do usuário atualizados com sucesso');
     } catch (error: any) {
-      console.error('❌ Erro ao buscar dados do usuário:', error);
+      console.error('Erro ao buscar dados do usuário:', error);
       setError(error.message);
       toast.error('Erro ao carregar dados do perfil');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, saveToCache]); // Depende do user.id e da função saveToCache
+  }, [user?.id, saveToCache]);
 
-  // OTIMIZAÇÃO: Função de carregar do cache envolvida com useCallback
   const loadFromCache = useCallback(() => {
     try {
       const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
@@ -129,7 +120,6 @@ export const useUserProfile = () => {
     }
   }, []);
 
-  // OTIMIZAÇÃO: Função para limpar cache envolvida com useCallback
   const clearCache = useCallback(() => {
     localStorage.removeItem('sweet-ai-user-profile');
     localStorage.removeItem('sweet-ai-user-agent');
@@ -139,10 +129,8 @@ export const useUserProfile = () => {
     setAgent(null);
     setPlan(null);
     setTrial(null);
-    console.log('🗑️ Cache do usuário limpo');
   }, []);
 
-  // Carregar dados quando o usuário muda
   useEffect(() => {
     if (user?.id) {
       loadFromCache();
@@ -150,16 +138,14 @@ export const useUserProfile = () => {
     } else {
       clearCache();
     }
-  }, [user?.id, fetchUserData, loadFromCache, clearCache]); // Adicionadas as dependências estáveis
+  }, [user?.id, fetchUserData, loadFromCache, clearCache]);
 
-  // OTIMIZAÇÃO: Funções de update envolvidas com useCallback
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!user?.id) return false;
     try {
       const { error } = await supabase.from('profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', user.id);
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
+      
       await fetchUserData(true);
       toast.success('Perfil atualizado com sucesso!');
       return true;
@@ -174,9 +160,6 @@ export const useUserProfile = () => {
     return await updateProfile({ avatar_url: avatarUrl });
   }, [updateProfile]);
 
-  // =================================================================================
-  // CORREÇÃO DA LÓGICA DE NEGÓCIO E OTIMIZAÇÃO DOS HELPERS
-  // =================================================================================
   const hasPlanActive = useCallback(() => plan?.plan_active || false, [plan]);
   const isTrialCurrentlyActive = useCallback(() => trial?.isActive || false, [trial]);
 
@@ -201,9 +184,8 @@ export const useUserProfile = () => {
     getPlanName: () => plan?.plan_name || 'Nenhum plano',
     hasPlanActive: hasPlanActive,
     
-    // CORREÇÃO PRINCIPAL APLICADA AQUI
-    // Um usuário só é considerado "em trial" se o trial estiver ativo E ele não tiver um plano pago ativo.
-    isTrialActive: () => isTrialCurrentlyActive() && !hasPlanActive(),
+    // ✅ CORREÇÃO APLICADA: isTrialActive agora retorna o status puro do trial.
+    isTrialActive: isTrialCurrentlyActive,
     
     getTrialHoursRemaining: () => trial?.hoursRemaining || 0
   };
