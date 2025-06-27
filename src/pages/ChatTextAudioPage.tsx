@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -444,29 +444,92 @@ const ChatTextAudioPage = () => {
       
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50", isRecording && "text-red-400 hover:text-red-300 animate-pulse", !hasCredits && "opacity-50" )}
-              onClick={handleAudioToggle}
-              disabled={isProcessing}
-            >
-              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-            </Button>
-            {!creditsLoading && (<span className="text-xs text-blue-400 font-medium">{credits}</span>)}
+        <div className="flex items-center space-x-3">
+          {/* Plus button on the left */}
+          <Button 
+            type="button" 
+            size="icon" 
+            variant="ghost" 
+            className="text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full flex-shrink-0 w-10 h-10"
+            disabled={isLoading}
+          >
+            <Plus size={20} />
+          </Button>
+          
+          {/* Main input container with rounded background */}
+          <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
+            <Input 
+              ref={inputRef} 
+              className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0" 
+              placeholder="Digite uma mensagem ou use o áudio..." 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={handleKeyPress} 
+              disabled={isLoading} 
+            />
+            
+            {/* Action buttons inside the input */}
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleEmoticonClick} 
+                className={`flex-shrink-0 w-8 h-8 ${ 
+                  showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' 
+                }`} 
+                disabled={isLoading} 
+              >
+                <Smile size={16} />
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleGiftClick} 
+                className={`flex-shrink-0 w-8 h-8 ${ 
+                  showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' 
+                }`} 
+                disabled={isLoading} 
+              >
+                <Gift size={16} />
+              </Button>
+
+              <div className="flex flex-col items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50 w-8 h-8", 
+                    isRecording && "text-red-400 hover:text-red-300 animate-pulse", 
+                    !hasCredits && "opacity-50" 
+                  )}
+                  onClick={handleAudioToggle}
+                  disabled={isProcessing}
+                >
+                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                </Button>
+                {!creditsLoading && (
+                  <span className="text-xs text-blue-400 font-medium -mt-1">
+                    {credits}
+                  </span>
+                )}
+              </div>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full bg-blue-600 hover:bg-blue-700 flex-shrink-0 w-8 h-8" 
+                onClick={handleSendTextMessage} 
+                disabled={!input.trim() || isLoading} 
+              >
+                {isProcessing ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+              </Button>
+            </div>
           </div>
-          <Input ref={inputRef} className="bg-[#2F3349] border-[#4A5568] text-white placeholder:text-blue-300 focus-visible:ring-blue-500 focus-visible:border-blue-500" placeholder="Digite uma mensagem ou use o áudio..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={isLoading} />
-          <Button variant="ghost" size="icon" onClick={handleEmoticonClick} className={`flex-shrink-0 ${ showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' }`} disabled={isLoading} >
-            <Smile size={20} />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handleGiftClick} className={`flex-shrink-0 ${ showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' }`} disabled={isLoading} >
-            <Gift size={20} />
-          </Button>
-          <Button variant="ghost" size="icon" className="flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50" onClick={handleSendTextMessage} disabled={!input.trim() || isLoading} >
-            {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-          </Button>
         </div>
       </div>
     </div>

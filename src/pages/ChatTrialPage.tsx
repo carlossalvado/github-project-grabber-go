@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
@@ -701,80 +701,107 @@ const ChatTrialPage = () => {
       />
 
       {/* Input Area - Fixed at bottom with safe area */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex items-center gap-2 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
-        <div className="flex flex-col items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "flex-shrink-0 text-gray-400 hover:text-orange-400",
-              isRecording && "text-red-500 hover:text-red-600 animate-pulse",
-              !hasCredits && "opacity-50"
-            )}
-            onClick={handleAudioToggle}
-            disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+      <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
+        <div className="flex items-center space-x-3">
+          {/* Plus button on the left */}
+          <Button 
+            type="button" 
+            size="icon" 
+            variant="ghost" 
+            className="text-gray-400 hover:text-orange-400 rounded-full flex-shrink-0 w-10 h-10"
+            disabled={isLoading}
           >
-            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            <Plus size={20} />
           </Button>
-          {!creditsLoading && (
-            <span className="text-xs text-purple-400 font-medium">
-              {credits}
-            </span>
-          )}
+          
+          {/* Main input container with rounded background */}
+          <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
+            <Input
+              ref={inputRef}
+              className="bg-transparent border-0 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+              placeholder={
+                isTrialActive && remainingMessages > 0 
+                  ? "Digite uma mensagem ou use o áudio..." 
+                  : "Trial expirado - Faça upgrade para continuar"
+              }
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              disabled={isLoading || !isTrialActive || remainingMessages <= 0}
+            />
+            
+            {/* Action buttons inside the input */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleEmoticonClick}
+                className={`flex-shrink-0 w-8 h-8 ${
+                  showEmoticonSelector 
+                    ? 'text-orange-400 bg-gray-600' 
+                    : 'text-gray-400 hover:text-orange-400'
+                }`}
+                disabled={n8nLoading || !isTrialActive || remainingMessages <= 0}
+              >
+                <Smile size={16} />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleGiftClick}
+                className={`flex-shrink-0 w-8 h-8 ${
+                  showGiftSelection 
+                    ? 'text-orange-400 bg-gray-600' 
+                    : 'text-gray-400 hover:text-orange-400'
+                }`}
+                disabled={n8nLoading || !isTrialActive || remainingMessages <= 0}
+              >
+                <Gift size={16} />
+              </Button>
+
+              <div className="flex flex-col items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "flex-shrink-0 text-gray-400 hover:text-orange-400 w-8 h-8",
+                    isRecording && "text-red-500 hover:text-red-600 animate-pulse",
+                    !hasCredits && "opacity-50"
+                  )}
+                  onClick={handleAudioToggle}
+                  disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+                >
+                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                </Button>
+                {!creditsLoading && (
+                  <span className="text-xs text-purple-400 font-medium -mt-1">
+                    {credits}
+                  </span>
+                )}
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full bg-orange-600 hover:bg-orange-700 flex-shrink-0 w-8 h-8"
+                onClick={handleSendMessage}
+                disabled={!input.trim() || n8nLoading || !isTrialActive || remainingMessages <= 0}
+              >
+                {n8nLoading ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
-        <Input
-          ref={inputRef}
-          className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-orange-500"
-          placeholder={
-            isTrialActive && remainingMessages > 0 
-              ? "Digite uma mensagem ou use o áudio..." 
-              : "Trial expirado - Faça upgrade para continuar"
-          }
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage();
-            }
-          }}
-          disabled={isLoading || !isTrialActive || remainingMessages <= 0}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleEmoticonClick}
-          className={`flex-shrink-0 ${
-            showEmoticonSelector 
-              ? 'text-orange-400 bg-gray-700' 
-              : 'text-gray-400 hover:text-orange-400'
-          }`}
-          disabled={n8nLoading || !isTrialActive || remainingMessages <= 0}
-        >
-          <Smile size={20} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleGiftClick}
-          className={`flex-shrink-0 ${
-            showGiftSelection 
-              ? 'text-orange-400 bg-gray-700' 
-              : 'text-gray-400 hover:text-orange-400'
-          }`}
-          disabled={n8nLoading || !isTrialActive || remainingMessages <= 0}
-        >
-          <Gift size={20} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="flex-shrink-0 text-gray-400 hover:text-orange-400"
-          onClick={handleSendMessage}
-          disabled={!input.trim() || n8nLoading || !isTrialActive || remainingMessages <= 0}
-        >
-          {n8nLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-        </Button>
       </div>
 
       {/* Profile Image Modal */}
