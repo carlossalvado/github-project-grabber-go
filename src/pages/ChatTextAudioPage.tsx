@@ -487,10 +487,11 @@ const ChatTextAudioPage = () => {
                 {credits}
               </span>
             )}
-            <br></br>
+            
           </div>
         </div>
       </div>
+      <br></br>
     </div>
   );
 };
