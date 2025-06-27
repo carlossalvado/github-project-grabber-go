@@ -28,8 +28,7 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   
-  // <-- ALTERAÇÃO 1: Buscamos também a função 'hasPlanActive'.
-  const { isTrialActive, hasPlanActive, loading: profileLoading } = useUserProfile();
+  const { isTrialActive, loading: profileLoading } = useUserProfile();
   const { user } = useAuth();
   
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
@@ -312,9 +311,7 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  // <-- ALTERAÇÃO 2: A lógica de verificação foi atualizada aqui.
-  // Redireciona para /chat-trial APENAS se o trial estiver ativo E o usuário NÃO tiver um plano pago ativo.
-  if (isTrialActive() && !hasPlanActive()) {
+  if (isTrialActive()) {
     return <Navigate to="/chat-trial" replace />;
   }
 
