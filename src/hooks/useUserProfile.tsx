@@ -184,7 +184,6 @@ export const useUserProfile = () => {
     getPlanName: () => plan?.plan_name || 'Nenhum plano',
     hasPlanActive: hasPlanActive,
     
-    // ✅ CORREÇÃO APLICADA: isTrialActive agora retorna o status puro do trial.
     isTrialActive: isTrialCurrentlyActive,
     
     getTrialHoursRemaining: () => trial?.hoursRemaining || 0
