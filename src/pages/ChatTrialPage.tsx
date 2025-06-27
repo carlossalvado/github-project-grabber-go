@@ -748,6 +748,7 @@ const ChatTrialPage = () => {
                 {credits}
               </span>
             )}
+            <br></br>
           </div>
         </div>
       </div>
