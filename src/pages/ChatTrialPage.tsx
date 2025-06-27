@@ -752,6 +752,7 @@ const ChatTrialPage = () => {
           </div>
         </div>
       </div>
+      <br></br>
 
       <ProfileImageModal
         isOpen={isProfileModalOpen}
