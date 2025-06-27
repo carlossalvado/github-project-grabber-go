@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Mic, MicOff, Send, Smile, Gift, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Send, Smile, Gift, Volume2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatInputProps {
@@ -128,72 +128,89 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="bg-white border-t border-gray-100 px-2 py-3 relative">
-      <form onSubmit={handleSubmit} className="flex items-end space-x-2">
+    <div className="bg-white border-t border-gray-100 px-4 py-3 relative">
+      <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+        {/* Left side buttons */}
         <div className="flex items-center gap-1">
           <Button 
             type="button" 
             size="icon" 
             variant="ghost" 
-            className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
-            onClick={onEmoticonClick}
+            className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-8 h-8"
             disabled={isLoading}
           >
-            <Smile size={20} />
-          </Button>
-
-          <Button 
-            type="button" 
-            size="icon" 
-            variant="ghost" 
-            className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0"
-            onClick={onGiftClick}
-            disabled={isLoading}
-          >
-            <Gift size={20} />
+            <Plus size={18} />
           </Button>
         </div>
         
-        <Textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          placeholder="Digite sua mensagem..."
-          className="min-h-12 resize-none flex-1 rounded-full px-4 focus-visible:ring-gray-400"
-          disabled={disabled || isLoading}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-        />
-        
-        {hasAudioFeature && (
-          <Button 
-            type="button" 
-            size="icon" 
-            variant="outline"
-            className="rounded-full flex-shrink-0"
-            onClick={toggleRecording}
+        {/* Input container with rounded background */}
+        <div className="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center space-x-2">
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            placeholder="Digite uma mensagem"
+            className="min-h-8 max-h-20 resize-none flex-1 bg-transparent border-0 px-0 py-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-500"
             disabled={disabled || isLoading}
-          >
-            <Mic size={18} />
-          </Button>
-        )}
-        
-        <Button 
-          type="submit" 
-          size="icon"
-          disabled={!value.trim() || disabled || isLoading}
-          className="rounded-full bg-black hover:bg-gray-800 flex-shrink-0"
-        >
-          {isLoading ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Send size={18} />
-          )}
-        </Button>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+          />
+          
+          {/* Right side buttons inside input */}
+          <div className="flex items-center gap-1">
+            <Button 
+              type="button" 
+              size="icon" 
+              variant="ghost" 
+              className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-8 h-8"
+              onClick={onEmoticonClick}
+              disabled={isLoading}
+            >
+              <Smile size={16} />
+            </Button>
+
+            <Button 
+              type="button" 
+              size="icon" 
+              variant="ghost" 
+              className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-8 h-8"
+              onClick={onGiftClick}
+              disabled={isLoading}
+            >
+              <Gift size={16} />
+            </Button>
+
+            {hasAudioFeature && (
+              <Button 
+                type="button" 
+                size="icon" 
+                variant="ghost"
+                className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-8 h-8"
+                onClick={toggleRecording}
+                disabled={disabled || isLoading}
+              >
+                <Mic size={16} />
+              </Button>
+            )}
+            
+            <Button 
+              type="submit" 
+              size="icon"
+              disabled={!value.trim() || disabled || isLoading}
+              className="rounded-full bg-black hover:bg-gray-800 flex-shrink-0 w-8 h-8"
+            >
+              {isLoading ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send size={14} />
+              )}
+            </Button>
+          </div>
+        </div>
       </form>
     </div>
   );
