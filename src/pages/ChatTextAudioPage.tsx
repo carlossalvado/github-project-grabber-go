@@ -296,7 +296,11 @@ const ChatTextAudioPage = () => {
     }
   };
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
-  const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
+  const handleAvatarClick = (imageUrl: string, name: string) => { 
+    setSelectedImageUrl(imageUrl); 
+    setSelectedImageName(name); 
+    setIsProfileImageModalOpen(true); 
+  };
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
     return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);

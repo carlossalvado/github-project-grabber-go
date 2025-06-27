@@ -45,6 +45,8 @@ const ChatTrialPage = () => {
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  const [selectedImageName, setSelectedImageName] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [agentData, setAgentData] = useState({
     name: 'Isa',
@@ -213,7 +215,9 @@ const ChatTrialPage = () => {
     }
   }, []);
 
-  const handleAvatarClick = () => {
+  const handleAvatarClick = (imageUrl: string, name: string) => {
+    setSelectedImageUrl(imageUrl);
+    setSelectedImageName(name);
     setIsProfileModalOpen(true);
   };
 
@@ -545,7 +549,7 @@ const ChatTrialPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <Avatar className="cursor-pointer" onClick={handleAvatarClick}>
+          <Avatar className="cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-orange-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
@@ -601,7 +605,7 @@ const ChatTrialPage = () => {
               return (
                 <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
                   {!isUserMessage && (
-                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 cursor-pointer" onClick={handleAvatarClick}>
+                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
                       <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
                       <AvatarFallback className="bg-orange-600 text-white">
                         {agentData.name.charAt(0)}
@@ -633,7 +637,7 @@ const ChatTrialPage = () => {
                   </div>
 
                   {isUserMessage && (
-                    <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
+                    <Avatar className="h-8 w-8 ml-2 flex-shrink-0 cursor-pointer" onClick={() => handleAvatarClick(userAvatarUrl || '', 'Você')}>
                       {userAvatarUrl ? (
                         <AvatarImage src={userAvatarUrl} alt="User" />
                       ) : (
@@ -758,8 +762,8 @@ const ChatTrialPage = () => {
       <ProfileImageModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        imageUrl={agentData.avatar_url}
-        agentName={agentData.name}
+        imageUrl={selectedImageUrl}
+        agentName={selectedImageName}
       />
     </div>
   );
