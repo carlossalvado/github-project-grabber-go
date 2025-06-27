@@ -752,7 +752,7 @@ const ChatTrialPage = () => {
           </div>
         </div>
       </div>
-      <br></br>
+     
 
       <ProfileImageModal
         isOpen={isProfileModalOpen}
@@ -761,6 +761,7 @@ const ChatTrialPage = () => {
         agentName={agentData.name}
       />
     </div>
+    <br></br>
   );
 };
 
