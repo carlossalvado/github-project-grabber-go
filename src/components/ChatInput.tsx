@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -130,27 +129,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <div className="bg-white border-t border-gray-100 px-4 py-3 relative">
       <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-        {/* Left side buttons */}
-        <div className="flex items-center gap-1">
-          <Button 
-            type="button" 
-            size="icon" 
-            variant="ghost" 
-            className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-8 h-8"
-            disabled={isLoading}
-          >
-            <Plus size={18} />
-          </Button>
-        </div>
+        {/* Plus button on the left */}
+        <Button 
+          type="button" 
+          size="icon" 
+          variant="ghost" 
+          className="text-gray-500 hover:text-gray-700 rounded-full flex-shrink-0 w-10 h-10"
+          disabled={isLoading}
+        >
+          <Plus size={20} />
+        </Button>
         
-        {/* Input container with rounded background */}
+        {/* Main input container with rounded background */}
         <div className="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center space-x-2">
           <Textarea
             ref={textareaRef}
             value={value}
             onChange={handleChange}
-            placeholder="Digite uma mensagem"
-            className="min-h-8 max-h-20 resize-none flex-1 bg-transparent border-0 px-0 py-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-500"
+            placeholder="Digite uma mensagem ou use o áudio..."
+            className="min-h-8 max-h-20 resize-none flex-1 bg-transparent border-0 px-0 py-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-500"
             disabled={disabled || isLoading}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -160,7 +157,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             }}
           />
           
-          {/* Right side buttons inside input */}
+          {/* Action buttons inside the input */}
           <div className="flex items-center gap-1">
             <Button 
               type="button" 
@@ -201,7 +198,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               type="submit" 
               size="icon"
               disabled={!value.trim() || disabled || isLoading}
-              className="rounded-full bg-black hover:bg-gray-800 flex-shrink-0 w-8 h-8"
+              className="rounded-full bg-blue-600 hover:bg-blue-700 flex-shrink-0 w-8 h-8"
             >
               {isLoading ? (
                 <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
