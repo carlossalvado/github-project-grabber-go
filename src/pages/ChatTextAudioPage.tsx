@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-// ATUALIZADO: Adicionado 'Navigate' para o redirecionamento
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -303,11 +302,6 @@ const ChatTextAudioPage = () => {
     return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
-  // =================================================================================
-  // Bloco de proteção - ATUALIZADO PARA REDIRECIONAR
-  // =================================================================================
-
-  // 1. Enquanto o perfil do usuário está sendo carregado, exibe uma tela de loading.
   if (profileLoading) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
@@ -317,15 +311,10 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  // 2. Se o carregamento terminou e o usuário tem um trial ATIVO, ele é redirecionado.
   if (isTrialActive()) {
-    // Em vez de mostrar um bloqueio, usamos o componente Navigate para redirecionar
-    // o usuário para a página específica do plano Trial.
-    // O atributo 'replace' garante que a página atual não seja adicionada ao histórico de navegação.
     return <Navigate to="/chat-trial" replace />;
   }
 
-  // 3. Se o usuário não está logado (verificação original, mantida por segurança).
   if (!user) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
@@ -334,10 +323,6 @@ const ChatTextAudioPage = () => {
       </div>
     );
   }
-
-  // Se nenhuma das condições acima for atendida, o usuário tem permissão.
-  // O código JSX original da página é retornado abaixo.
-  // =================================================================================
   
   const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
@@ -382,7 +367,6 @@ const ChatTextAudioPage = () => {
         }
       `}</style>
       
-      {/* Header - Fixed at top with safe area */}
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
@@ -423,7 +407,6 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
 
-      {/* Messages Area - Flexible with mobile-friendly scroll */}
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
@@ -435,7 +418,6 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
 
-      {/* Modals and Selectors */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
       <AudioCreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} currentCredits={credits} />
@@ -445,23 +427,12 @@ const ChatTextAudioPage = () => {
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
-          {/* Plus button on the left */}
-          <Button 
-            type="button" 
-            size="icon" 
-            variant="ghost" 
-            className="text-blue-200 hover:text-white hover:bg-blue-900/50 rounded-full flex-shrink-0 w-10 h-10"
-            disabled={isLoading}
-          >
-            <Plus size={20} />
-          </Button>
-          
           {/* Main input container with rounded background */}
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
             <Input 
               ref={inputRef} 
               className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0" 
-              placeholder="Digite uma mensagem ou use o áudio..." 
+              placeholder="Digite uma mensagem..." 
               value={input} 
               onChange={(e) => setInput(e.target.value)} 
               onKeyDown={handleKeyPress} 
@@ -493,42 +464,29 @@ const ChatTextAudioPage = () => {
               >
                 <Gift size={16} />
               </Button>
-
-              <div className="flex flex-col items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "flex-shrink-0 text-blue-200 hover:text-white hover:bg-blue-900/50 w-8 h-8", 
-                    isRecording && "text-red-400 hover:text-red-300 animate-pulse", 
-                    !hasCredits && "opacity-50" 
-                  )}
-                  onClick={handleAudioToggle}
-                  disabled={isProcessing}
-                >
-                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
-                </Button>
-                {!creditsLoading && (
-                  <span className="text-xs text-blue-400 font-medium -mt-1">
-                    {credits}
-                  </span>
-                )}
-              </div>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="rounded-full bg-blue-600 hover:bg-blue-700 flex-shrink-0 w-8 h-8" 
-                onClick={handleSendTextMessage} 
-                disabled={!input.trim() || isLoading} 
-              >
-                {isProcessing ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send size={14} />
-                )}
-              </Button>
             </div>
+          </div>
+          
+          {/* Audio button in orange sphere outside input */}
+          <div className="relative flex flex-col items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
+                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse",
+                !hasCredits && "opacity-50"
+              )}
+              onClick={handleAudioToggle}
+              disabled={isProcessing}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </Button>
+            {!creditsLoading && (
+              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">
+                {credits}
+              </span>
+            )}
           </div>
         </div>
       </div>

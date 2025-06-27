@@ -54,26 +54,21 @@ const ChatTrialPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const maxTrialMessages = 10;
 
-  // Configurar viewport para mobile fullscreen
   useEffect(() => {
-    // Configurar viewport meta tag para experiência fullscreen
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
     }
 
-    // Adicionar listener para esconder a barra de endereços em mobile
     const handleScroll = () => {
       if (window.innerHeight < window.outerHeight) {
         window.scrollTo(0, 1);
       }
     };
 
-    // Executar após um pequeno delay para garantir que a página carregou
     setTimeout(handleScroll, 100);
     window.addEventListener('scroll', handleScroll, { passive: true });
 
-    // Cleanup
     return () => {
       window.removeEventListener('scroll', handleScroll);
       if (viewport) {
@@ -82,7 +77,6 @@ const ChatTrialPage = () => {
     };
   }, []);
 
-  // Carregar avatar do usuário do Supabase
   useEffect(() => {
     const fetchUserAvatar = async () => {
       if (!user?.id) return;
@@ -111,7 +105,6 @@ const ChatTrialPage = () => {
     fetchUserAvatar();
   }, [user?.id]);
 
-  // Verificar se o trial expirou
   useEffect(() => {
     if (!trialLoading && !isTrialActive && user) {
       toast.error('Seu trial de 72 horas expirou! Faça upgrade para continuar conversando.');
@@ -121,13 +114,11 @@ const ChatTrialPage = () => {
     }
   }, [isTrialActive, trialLoading, user, navigate]);
 
-  // Buscar dados do agente selecionado pelo usuário
   useEffect(() => {
     const fetchAgentData = async () => {
       if (!user?.id) return;
 
       try {
-        // Buscar o agente selecionado pelo usuário
         const { data: selectedAgent, error: selectedError } = await supabase
           .from('user_selected_agent')
           .select('agent_id')
@@ -140,7 +131,6 @@ const ChatTrialPage = () => {
         }
 
         if (selectedAgent) {
-          // Buscar dados completos do agente
           const { data: agent, error: agentError } = await supabase
             .from('ai_agents')
             .select('name, avatar_url')
@@ -167,17 +157,14 @@ const ChatTrialPage = () => {
     fetchAgentData();
   }, [user?.id]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input on load
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Check for gift success/cancel parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const creditsSuccess = urlParams.get('credits_success');
@@ -195,7 +182,6 @@ const ChatTrialPage = () => {
       window.history.replaceState({}, document.title, '/chat-trial');
     }
 
-    // Adicionar tratamento para créditos de voz
     const voiceCreditsSuccess = urlParams.get('voice_credits_success');
     const voiceCreditsAmount = urlParams.get('credits');
     const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
@@ -251,7 +237,6 @@ const ChatTrialPage = () => {
     setInput('');
     setMessageCount(prev => prev + 1);
 
-    // Add user text message
     addMessage({
       type: 'user',
       transcription: messageText,
@@ -259,10 +244,8 @@ const ChatTrialPage = () => {
     });
 
     try {
-      // Send to n8n webhook and get response
       const responseText = await sendToN8n(messageText, user.email);
       
-      // Add AI response
       addMessage({
         type: 'assistant',
         transcription: responseText,
@@ -271,7 +254,6 @@ const ChatTrialPage = () => {
 
     } catch (error: any) {
       console.error('Error generating response:', error);
-      // Fallback response in case of error
       addMessage({
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageText}"`,
@@ -335,7 +317,6 @@ const ChatTrialPage = () => {
   };
 
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    // Get gift emoji mapping
     const giftEmojis: { [key: string]: string } = {
       "00000000-0000-0000-0000-000000000001": "🌹",
       "00000000-0000-0000-0000-000000000002": "🍫", 
@@ -343,7 +324,6 @@ const ChatTrialPage = () => {
       "00000000-0000-0000-0000-000000000004": "💐"
     };
 
-    // Add gift message to chat
     addMessage({
       type: 'user',
       transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
@@ -352,7 +332,6 @@ const ChatTrialPage = () => {
     
     toast.success(`Presente ${giftName} enviado com sucesso!`);
 
-    // Simulate assistant response
     setTimeout(() => {
       addMessage({
         type: 'assistant',
@@ -419,13 +398,11 @@ const ChatTrialPage = () => {
           return;
         }
         
-        // Verificar créditos antes de iniciar gravação
         if (!hasCredits) {
           setShowCreditsModal(true);
           return;
         }
         
-        // Consumir crédito IMEDIATAMENTE ao iniciar a gravação
         const creditConsumed = await consumeCredit();
         if (!creditConsumed) {
           setShowCreditsModal(true);
@@ -556,10 +533,8 @@ const ChatTrialPage = () => {
         }
       `}</style>
       
-      {/* Trial Timer - Apenas para usuários trial */}
       <TrialTimer />
 
-      {/* Header - Fixed with safe area */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
@@ -598,7 +573,6 @@ const ChatTrialPage = () => {
         </div>
       </div>
 
-      {/* Trial Warning */}
       {(hoursRemaining <= 12 || remainingMessages <= 3) && (
         <div className="bg-orange-600/20 border-b border-orange-500/30 p-3 text-center flex-shrink-0">
           <p className="text-orange-300 text-sm">
@@ -614,7 +588,6 @@ const ChatTrialPage = () => {
         </div>
       )}
 
-      {/* Messages Area - Flexible with mobile-friendly scroll */}
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
@@ -679,7 +652,6 @@ const ChatTrialPage = () => {
         </div>
       </div>
 
-      {/* Modals and Selectors */}
       {showEmoticonSelector && (
         <EmoticonSelector
           onSelect={handleEmoticonSelect}
@@ -703,17 +675,6 @@ const ChatTrialPage = () => {
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
-          {/* Plus button on the left */}
-          <Button 
-            type="button" 
-            size="icon" 
-            variant="ghost" 
-            className="text-gray-400 hover:text-orange-400 rounded-full flex-shrink-0 w-10 h-10"
-            disabled={isLoading}
-          >
-            <Plus size={20} />
-          </Button>
-          
           {/* Main input container with rounded background */}
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
             <Input
@@ -721,7 +682,7 @@ const ChatTrialPage = () => {
               className="bg-transparent border-0 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
               placeholder={
                 isTrialActive && remainingMessages > 0 
-                  ? "Digite uma mensagem ou use o áudio..." 
+                  ? "Digite uma mensagem..." 
                   : "Trial expirado - Faça upgrade para continuar"
               }
               value={input}
@@ -764,47 +725,33 @@ const ChatTrialPage = () => {
               >
                 <Gift size={16} />
               </Button>
-
-              <div className="flex flex-col items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "flex-shrink-0 text-gray-400 hover:text-orange-400 w-8 h-8",
-                    isRecording && "text-red-500 hover:text-red-600 animate-pulse",
-                    !hasCredits && "opacity-50"
-                  )}
-                  onClick={handleAudioToggle}
-                  disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
-                >
-                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
-                </Button>
-                {!creditsLoading && (
-                  <span className="text-xs text-purple-400 font-medium -mt-1">
-                    {credits}
-                  </span>
-                )}
-              </div>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full bg-orange-600 hover:bg-orange-700 flex-shrink-0 w-8 h-8"
-                onClick={handleSendMessage}
-                disabled={!input.trim() || n8nLoading || !isTrialActive || remainingMessages <= 0}
-              >
-                {n8nLoading ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send size={14} />
-                )}
-              </Button>
             </div>
+          </div>
+          
+          {/* Audio button in orange sphere outside input */}
+          <div className="relative flex flex-col items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
+                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse",
+                !hasCredits && "opacity-50"
+              )}
+              onClick={handleAudioToggle}
+              disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </Button>
+            {!creditsLoading && (
+              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
+                {credits}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Profile Image Modal */}
       <ProfileImageModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
