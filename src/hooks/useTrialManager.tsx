@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,9 +50,10 @@ export const useTrialManager = () => {
         setIsTrialActive(isActive);
         
         // Calcular horas restantes
+        let diffHours = 0;
         if (isActive) {
           const diffMs = trialEnd.getTime() - now.getTime();
-          const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+          diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
           setHoursRemaining(diffHours);
         } else {
           setHoursRemaining(0);
