@@ -59,13 +59,28 @@ export const useTrialManager = () => {
           setHoursRemaining(0);
         }
 
-        // Salvar no cache
-        localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
-          ...data,
-          isActive,
-          hoursRemaining: isActive ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0,
-          cached_at: Date.now()
-        }));
+        // VERIFICAR SE USUÁRIO TEM PLANO ATIVO - SE SIM, NÃO SALVAR TRIAL NO CACHE
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('plan_active')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData?.plan_active) {
+          console.log('🚫 Usuário tem plano ativo - não salvando trial no cache');
+          // REMOVER TRIAL DO CACHE SE EXISTIR
+          localStorage.removeItem('sweet-ai-trial-data');
+          setIsTrialActive(false);
+          setHoursRemaining(0);
+        } else if (isActive) {
+          // Salvar apenas se não tiver plano ativo
+          localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
+            ...data,
+            isActive,
+            hoursRemaining: diffHours,
+            cached_at: Date.now()
+          }));
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar dados do trial:', error);
@@ -116,14 +131,9 @@ export const useTrialManager = () => {
       setIsTrialActive(false);
       setHoursRemaining(0);
       
-      // Atualizar cache
-      const updatedData = { ...trialData, trial_active: false };
-      localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
-        ...updatedData,
-        isActive: false,
-        hoursRemaining: 0,
-        cached_at: Date.now()
-      }));
+      // REMOVER COMPLETAMENTE DO CACHE
+      localStorage.removeItem('sweet-ai-trial-data');
+      console.log('🗑️ Trial desativado e removido do cache');
 
       return true;
     } catch (error) {

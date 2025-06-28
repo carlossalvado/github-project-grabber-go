@@ -120,6 +120,10 @@ export const useUserCache = () => {
   const updatePlanAfterPayment = (planName: string, planActive: boolean) => {
     console.log('🎉 Atualizando plano após pagamento confirmado:', { planName, planActive });
     
+    // REMOVER TODOS OS DADOS DE TRIAL DO CACHE
+    console.log('🗑️ Removendo dados de trial do cache...');
+    localStorage.removeItem('sweet-ai-trial-data');
+    
     const planData = {
       plan_name: planName,
       plan_active: planActive
@@ -132,6 +136,7 @@ export const useUserCache = () => {
       detail: { planName, planActive } 
     }));
     
+    console.log('✅ Trial removido do cache e plano atualizado');
     return planData;
   };
 
@@ -154,10 +159,12 @@ export const useUserCache = () => {
     localStorage.removeItem(USER_PROFILE_CACHE_KEY);
     localStorage.removeItem(USER_AGENT_CACHE_KEY);
     localStorage.removeItem(USER_PLAN_CACHE_KEY);
+    // REMOVER TAMBÉM DADOS DE TRIAL
+    localStorage.removeItem('sweet-ai-trial-data');
     setProfile(null);
     setAgent(null);
     setPlan(null);
-    console.log('🗑️ Cache limpo');
+    console.log('🗑️ Cache limpo completamente (incluindo trial)');
   };
 
   // Verificar se o plano está ativo
