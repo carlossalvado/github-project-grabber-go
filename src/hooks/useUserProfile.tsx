@@ -41,7 +41,18 @@ export const useUserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const saveToCache = useCallback(/* ... seu código de cache ... */);
+  const saveToCache = useCallback((type: 'profile' | 'agent' | 'plan' | 'trial', data: any) => {
+    try {
+      const cacheKey = `sweet-ai-user-${type}`;
+      const dataWithTimestamp = {
+        ...data,
+        cached_at: Date.now()
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(dataWithTimestamp));
+    } catch (error) {
+      console.error(`Erro ao salvar ${type} no cache:`, error);
+    }
+  }, []);
 
   const fetchUserData = useCallback(async (forceRefresh = false) => {
     if (!user?.id) {
@@ -94,8 +105,31 @@ export const useUserProfile = () => {
     }
   }, [user?.id, saveToCache]);
 
-  const loadFromCache = useCallback(/* ... seu código de cache ... */);
-  const clearCache = useCallback(/* ... seu código de cache ... */);
+  const loadFromCache = useCallback(() => {
+    try {
+      const cachedProfile = localStorage.getItem('sweet-ai-user-profile');
+      if (cachedProfile) setProfile(JSON.parse(cachedProfile));
+      const cachedAgent = localStorage.getItem('sweet-ai-user-agent');
+      if (cachedAgent) setAgent(JSON.parse(cachedAgent));
+      const cachedPlan = localStorage.getItem('sweet-ai-user-plan');
+      if (cachedPlan) setPlan(JSON.parse(cachedPlan));
+      const cachedTrial = localStorage.getItem('sweet-ai-user-trial');
+      if (cachedTrial) setTrial(JSON.parse(cachedTrial));
+    } catch (error) {
+      console.error('Erro ao carregar cache:', error);
+    }
+  }, []);
+
+  const clearCache = useCallback(() => {
+    localStorage.removeItem('sweet-ai-user-profile');
+    localStorage.removeItem('sweet-ai-user-agent');
+    localStorage.removeItem('sweet-ai-user-plan');
+    localStorage.removeItem('sweet-ai-user-trial');
+    setProfile(null);
+    setAgent(null);
+    setPlan(null);
+    setTrial(null);
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -107,19 +141,29 @@ export const useUserProfile = () => {
   }, [user?.id, fetchUserData, loadFromCache, clearCache]);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
-    // ... seu código de updateProfile ...
+    if (!user?.id) return false;
+    try {
+      const { error } = await supabase.from('profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', user.id);
+      if (error) throw error;
+      
+      await fetchUserData(true);
+      toast.success('Perfil atualizado com sucesso!');
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao atualizar perfil:', error);
+      toast.error('Erro ao atualizar perfil');
+      return false;
+    }
   }, [user?.id, fetchUserData]);
 
   const updateAvatar = useCallback(async (avatarUrl: string) => {
-    // ... seu código de updateAvatar ...
+    return await updateProfile({ avatar_url: avatarUrl });
   }, [updateProfile]);
 
-  // Helper para o plano PAGO (prioridade máxima)
   const hasActiveSubscription = useCallback(() => {
     return plan?.plan_active || false;
   }, [plan]);
 
-  // Helper para o plano TRIAL (prioridade secundária)
   const isTrialActive = useCallback(() => {
     return trial?.isActive || false;
   }, [trial]);
@@ -139,7 +183,7 @@ export const useUserProfile = () => {
     updateAvatar,
     clearCache,
 
-    // Helpers para a lógica de acesso e UI
+    // Helpers
     getFullName: () => profile?.full_name || 'Usuário',
     getAvatarUrl: () => profile?.avatar_url || null,
     getPlanName: () => plan?.plan_name || 'Nenhum plano',
