@@ -33,7 +33,7 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
       }
 
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.location.href = data.url;
         onClose();
       } else {
         throw new Error("URL de checkout não recebida");

@@ -49,6 +49,16 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
+    // Detectar a página atual baseada no referer
+    const referer = req.headers.get("referer") || "";
+    let successUrl = `${req.headers.get("origin")}/chat-text-audio?voice_credits_success=true&credits=100`;
+    let cancelUrl = `${req.headers.get("origin")}/chat-text-audio?voice_credits_canceled=true`;
+    
+    if (referer.includes("/chat-trial")) {
+      successUrl = `${req.headers.get("origin")}/chat-trial?voice_credits_success=true&credits=100`;
+      cancelUrl = `${req.headers.get("origin")}/chat-trial?voice_credits_canceled=true`;
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -66,8 +76,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/chat-text-audio?voice_credits_success=true&credits=100`,
-      cancel_url: `${req.headers.get("origin")}/chat-text-audio?voice_credits_canceled=true`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         credits: "100",
         user_id: user.id,
