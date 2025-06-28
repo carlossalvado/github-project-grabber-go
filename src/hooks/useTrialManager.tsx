@@ -51,9 +51,10 @@ export const useTrialManager = () => {
         setIsTrialActive(isActive);
         
         // Calcular horas restantes
+        const diffMs = trialEnd.getTime() - now.getTime();
+        const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+        
         if (isActive) {
-          const diffMs = trialEnd.getTime() - now.getTime();
-          const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
           setHoursRemaining(diffHours);
         } else {
           setHoursRemaining(0);
