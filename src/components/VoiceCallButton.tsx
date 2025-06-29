@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
@@ -7,6 +6,7 @@ import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
 import VoiceCallModal from './VoiceCallModal';
 import VoiceCreditsModal from './VoiceCreditsModal';
+import { toast } from 'sonner'; // Importar o toast para dar feedback
 
 interface VoiceCallButtonProps {
   agentName?: string;
@@ -17,12 +17,12 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   agentName = 'Isa',
   agentAvatar = '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
 }) => {
-  const { 
-    isConnecting, 
-    isConnected, 
-    isSpeaking, 
-    startCall, 
-    endCall 
+  const {
+    isConnecting,
+    isConnected,
+    isSpeaking,
+    startCall,
+    endCall
   } = useElevenLabsConversation();
 
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useVoiceCredits();
@@ -30,42 +30,42 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
 
+  // MODIFICADO: A lógica de verificação de crédito foi removida daqui
+  // pois a máscara cuidará disso.
   const handleClick = async () => {
     if (isConnected) {
       await endCall();
       setShowModal(false);
-    } else {
-      console.log('Tentando iniciar chamada de voz', { hasCredits, credits });
-      
-      // Verificar se tem créditos disponíveis ANTES de tentar iniciar a chamada
-      if (!hasCredits) {
-        console.log('Sem créditos de voz, abrindo modal de compra');
-        setShowCreditsModal(true);
-        return;
-      }
-      
-      // Consumir crédito ANTES de iniciar a chamada
-      const creditConsumed = await consumeCredit();
-      if (!creditConsumed) {
-        console.log('Falha ao consumir crédito de voz, abrindo modal de compra');
-        setShowCreditsModal(true);
-        return;
-      }
-      
-      console.log('Crédito consumido com sucesso, iniciando chamada');
-      setShowModal(true);
-      await startCall();
+      return;
     }
+    
+    // Se chegamos aqui, a máscara não estava ativa, então tentamos consumir o crédito.
+    const creditConsumed = await consumeCredit();
+    if (!creditConsumed) {
+      console.log('Falha ao consumir crédito de voz, abrindo modal de compra como fallback.');
+      toast.error("Ocorreu uma falha ao usar seu crédito.");
+      setShowCreditsModal(true); // Abre o modal como um plano B
+      return;
+    }
+    
+    console.log('Crédito de voz consumido, iniciando chamada.');
+    setShowModal(true);
+    await startCall();
   };
 
   const handleEndCall = async () => {
     await endCall();
     setShowModal(false);
   };
+  
+  // ADICIONADO: Handler para o clique na máscara
+  const handleMaskClick = () => {
+    console.log('Máscara clicada, abrindo modal de compra de créditos de voz.');
+    setShowCreditsModal(true);
+  };
 
   const handleCreditsModalClose = () => {
     setShowCreditsModal(false);
-    // Atualizar créditos quando o modal fechar
     refreshCredits();
   };
 
@@ -84,7 +84,19 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1">
+      {/* 1. Adicionamos 'relative' para posicionar a máscara sobre este container */}
+      <div className="relative flex flex-col items-center gap-1">
+      
+        {/* 2. A MÁSCARA: Este é o novo elemento. */}
+        {/* Ele só aparece se 'hasCredits' for falso. */}
+        {!hasCredits && !creditsLoading && (
+          <div
+            className="absolute inset-0 z-10 cursor-pointer rounded-md"
+            onClick={handleMaskClick}
+            title="Comprar créditos de voz"
+          />
+        )}
+        
         <Button
           variant={isConnected ? "destructive" : "default"}
           size="sm"
@@ -93,7 +105,9 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
           className={cn(
             "flex items-center gap-2 transition-all",
             isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
-            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
+            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700",
+            // 3. Adicionamos um feedback visual de opacidade se não houver créditos
+            !hasCredits && !creditsLoading && "opacity-50"
           )}
         >
           {getIcon()}
@@ -116,6 +130,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         isConnecting={isConnecting}
       />
 
+      {/* Este é o modal que será aberto pela máscara */}
       <VoiceCreditsModal
         isOpen={showCreditsModal}
         onClose={handleCreditsModalClose}
