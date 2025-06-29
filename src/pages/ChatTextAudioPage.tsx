@@ -256,9 +256,11 @@ const ChatTextAudioPage = () => {
     addMessage({ type: 'user', transcription: messageText, timestamp: new Date().toISOString() });
     await getAssistantResponse(messageText);
   };
+  
   const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
   const handleGiftClick = () => { setShowGiftSelection(!showGiftSelection); setShowEmoticonSelector(false); };
   const handleEmoticonSelect = (emoticon: string) => { setInput(prev => prev + emoticon); setShowEmoticonSelector(false); if (inputRef.current) { inputRef.current.focus(); } };
+  
   const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
     try {
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', { body: { giftId } });
@@ -269,6 +271,7 @@ const ChatTextAudioPage = () => {
       toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
     }
   };
+  
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
     const giftEmojis: { [key: string]: string } = { "00000000-0000-0000-0000-000000000001": "🌹", "00000000-0000-0000-0000-000000000002": "🍫", "00000000-0000-0000-0000-000000000003": "🧸", "00000000-0000-0000-0000-000000000004": "💐" };
     addMessage({ type: 'user', transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`, timestamp: new Date().toISOString() });
@@ -294,8 +297,9 @@ const ChatTextAudioPage = () => {
     } else {
       if (n8nLoading || audioN8nLoading) return;
       
-      // Verificar créditos ANTES de iniciar gravação
+      // Verificar se tem créditos disponíveis
       if (!hasCredits) { 
+        console.log('Sem créditos de áudio, abrindo modal de compra');
         setShowCreditsModal(true); 
         return; 
       }
@@ -303,6 +307,7 @@ const ChatTextAudioPage = () => {
       // Consumir crédito ANTES de iniciar gravação
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
+        console.log('Falha ao consumir crédito, abrindo modal de compra');
         setShowCreditsModal(true); 
         return; 
       }
@@ -512,8 +517,7 @@ const ChatTextAudioPage = () => {
               size="icon"
               className={cn(
                 "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
-                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse",
-                !hasCredits && "opacity-50"
+                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
               )}
               onClick={handleAudioToggle}
               disabled={isProcessing}

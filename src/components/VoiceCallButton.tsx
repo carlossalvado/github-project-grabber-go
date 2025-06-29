@@ -35,8 +35,11 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       await endCall();
       setShowModal(false);
     } else {
-      // Verificar créditos antes de iniciar chamada
+      console.log('Tentando iniciar chamada de voz', { hasCredits, credits });
+      
+      // Verificar se tem créditos disponíveis ANTES de tentar iniciar a chamada
       if (!hasCredits) {
+        console.log('Sem créditos de voz, abrindo modal de compra');
         setShowCreditsModal(true);
         return;
       }
@@ -44,10 +47,12 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       // Consumir crédito ANTES de iniciar a chamada
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
+        console.log('Falha ao consumir crédito de voz, abrindo modal de compra');
         setShowCreditsModal(true);
         return;
       }
       
+      console.log('Crédito consumido com sucesso, iniciando chamada');
       setShowModal(true);
       await startCall();
     }
