@@ -275,7 +275,18 @@ const ChatTextAudioPage = () => {
     toast.success(`Presente ${giftName} enviado com sucesso!`);
     setTimeout(() => { addMessage({ type: 'assistant', transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`, timestamp: new Date().toISOString() }); }, 1500);
   };
-  useEffect(() => { if (audioBlob && audioUrl) { processAudioMessage(audioBlob, audioUrl); } }, [audioBlob, audioUrl]);
+  
+  useEffect(() => { 
+    if (audioBlob && audioUrl) { 
+      getAssistantAudioResponse(audioBlob, audioUrl).then(() => {
+        resetAudio();
+      }).catch((error) => {
+        console.error('Erro ao processar áudio:', error);
+        toast.error('Erro ao processar o áudio.');
+        resetAudio();
+      });
+    } 
+  }, [audioBlob, audioUrl]);
   
   const handleAudioToggle = async () => {
     if (isRecording) { 
