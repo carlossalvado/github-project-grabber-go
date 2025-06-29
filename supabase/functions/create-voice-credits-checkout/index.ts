@@ -39,6 +39,33 @@ serve(async (req) => {
 
     console.log("Criando checkout para créditos de voz para usuário:", user.email);
 
+    // Buscar produto de créditos de voz da tabela
+    let productData = {
+      name: "4 Créditos de Chamada de Voz",
+      credits: 4,
+      price: 999 // valor padrão
+    };
+
+    try {
+      const { data: product, error: productError } = await supabaseClient
+        .from('voice_credit_products')
+        .select('name, credits, price')
+        .single();
+
+      if (product && !productError) {
+        productData = {
+          name: product.name,
+          credits: product.credits,
+          price: product.price
+        };
+        console.log("Produto encontrado na base de dados:", productData);
+      } else {
+        console.log("Produto não encontrado, usando valores padrão:", productData);
+      }
+    } catch (productError) {
+      console.log("Erro ao buscar produto, usando valores padrão:", productData);
+    }
+
     const customers = await stripe.customers.list({
       email: user.email,
       limit: 1,
@@ -51,11 +78,11 @@ serve(async (req) => {
 
     // Detectar a página atual baseada no referer
     const referer = req.headers.get("referer") || "";
-    let successUrl = `${req.headers.get("origin")}/chat-text-audio?voice_credits_success=true&credits=100`;
+    let successUrl = `${req.headers.get("origin")}/chat-text-audio?voice_credits_success=true&credits=${productData.credits}`;
     let cancelUrl = `${req.headers.get("origin")}/chat-text-audio?voice_credits_canceled=true`;
     
     if (referer.includes("/chat-trial")) {
-      successUrl = `${req.headers.get("origin")}/chat-trial?voice_credits_success=true&credits=100`;
+      successUrl = `${req.headers.get("origin")}/chat-trial?voice_credits_success=true&credits=${productData.credits}`;
       cancelUrl = `${req.headers.get("origin")}/chat-trial?voice_credits_canceled=true`;
     }
 
@@ -67,10 +94,10 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "100 Créditos de Chamada de Voz",
-              description: "Créditos para realizar chamadas de voz com IA",
+              name: productData.name,
+              description: `${productData.credits} créditos para realizar chamadas de voz com IA`,
             },
-            unit_amount: 999, // $9.99
+            unit_amount: productData.price,
           },
           quantity: 1,
         },
@@ -79,7 +106,7 @@ serve(async (req) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        credits: "100",
+        credits: productData.credits.toString(),
         user_id: user.id,
         credit_type: "voice",
       },

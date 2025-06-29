@@ -1,9 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, CreditCard } from 'lucide-react';
+import { Phone, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,13 +13,56 @@ interface VoiceCreditsModalProps {
   currentCredits: number;
 }
 
+interface VoiceCreditProduct {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+}
+
 const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
   isOpen,
   onClose,
   currentCredits
 }) => {
-  const handlePurchase = async () => {
+  const [product, setProduct] = useState<VoiceCreditProduct | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchProduct();
+    }
+  }, [isOpen]);
+
+  const fetchProduct = async () => {
     try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('voice_credit_products')
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar produto de créditos de voz:', error);
+        toast.error('Erro ao carregar dados do produto');
+        return;
+      }
+
+      setProduct(data);
+    } catch (error) {
+      console.error('Erro ao buscar produto:', error);
+      toast.error('Erro ao carregar dados do produto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!product) return;
+
+    try {
+      setPurchasing(true);
       const { data, error } = await supabase.functions.invoke('create-voice-credits-checkout');
 
       if (error) {
@@ -41,8 +84,42 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
     } catch (error: any) {
       console.error('Erro ao processar compra:', error);
       toast.error('Erro ao processar compra: ' + (error.message || 'Tente novamente'));
+    } finally {
+      setPurchasing(false);
     }
   };
+
+  if (loading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex items-center justify-center p-6">
+            <Loader2 className="animate-spin mr-2" />
+            <span>Carregando...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Erro ao Carregar Produto
+            </DialogTitle>
+          </DialogHeader>
+          <div className="text-center p-4">
+            <p>Não foi possível carregar os dados do produto.</p>
+            <Button onClick={onClose} className="mt-4">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -66,21 +143,31 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
 
           <Card className="border-purple-200">
             <CardHeader className="text-center pb-3">
-              <CardTitle className="text-lg">100 Créditos de Chamada de Voz</CardTitle>
+              <CardTitle className="text-lg">{product.name}</CardTitle>
               <CardDescription>
-                Faça até 100 chamadas de voz
+                Faça até {product.credits} chamadas de voz
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <div className="text-3xl font-bold text-purple-600 mb-4">
-                $9.99
+                ${(product.price / 100).toFixed(2)}
               </div>
               <Button 
                 onClick={handlePurchase}
+                disabled={purchasing}
                 className="w-full bg-purple-600 hover:bg-purple-700"
               >
-                <CreditCard className="mr-2 h-4 w-4" />
-                Comprar Agora
+                {purchasing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Comprar Agora
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
