@@ -27,10 +27,10 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
-
+  
   const { isTrialActive, loading: profileLoading, hasPlanActive, getPlanName } = useUserProfile();
   const { user } = useAuth();
-
+  
   const { messages, addMessage, updateMessage, clearMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
@@ -38,7 +38,7 @@ const ChatTextAudioPage = () => {
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   const { getAvatarUrl } = useUserCache();
-
+      
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
@@ -53,13 +53,13 @@ const ChatTextAudioPage = () => {
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
-
+  
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
+  
   useEffect(() => {
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
@@ -79,7 +79,7 @@ const ChatTextAudioPage = () => {
       }
     };
   }, []);
-
+  
   useEffect(() => {
     if (!user?.id) return;
 
@@ -162,13 +162,13 @@ const ChatTextAudioPage = () => {
     const creditsSuccess = urlParams.get('credits_success');
     const creditsAmount = urlParams.get('credits');
     const creditsCanceled = urlParams.get('credits_canceled');
-
+    
     if (creditsSuccess === 'true' && creditsAmount) {
       toast.success(`${creditsAmount} créditos adicionados com sucesso!`);
       refreshCredits();
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
-
+    
     if (creditsCanceled === 'true') {
       toast.error('Compra de créditos cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
@@ -177,13 +177,13 @@ const ChatTextAudioPage = () => {
     const voiceCreditsSuccess = urlParams.get('voice_credits_success');
     const voiceCreditsAmount = urlParams.get('credits');
     const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
-
+    
     if (voiceCreditsSuccess === 'true' && voiceCreditsAmount) {
       toast.success(`${voiceCreditsAmount} créditos de chamada de voz adicionados com sucesso!`);
       refreshVoiceCredits();
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
-
+    
     if (voiceCreditsCanceled === 'true') {
       toast.error('Compra de créditos de chamada de voz cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
@@ -193,12 +193,12 @@ const ChatTextAudioPage = () => {
     const giftId = urlParams.get('gift_id');
     const giftName = urlParams.get('gift_name');
     const giftCanceled = urlParams.get('gift_canceled');
-
+    
     if (giftSuccess === 'true' && giftId && giftName) {
       handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
       window.history.replaceState({}, document.title, '/chat-text-audio');
     }
-
+    
     if (giftCanceled === 'true') {
       toast.error('Compra de presente cancelada');
       window.history.replaceState({}, document.title, '/chat-text-audio');
@@ -221,7 +221,7 @@ const ChatTextAudioPage = () => {
     if (!user) return;
     try {
       const result = await sendAudioToN8n(audioBlob, user.email!);
-      addMessage({ type: 'user', timestamp: new Date().toISOString(), audioUrl: audioUrl, audioBlob: audioBlob, transcription: '' });
+      const userMessageId = addMessage({ type: 'user', timestamp: new Date().toISOString(), audioUrl: audioUrl, audioBlob: audioBlob, transcription: '' });
       const assistantMessageId = addMessage({ type: 'assistant', transcription: '', timestamp: new Date().toISOString(), audioUrl: result.audioUrl, audioBlob: result.audioBlob });
       if (result.audioUrl) {
         setTimeout(() => { handlePlayAudio(assistantMessageId, result.audioUrl!); }, 500);
@@ -256,11 +256,11 @@ const ChatTextAudioPage = () => {
     addMessage({ type: 'user', transcription: messageText, timestamp: new Date().toISOString() });
     await getAssistantResponse(messageText);
   };
-
+  
   const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
   const handleGiftClick = () => { setShowGiftSelection(!showGiftSelection); setShowEmoticonSelector(false); };
   const handleEmoticonSelect = (emoticon: string) => { setInput(prev => prev + emoticon); setShowEmoticonSelector(false); if (inputRef.current) { inputRef.current.focus(); } };
-
+  
   const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
     try {
       const { data, error } = await supabase.functions.invoke('create-gift-checkout', { body: { giftId } });
@@ -271,16 +271,16 @@ const ChatTextAudioPage = () => {
       toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
     }
   };
-
+  
   const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
     const giftEmojis: { [key: string]: string } = { "00000000-0000-0000-0000-000000000001": "🌹", "00000000-0000-0000-0000-000000000002": "🍫", "00000000-0000-0000-0000-000000000003": "🧸", "00000000-0000-0000-0000-000000000004": "💐" };
     addMessage({ type: 'user', transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`, timestamp: new Date().toISOString() });
     toast.success(`Presente ${giftName} enviado com sucesso!`);
     setTimeout(() => { addMessage({ type: 'assistant', transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`, timestamp: new Date().toISOString() }); }, 1500);
   };
-
-  useEffect(() => {
-    if (audioBlob && audioUrl) {
+  
+  useEffect(() => { 
+    if (audioBlob && audioUrl) { 
       getAssistantAudioResponse(audioBlob, audioUrl).then(() => {
         resetAudio();
       }).catch((error) => {
@@ -288,52 +288,37 @@ const ChatTextAudioPage = () => {
         toast.error('Erro ao processar o áudio.');
         resetAudio();
       });
-    }
+    } 
   }, [audioBlob, audioUrl]);
-
-  // MODIFICADO: Função 'handleAudioToggle' substituída pela versão mais robusta.
+  
   const handleAudioToggle = async () => {
-    // 1. Se estiver gravando, para a gravação.
-    if (isRecording) {
-      stopRecording();
-      return;
-    }
-
-    // 2. VERIFICAÇÃO DE CRÉDITOS PRIMEIRO!
-    // Isso garante que o modal apareça mesmo que outra coisa esteja "carregando".
-    if (!hasCredits) {
-      console.log('Sem créditos de áudio, abrindo modal de compra.');
-      setShowCreditsModal(true);
-      return;
-    }
-
-    // 3. Só depois, verifica se há outra operação em andamento.
-    if (n8nLoading || audioN8nLoading) {
-      toast.info("Por favor, aguarde a resposta anterior ser concluída.");
-      return;
-    }
-
-    // 4. Se tudo estiver certo, consome o crédito e inicia a gravação.
-    const creditConsumed = await consumeCredit();
-    if (creditConsumed) {
-      startRecording();
+    if (isRecording) { 
+      stopRecording(); 
     } else {
-      toast.error("Não foi possível usar seu crédito. Verifique seu saldo.");
-      refreshCredits();
+      if (n8nLoading || audioN8nLoading) return;
+      
+      // Verificar se tem créditos disponíveis
+      if (!hasCredits) { 
+        console.log('Sem créditos de áudio, abrindo modal de compra');
+        setShowCreditsModal(true); 
+        return; 
+      }
+      
+      // Consumir crédito ANTES de iniciar gravação
+      const creditConsumed = await consumeCredit();
+      if (!creditConsumed) { 
+        console.log('Falha ao consumir crédito, abrindo modal de compra');
+        setShowCreditsModal(true); 
+        return; 
+      }
+      
+      startRecording();
     }
-  };
-
-  // ADICIONADO: Função para lidar com a falta de créditos de voz.
-  const handleNoVoiceCredits = () => {
-    console.log('Sem créditos de voz, abrindo modal de compra.');
-    // No futuro, você pode criar um modal específico para créditos de voz.
-    // Por enquanto, reutilizamos o de áudio e mostramos uma mensagem.
-    toast.info("Você precisa de créditos de chamada de voz para usar esta função.");
-    setShowCreditsModal(true); // Reutilizando o modal de áudio
   };
 
   const handleCreditsModalClose = () => {
     setShowCreditsModal(false);
+    // Atualizar créditos quando o modal fechar
     refreshCredits();
   };
 
@@ -356,14 +341,14 @@ const ChatTextAudioPage = () => {
   const planName = getPlanName();
   const hasTextAudioPlan = planName && planName.toLowerCase().includes('text') && planName.toLowerCase().includes('audio');
   const isPlanActive = hasPlanActive();
-
+  
   if (hasTextAudioPlan && isPlanActive) {
     // Usuário tem acesso, continua na página
   } else {
     if (isTrialActive()) {
       return <Navigate to="/chat-trial" replace />;
     }
-
+    
     return <Navigate to="/plan" replace />;
   }
 
@@ -375,7 +360,7 @@ const ChatTextAudioPage = () => {
       </div>
     );
   }
-
+  
   const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
 
@@ -418,7 +403,7 @@ const ChatTextAudioPage = () => {
           }
         }
       `}</style>
-
+      
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
@@ -429,8 +414,8 @@ const ChatTextAudioPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <Avatar
-            className="cursor-pointer"
+          <Avatar 
+            className="cursor-pointer" 
             onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}
           >
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
@@ -444,11 +429,9 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          {/* MODIFICADO: Passando a função 'onNoCredits' para o componente VoiceCallButton. */}
-          <VoiceCallButton
+          <VoiceCallButton 
             agentName={agentData.name}
             agentAvatar={agentData.avatar_url}
-            onNoCredits={handleNoVoiceCredits}
           />
           <Button
             variant="ghost"
@@ -462,7 +445,7 @@ const ChatTextAudioPage = () => {
       </div>
 
       <div className="flex-1 min-h-0 relative overflow-hidden">
-        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{
+        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch'
@@ -474,59 +457,59 @@ const ChatTextAudioPage = () => {
 
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
-
-      <AudioCreditsModal
-        isOpen={showCreditsModal}
-        onClose={handleCreditsModalClose}
-        currentCredits={credits}
+      
+      <AudioCreditsModal 
+        isOpen={showCreditsModal} 
+        onClose={handleCreditsModalClose} 
+        currentCredits={credits} 
       />
-
+      
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
-
+      
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           {/* Main input container with rounded background */}
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
-            <Input
-              ref={inputRef}
-              className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-              placeholder="Digite uma mensagem..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              disabled={isLoading}
+            <Input 
+              ref={inputRef} 
+              className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0" 
+              placeholder="Digite uma mensagem..." 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={handleKeyPress} 
+              disabled={isLoading} 
             />
-
+            
             {/* Action buttons inside the input */}
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleEmoticonClick}
-                className={`flex-shrink-0 w-8 h-8 ${
-                  showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
-                }`}
-                disabled={isLoading}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleEmoticonClick} 
+                className={`flex-shrink-0 w-8 h-8 ${ 
+                  showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' 
+                }`} 
+                disabled={isLoading} 
               >
                 <Smile size={16} />
               </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleGiftClick}
-                className={`flex-shrink-0 w-8 h-8 ${
-                  showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
-                }`}
-                disabled={isLoading}
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleGiftClick} 
+                className={`flex-shrink-0 w-8 h-8 ${ 
+                  showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white hover:bg-blue-900/50' 
+                }`} 
+                disabled={isLoading} 
               >
                 <Gift size={16} />
               </Button>
             </div>
           </div>
-
+          
           {/* Audio button in orange sphere outside input */}
           <div className="relative flex flex-col items-center">
             <Button
@@ -546,7 +529,7 @@ const ChatTextAudioPage = () => {
                 {credits}
               </span>
             )}
-
+            
           </div>
         </div>
       </div>
