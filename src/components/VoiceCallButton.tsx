@@ -41,7 +41,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         return;
       }
       
-      // Consumir crédito IMEDIATAMENTE ao iniciar a chamada
+      // Consumir crédito ANTES de iniciar a chamada
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         setShowCreditsModal(true);
@@ -56,6 +56,12 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   const handleEndCall = async () => {
     await endCall();
     setShowModal(false);
+  };
+
+  const handleCreditsModalClose = () => {
+    setShowCreditsModal(false);
+    // Atualizar créditos quando o modal fechar
+    refreshCredits();
   };
 
   const getButtonText = () => {
@@ -82,8 +88,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
           className={cn(
             "flex items-center gap-2 transition-all",
             isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
-            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700",
-            !hasCredits && "opacity-50"
+            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
           )}
         >
           {getIcon()}
@@ -108,7 +113,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
       <VoiceCreditsModal
         isOpen={showCreditsModal}
-        onClose={() => setShowCreditsModal(false)}
+        onClose={handleCreditsModalClose}
         currentCredits={credits}
       />
     </>

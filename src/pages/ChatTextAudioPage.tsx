@@ -276,25 +276,36 @@ const ChatTextAudioPage = () => {
     setTimeout(() => { addMessage({ type: 'assistant', transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`, timestamp: new Date().toISOString() }); }, 1500);
   };
   useEffect(() => { if (audioBlob && audioUrl) { processAudioMessage(audioBlob, audioUrl); } }, [audioBlob, audioUrl]);
-  const processAudioMessage = async (blob: Blob, url: string) => {
-    if (!user) return;
-    try {
-      await getAssistantAudioResponse(blob, url);
-      resetAudio();
-    } catch (error) {
-      toast.error('Erro ao processar o áudio.');
-      resetAudio();
-    }
-  };
+  
   const handleAudioToggle = async () => {
-    if (isRecording) { stopRecording(); } else {
+    if (isRecording) { 
+      stopRecording(); 
+    } else {
       if (n8nLoading || audioN8nLoading) return;
-      if (!hasCredits) { setShowCreditsModal(true); return; }
+      
+      // Verificar créditos ANTES de iniciar gravação
+      if (!hasCredits) { 
+        setShowCreditsModal(true); 
+        return; 
+      }
+      
+      // Consumir crédito ANTES de iniciar gravação
       const creditConsumed = await consumeCredit();
-      if (!creditConsumed) { setShowCreditsModal(true); return; }
+      if (!creditConsumed) { 
+        setShowCreditsModal(true); 
+        return; 
+      }
+      
       startRecording();
     }
   };
+
+  const handleCreditsModalClose = () => {
+    setShowCreditsModal(false);
+    // Atualizar créditos quando o modal fechar
+    refreshCredits();
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
   const renderMessage = (message: CachedMessage) => {
@@ -430,7 +441,13 @@ const ChatTextAudioPage = () => {
 
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
-      <AudioCreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} currentCredits={credits} />
+      
+      <AudioCreditsModal 
+        isOpen={showCreditsModal} 
+        onClose={handleCreditsModalClose} 
+        currentCredits={credits} 
+      />
+      
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
