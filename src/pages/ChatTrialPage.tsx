@@ -393,31 +393,31 @@ const ChatTrialPage = () => {
   };
 
   const handleAudioToggle = async () => {
-    if (isRecording) {
-        stopRecording();
+    if (isRecording) { 
+      stopRecording(); 
     } else {
-        if (n8nLoading || audioN8nLoading) return;
-        if (messageCount >= maxTrialMessages) {
-          toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
-          return;
-        }
-        
-        console.log('Verificando créditos de áudio:', { credits, hasCredits });
-        
-        if (!hasCredits || credits <= 0) {
-          console.log('Sem créditos de áudio, abrindo popup de compra');
-          setShowAudioPurchaseModal(true);
-          return;
-        }
-        
-        const creditConsumed = await consumeCredit();
-        if (!creditConsumed) {
-          console.log('Falha ao consumir crédito de áudio');
-          setShowAudioPurchaseModal(true);
-          return;
-        }
-        
-        startRecording();
+      if (n8nLoading || audioN8nLoading) return;
+      if (messageCount >= maxTrialMessages) {
+        toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
+        return;
+      }
+      
+      console.log('Verificando créditos de áudio:', { credits, hasCredits });
+      
+      if (credits <= 0) {
+        console.log('Sem créditos de áudio, abrindo popup de compra');
+        setShowAudioPurchaseModal(true);
+        return;
+      }
+      
+      const creditConsumed = await consumeCredit();
+      if (!creditConsumed) {
+        console.log('Falha ao consumir crédito de áudio');
+        setShowAudioPurchaseModal(true);
+        return;
+      }
+      
+      startRecording();
     }
   };
 
@@ -763,7 +763,7 @@ const ChatTrialPage = () => {
             </Button>
             
             {/* Mask overlay when no credits */}
-            {(!hasCredits || credits <= 0) && (
+            {credits <= 0 && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={() => {

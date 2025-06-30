@@ -302,7 +302,7 @@ const ChatTextAudioPage = () => {
       if (n8nLoading || audioN8nLoading) return;
       
       // Verificar se tem créditos disponíveis
-      if (!hasCredits) { 
+      if (credits <= 0) { 
         console.log('Sem créditos de áudio, abrindo modal de compra');
         setShowAudioPurchaseModal(true); 
         return; 
@@ -530,7 +530,7 @@ const ChatTextAudioPage = () => {
             </Button>
             
             {/* Mask overlay when no credits */}
-            {!hasCredits && (
+            {credits <= 0 && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={() => setShowAudioPurchaseModal(true)}

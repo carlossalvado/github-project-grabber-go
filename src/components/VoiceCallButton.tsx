@@ -43,7 +43,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       console.log('Tentando iniciar chamada de voz', { hasCredits, credits });
       
       // Verificar se tem créditos disponíveis ANTES de tentar iniciar a chamada
-      if (!hasCredits || credits <= 0) {
+      if (credits <= 0) {
         console.log('Sem créditos de voz, abrindo modal de compra');
         setShowVoicePurchaseModal(true);
         if (onShowPurchaseModal) onShowPurchaseModal();
@@ -108,7 +108,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         </Button>
         
         {/* Mask overlay when no credits */}
-        {(!hasCredits || credits <= 0) && !isConnected && (
+        {credits <= 0 && !isConnected && (
           <div 
             className="absolute inset-0 bg-black bg-opacity-30 rounded cursor-pointer flex items-center justify-center z-10"
             onClick={() => {
