@@ -19,6 +19,7 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
+import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ const ChatTrialPage = () => {
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showAudioPurchaseModal, setShowAudioPurchaseModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -399,13 +401,13 @@ const ChatTrialPage = () => {
         }
         
         if (!hasCredits) {
-          setShowCreditsModal(true);
+          setShowAudioPurchaseModal(true);
           return;
         }
         
         const creditConsumed = await consumeCredit();
         if (!creditConsumed) {
-          setShowCreditsModal(true);
+          setShowAudioPurchaseModal(true);
           return;
         }
         
@@ -672,6 +674,11 @@ const ChatTrialPage = () => {
         currentCredits={credits}
       />
 
+      <AudioCreditsPurchaseModal
+        isOpen={showAudioPurchaseModal}
+        onClose={() => setShowAudioPurchaseModal(false)}
+      />
+
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
@@ -728,7 +735,7 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Audio button in orange sphere outside input */}
+          {/* Audio button with mask overlay */}
           <div className="relative flex flex-col items-center">
             <Button
               variant="ghost"
@@ -743,18 +750,27 @@ const ChatTrialPage = () => {
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
+            
+            {/* Mask overlay when no credits */}
+            {!hasCredits && (
+              <div 
+                className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
+                onClick={() => setShowAudioPurchaseModal(true)}
+              >
+                <Plus size={16} className="text-white" />
+              </div>
+            )}
+            
             {!creditsLoading && (
               <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
                 {credits}
               </span>
             )}
-           
           </div>
         </div>
         <br></br>
       </div>
       
-
       <ProfileImageModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}

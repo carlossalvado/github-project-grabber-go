@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
@@ -7,15 +6,19 @@ import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
 import VoiceCallModal from './VoiceCallModal';
 import VoiceCreditsModal from './VoiceCreditsModal';
+import VoiceCreditsPurchaseModal from './VoiceCreditsPurchaseModal';
+import { Plus } from 'lucide-react';
 
 interface VoiceCallButtonProps {
   agentName?: string;
   agentAvatar?: string;
+  onShowPurchaseModal?: () => void;
 }
 
 const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   agentName = 'Isa',
-  agentAvatar = '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
+  agentAvatar = '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png',
+  onShowPurchaseModal
 }) => {
   const { 
     isConnecting, 
@@ -29,6 +32,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
   const [showModal, setShowModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
 
   const handleClick = async () => {
     if (isConnected) {
@@ -40,7 +44,8 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       // Verificar se tem créditos disponíveis ANTES de tentar iniciar a chamada
       if (!hasCredits) {
         console.log('Sem créditos de voz, abrindo modal de compra');
-        setShowCreditsModal(true);
+        setShowVoicePurchaseModal(true);
+        if (onShowPurchaseModal) onShowPurchaseModal();
         return;
       }
       
@@ -48,7 +53,8 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         console.log('Falha ao consumir crédito de voz, abrindo modal de compra');
-        setShowCreditsModal(true);
+        setShowVoicePurchaseModal(true);
+        if (onShowPurchaseModal) onShowPurchaseModal();
         return;
       }
       
@@ -84,7 +90,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center gap-1 relative">
         <Button
           variant={isConnected ? "destructive" : "default"}
           size="sm"
@@ -99,6 +105,17 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
           {getIcon()}
           {getButtonText()}
         </Button>
+        
+        {/* Mask overlay when no credits */}
+        {!hasCredits && !isConnected && (
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-30 rounded cursor-pointer flex items-center justify-center z-10"
+            onClick={() => setShowVoicePurchaseModal(true)}
+          >
+            <Plus size={12} className="text-white" />
+          </div>
+        )}
+        
         {!creditsLoading && (
           <span className="text-xs text-purple-400 font-medium">
             {credits}
@@ -120,6 +137,11 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         isOpen={showCreditsModal}
         onClose={handleCreditsModalClose}
         currentCredits={credits}
+      />
+
+      <VoiceCreditsPurchaseModal
+        isOpen={showVoicePurchaseModal}
+        onClose={() => setShowVoicePurchaseModal(false)}
       />
     </>
   );

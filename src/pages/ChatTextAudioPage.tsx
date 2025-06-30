@@ -24,6 +24,8 @@ import AudioMessage from '@/components/AudioMessage';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
+import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -44,6 +46,8 @@ const ChatTextAudioPage = () => {
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showAudioPurchaseModal, setShowAudioPurchaseModal] = useState(false);
+  const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
@@ -300,7 +304,7 @@ const ChatTextAudioPage = () => {
       // Verificar se tem créditos disponíveis
       if (!hasCredits) { 
         console.log('Sem créditos de áudio, abrindo modal de compra');
-        setShowCreditsModal(true); 
+        setShowAudioPurchaseModal(true); 
         return; 
       }
       
@@ -308,7 +312,7 @@ const ChatTextAudioPage = () => {
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
         console.log('Falha ao consumir crédito, abrindo modal de compra');
-        setShowCreditsModal(true); 
+        setShowAudioPurchaseModal(true); 
         return; 
       }
       
@@ -510,7 +514,7 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
           
-          {/* Audio button in orange sphere outside input */}
+          {/* Audio button with mask overlay */}
           <div className="relative flex flex-col items-center">
             <Button
               variant="ghost"
@@ -524,16 +528,37 @@ const ChatTextAudioPage = () => {
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
+            
+            {/* Mask overlay when no credits */}
+            {!hasCredits && (
+              <div 
+                className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
+                onClick={() => setShowAudioPurchaseModal(true)}
+              >
+                <Plus size={16} className="text-white" />
+              </div>
+            )}
+            
             {!creditsLoading && (
               <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">
                 {credits}
               </span>
             )}
-            
           </div>
         </div>
       </div>
       <br></br>
+
+      {/* Existing modals */}
+      <AudioCreditsPurchaseModal
+        isOpen={showAudioPurchaseModal}
+        onClose={() => setShowAudioPurchaseModal(false)}
+      />
+
+      <VoiceCreditsPurchaseModal
+        isOpen={showVoicePurchaseModal}
+        onClose={() => setShowVoicePurchaseModal(false)}
+      />
     </div>
   );
 };
