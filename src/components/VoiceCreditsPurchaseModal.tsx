@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Phone, CreditCard, Loader2 } from 'lucide-react';
@@ -55,18 +55,12 @@ const VoiceCreditsPurchaseModal: React.FC<VoiceCreditsPurchaseModalProps> = ({
             <Phone className="h-5 w-5" />
             Comprar Créditos de Chamada de Voz
           </DialogTitle>
+          <DialogDescription>
+            Você não tem créditos suficientes para fazer chamadas de voz. Cada chamada consome 1 crédito.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">
-              Você não tem créditos suficientes
-            </p>
-            <p className="text-xs text-gray-500">
-              Cada chamada de voz consome 1 crédito
-            </p>
-          </div>
-
           <Card className="border-purple-200">
             <CardHeader className="text-center pb-3">
               <CardTitle className="text-lg">4 Créditos de Chamada de Voz</CardTitle>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Volume2, CreditCard, Loader2 } from 'lucide-react';
@@ -55,18 +55,12 @@ const AudioCreditsPurchaseModal: React.FC<AudioCreditsPurchaseModalProps> = ({
             <Volume2 className="h-5 w-5" />
             Comprar Créditos de Áudio
           </DialogTitle>
+          <DialogDescription>
+            Você não tem créditos suficientes para enviar mensagens de áudio. Cada mensagem consome 1 crédito.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">
-              Você não tem créditos suficientes
-            </p>
-            <p className="text-xs text-gray-500">
-              Cada mensagem de áudio consome 1 crédito
-            </p>
-          </div>
-
           <Card className="border-orange-200">
             <CardHeader className="text-center pb-3">
               <CardTitle className="text-lg">20 Créditos de Áudio</CardTitle>
