@@ -1,14 +1,12 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
+import { Phone, PhoneOff, Loader2, Mic, Plus } from 'lucide-react';
 import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
 import VoiceCallModal from './VoiceCallModal';
 import VoiceCreditsModal from './VoiceCreditsModal';
 import VoiceCreditsPurchaseModal from './VoiceCreditsPurchaseModal';
-import { Plus } from 'lucide-react';
 
 interface VoiceCallButtonProps {
   agentName?: string;
@@ -35,6 +33,17 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
 
+  // ******************************************************
+  // ** CÓDIGO DE TESTE ADICIONADO AQUI **
+  // ******************************************************
+  useEffect(() => {
+    console.log('%c--- VoiceCallButton FOI MONTADO (CRIADO) ---', 'color: green; font-weight: bold;');
+    return () => {
+      console.log('%c--- VoiceCallButton FOI DESMONTADO (DESTRUÍDO) ---', 'color: red; font-weight: bold;');
+    };
+  }, []); // O array vazio [] é MUITO importante!
+  // ******************************************************
+
   const handleClick = async () => {
     if (isConnected) {
       await endCall();
@@ -42,7 +51,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
     } else {
       console.log('Tentando iniciar chamada de voz', { hasCredits, credits });
       
-      // Verificar se tem créditos disponíveis ANTES de tentar iniciar a chamada
       if (credits <= 0) {
         console.log('Sem créditos de voz, abrindo modal de compra');
         setShowVoicePurchaseModal(true);
@@ -50,7 +58,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         return;
       }
       
-      // Consumir crédito ANTES de iniciar a chamada
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         console.log('Falha ao consumir crédito de voz, abrindo modal de compra');
@@ -72,7 +79,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
 
   const handleCreditsModalClose = () => {
     setShowCreditsModal(false);
-    // Atualizar créditos quando o modal fechar
     refreshCredits();
   };
 
@@ -107,7 +113,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
           {getButtonText()}
         </Button>
         
-        {/* Mask overlay when no credits */}
         {credits <= 0 && !isConnected && (
           <div 
             className="absolute inset-0 bg-black bg-opacity-30 rounded cursor-pointer flex items-center justify-center z-10"
