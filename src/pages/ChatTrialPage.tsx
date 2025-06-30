@@ -21,6 +21,7 @@ import GiftSelection from '@/components/GiftSelection';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
+import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
@@ -45,6 +46,7 @@ const ChatTrialPage = () => {
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showAudioPurchaseModal, setShowAudioPurchaseModal] = useState(false);
+  const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -400,13 +402,17 @@ const ChatTrialPage = () => {
           return;
         }
         
-        if (!hasCredits) {
+        console.log('Verificando créditos de áudio:', { credits, hasCredits });
+        
+        if (!hasCredits || credits <= 0) {
+          console.log('Sem créditos de áudio, abrindo popup de compra');
           setShowAudioPurchaseModal(true);
           return;
         }
         
         const creditConsumed = await consumeCredit();
         if (!creditConsumed) {
+          console.log('Falha ao consumir crédito de áudio');
           setShowAudioPurchaseModal(true);
           return;
         }
@@ -563,6 +569,7 @@ const ChatTrialPage = () => {
           <VoiceCallButton 
             agentName={agentData.name}
             agentAvatar={agentData.avatar_url}
+            onShowPurchaseModal={() => setShowVoicePurchaseModal(true)}
           />
           <Button
             variant="ghost"
@@ -679,6 +686,11 @@ const ChatTrialPage = () => {
         onClose={() => setShowAudioPurchaseModal(false)}
       />
 
+      <VoiceCreditsPurchaseModal
+        isOpen={showVoicePurchaseModal}
+        onClose={() => setShowVoicePurchaseModal(false)}
+      />
+
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
@@ -742,8 +754,7 @@ const ChatTrialPage = () => {
               size="icon"
               className={cn(
                 "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
-                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse",
-                !hasCredits && "opacity-50"
+                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
               )}
               onClick={handleAudioToggle}
               disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
@@ -752,10 +763,13 @@ const ChatTrialPage = () => {
             </Button>
             
             {/* Mask overlay when no credits */}
-            {!hasCredits && (
+            {(!hasCredits || credits <= 0) && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-                onClick={() => setShowAudioPurchaseModal(true)}
+                onClick={() => {
+                  console.log('Máscara clicada - abrindo popup de compra de áudio');
+                  setShowAudioPurchaseModal(true);
+                }}
               >
                 <Plus size={16} className="text-white" />
               </div>
