@@ -6,7 +6,6 @@ import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
 import VoiceCallModal from './VoiceCallModal';
-import VoiceCreditsModal from './VoiceCreditsModal';
 
 interface VoiceCallButtonProps {
   agentName?: string;
@@ -30,21 +29,16 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useVoiceCredits();
 
   const [showModal, setShowModal] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
-  // ******************************************************
-  // ** CÓDIGO DE TESTE ADICIONADO AQUI **
-  // ******************************************************
   useEffect(() => {
     console.log('%c--- VoiceCallButton FOI MONTADO (CRIADO) ---', 'color: green; font-weight: bold;');
     return () => {
-      console.log('%c--- VoiceCallButton FOI DESMONTADO (DESTRUÍDO) ---', 'color: red; font-weight: bold;');
+      console.log('%c--- VoiceCallButton FOI DESTRUÍDO ---', 'color: red; font-weight: bold;');
     };
-  }, []); // O array vazio [] é MUITO importante!
-  // ******************************************************
+  }, []);
 
   const handleVoiceCreditsRequest = () => {
-    console.log('Solicitando créditos de voz via callback');
+    console.log('VoiceCallButton: Solicitando créditos de voz via callback direto');
     if (onRequestVoiceCredits) {
       onRequestVoiceCredits();
     }
@@ -55,22 +49,22 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
       await endCall();
       setShowModal(false);
     } else {
-      console.log('Tentando iniciar chamada de voz', { hasCredits, credits });
+      console.log('VoiceCallButton: Tentando iniciar chamada de voz', { hasCredits, credits });
       
       if (credits <= 0) {
-        console.log('Sem créditos de voz, solicitando abertura de modal');
+        console.log('VoiceCallButton: Sem créditos de voz, chamando callback direto');
         handleVoiceCreditsRequest();
         return;
       }
       
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
-        console.log('Falha ao consumir crédito de voz, solicitando abertura de modal');
+        console.log('VoiceCallButton: Falha ao consumir crédito de voz, chamando callback direto');
         handleVoiceCreditsRequest();
         return;
       }
       
-      console.log('Crédito consumido com sucesso, iniciando chamada');
+      console.log('VoiceCallButton: Crédito consumido com sucesso, iniciando chamada');
       setShowModal(true);
       await startCall();
     }
@@ -79,11 +73,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
   const handleEndCall = async () => {
     await endCall();
     setShowModal(false);
-  };
-
-  const handleCreditsModalClose = () => {
-    setShowCreditsModal(false);
-    refreshCredits();
   };
 
   const getButtonText = () => {
@@ -122,7 +111,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
             className="absolute inset-0 bg-black bg-opacity-30 rounded cursor-pointer flex items-center justify-center z-10"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Máscara de voz clicada - solicitando abertura de modal');
+              console.log('VoiceCallButton: Máscara de voz clicada - chamando callback direto');
               handleVoiceCreditsRequest();
             }}
           >
@@ -145,12 +134,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
         isConnected={isConnected}
         isSpeaking={isSpeaking}
         isConnecting={isConnecting}
-      />
-
-      <VoiceCreditsModal
-        isOpen={showCreditsModal}
-        onClose={handleCreditsModalClose}
-        currentCredits={credits}
       />
     </>
   );

@@ -14,7 +14,6 @@ import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { useUserCache } from '@/hooks/useUserCache';
-import { useModalManager } from '@/hooks/useModalManager';
 import { supabase } from '@/integrations/supabase/client';
 import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -22,10 +21,10 @@ import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
-import AudioCreditsModal from '@/components/AudioCreditsModal';
+import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
+import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import CreditsPurchaseManager from '@/components/CreditsPurchaseManager';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -40,17 +39,20 @@ const ChatTextAudioPage = () => {
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   const { getAvatarUrl } = useUserCache();
-  const { activeModal, openAudioCreditsModal, openVoiceCreditsModal, closeModal } = useModalManager();
       
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [selectedImageName, setSelectedImageName] = useState('');
+  
+  // Estados locais para os modais - SOLUÇÃO DIRETA
+  const [showAudioCreditsModal, setShowAudioCreditsModal] = useState(false);
+  const [showVoiceCreditsModal, setShowVoiceCreditsModal] = useState(false);
+  
   const [agentData, setAgentData] = useState({
     id: '',
     name: 'Isa',
@@ -300,18 +302,16 @@ const ChatTextAudioPage = () => {
     } else {
       if (n8nLoading || audioN8nLoading) return;
       
-      // Verificar se tem créditos disponíveis
       if (credits <= 0) { 
-        console.log('ChatTextAudioPage: Sem créditos de áudio, abrindo modal de compra');
-        openAudioCreditsModal();
+        console.log('ChatTextAudioPage: Sem créditos de áudio, abrindo modal local');
+        setShowAudioCreditsModal(true);
         return; 
       }
       
-      // Consumir crédito ANTES de iniciar gravação
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
-        console.log('ChatTextAudioPage: Falha ao consumir crédito, abrindo modal de compra');
-        openAudioCreditsModal();
+        console.log('ChatTextAudioPage: Falha ao consumir crédito, abrindo modal local');
+        setShowAudioCreditsModal(true);
         return; 
       }
       
@@ -319,18 +319,27 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  // Handlers locais para os modais - SOLUÇÃO DIRETA
   const handleAudioCreditsRequest = () => {
-    console.log('ChatTextAudioPage: Solicitando créditos de áudio');
-    openAudioCreditsModal();
+    console.log('ChatTextAudioPage: Abrindo modal local de créditos de áudio');
+    setShowAudioCreditsModal(true);
   };
 
   const handleVoiceCreditsRequest = () => {
-    console.log('ChatTextAudioPage: Solicitando créditos de voz');
-    openVoiceCreditsModal();
+    console.log('ChatTextAudioPage: Abrindo modal local de créditos de voz');
+    setShowVoiceCreditsModal(true);
   };
 
-  const handleCreditsModalClose = () => {
+  const handleAudioCreditsModalClose = () => {
+    console.log('ChatTextAudioPage: Fechando modal local de créditos de áudio');
+    setShowAudioCreditsModal(false);
     refreshCredits();
+  };
+
+  const handleVoiceCreditsModalClose = () => {
+    console.log('ChatTextAudioPage: Fechando modal local de créditos de voz');
+    setShowVoiceCreditsModal(false);
+    refreshVoiceCredits();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
@@ -473,10 +482,8 @@ const ChatTextAudioPage = () => {
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
-      {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
-          {/* Main input container with rounded background */}
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
             <Input 
               ref={inputRef} 
@@ -488,7 +495,6 @@ const ChatTextAudioPage = () => {
               disabled={isLoading} 
             />
             
-            {/* Action buttons inside the input */}
             <div className="flex items-center gap-1">
               <Button 
                 variant="ghost" 
@@ -516,7 +522,6 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
           
-          {/* Audio button with mask overlay */}
           <div className="relative flex flex-col items-center">
             <Button
               variant="ghost"
@@ -531,13 +536,12 @@ const ChatTextAudioPage = () => {
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
             
-            {/* Mask overlay when no credits */}
             {credits <= 0 && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('ChatTextAudioPage: Máscara de áudio clicada - abrindo popup de compra');
+                  console.log('ChatTextAudioPage: Máscara de áudio clicada - abrindo modal local');
                   handleAudioCreditsRequest();
                 }}
               >
@@ -554,10 +558,15 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
       
-      {/* Sistema centralizado de modais */}
-      <CreditsPurchaseManager
-        activeModal={activeModal}
-        onClose={closeModal}
+      {/* MODAIS LOCAIS - SOLUÇÃO DIRETA SEM HOOK CENTRALIZADO */}
+      <AudioCreditsPurchaseModal
+        isOpen={showAudioCreditsModal}
+        onClose={handleAudioCreditsModalClose}
+      />
+      
+      <VoiceCreditsPurchaseModal
+        isOpen={showVoiceCreditsModal}
+        onClose={handleVoiceCreditsModalClose}
       />
     </div>
   );
