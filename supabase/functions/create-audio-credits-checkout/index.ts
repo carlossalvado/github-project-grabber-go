@@ -35,9 +35,9 @@ serve(async (req) => {
 
     // Try to get the credit product from database, if not found use default values
     let productData = {
-      name: "100 Créditos de Áudio",
-      credits: 100,
-      price: 999 // $9.99 in cents - valor padrão
+      name: "20 Créditos de Áudio",
+      credits: 20,
+      price: 499 // $4.99 in cents
     };
 
     try {
@@ -50,7 +50,7 @@ serve(async (req) => {
         productData = {
           name: product.name,
           credits: product.credits,
-          price: product.price // Usando o preço da coluna price da tabela
+          price: product.price
         };
         console.log("Product found in database:", productData);
       }
@@ -90,7 +90,7 @@ serve(async (req) => {
               name: productData.name,
               description: `${productData.credits} créditos de áudio`,
             },
-            unit_amount: productData.price, // Preço vem da coluna price
+            unit_amount: productData.price,
           },
           quantity: 1,
         },
@@ -101,6 +101,7 @@ serve(async (req) => {
       metadata: {
         credits: productData.credits.toString(),
         user_id: user.id,
+        credit_type: "audio",
       },
     });
 
