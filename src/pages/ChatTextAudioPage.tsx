@@ -14,6 +14,7 @@ import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useAudioCredits } from '@/hooks/useAudioCredits';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { useUserCache } from '@/hooks/useUserCache';
+import { useModalManager } from '@/hooks/useModalManager';
 import { supabase } from '@/integrations/supabase/client';
 import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -24,8 +25,7 @@ import AudioMessage from '@/components/AudioMessage';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
-import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
+import CreditsPurchaseManager from '@/components/CreditsPurchaseManager';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -40,14 +40,13 @@ const ChatTextAudioPage = () => {
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   const { getAvatarUrl } = useUserCache();
+  const { activeModal, openAudioCreditsModal, openVoiceCreditsModal, closeModal } = useModalManager();
       
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [showAudioPurchaseModal, setShowAudioPurchaseModal] = useState(false);
-  const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
@@ -304,7 +303,7 @@ const ChatTextAudioPage = () => {
       // Verificar se tem créditos disponíveis
       if (credits <= 0) { 
         console.log('Sem créditos de áudio, abrindo modal de compra');
-        setShowAudioPurchaseModal(true); 
+        openAudioCreditsModal();
         return; 
       }
       
@@ -312,7 +311,7 @@ const ChatTextAudioPage = () => {
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
         console.log('Falha ao consumir crédito, abrindo modal de compra');
-        setShowAudioPurchaseModal(true); 
+        openAudioCreditsModal();
         return; 
       }
       
@@ -320,9 +319,18 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  const handleAudioCreditsRequest = () => {
+    console.log('Solicitando créditos de áudio');
+    openAudioCreditsModal();
+  };
+
+  const handleVoiceCreditsRequest = () => {
+    console.log('Solicitando créditos de voz');
+    openVoiceCreditsModal();
+  };
+
   const handleCreditsModalClose = () => {
     setShowCreditsModal(false);
-    // Atualizar créditos quando o modal fechar
     refreshCredits();
   };
 
@@ -436,6 +444,7 @@ const ChatTextAudioPage = () => {
           <VoiceCallButton 
             agentName={agentData.name}
             agentAvatar={agentData.avatar_url}
+            onRequestVoiceCredits={handleVoiceCreditsRequest}
           />
           <Button
             variant="ghost"
@@ -533,7 +542,11 @@ const ChatTextAudioPage = () => {
             {credits <= 0 && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-                onClick={() => setShowAudioPurchaseModal(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Máscara de áudio clicada - abrindo popup de compra');
+                  handleAudioCreditsRequest();
+                }}
               >
                 <Plus size={16} className="text-white" />
               </div>
@@ -547,17 +560,11 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
       </div>
-      <br></br>
-
-      {/* Existing modals */}
-      <AudioCreditsPurchaseModal
-        isOpen={showAudioPurchaseModal}
-        onClose={() => setShowAudioPurchaseModal(false)}
-      />
-
-      <VoiceCreditsPurchaseModal
-        isOpen={showVoicePurchaseModal}
-        onClose={() => setShowVoicePurchaseModal(false)}
+      
+      {/* Sistema centralizado de modais */}
+      <CreditsPurchaseManager
+        activeModal={activeModal}
+        onClose={closeModal}
       />
     </div>
   );
