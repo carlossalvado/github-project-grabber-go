@@ -45,7 +45,6 @@ const ChatTrialPage = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -401,17 +400,17 @@ const ChatTrialPage = () => {
         return;
       }
       
-      console.log('Verificando créditos de áudio:', { credits, hasCredits });
+      console.log('ChatTrialPage: Verificando créditos de áudio:', { credits, hasCredits });
       
       if (credits <= 0) {
-        console.log('Sem créditos de áudio, abrindo popup de compra');
+        console.log('ChatTrialPage: Sem créditos de áudio, abrindo popup de compra');
         openAudioCreditsModal();
         return;
       }
       
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
-        console.log('Falha ao consumir crédito de áudio');
+        console.log('ChatTrialPage: Falha ao consumir crédito de áudio');
         openAudioCreditsModal();
         return;
       }
@@ -674,12 +673,6 @@ const ChatTrialPage = () => {
         />
       )}
 
-      <AudioCreditsModal
-        isOpen={showCreditsModal}
-        onClose={() => setShowCreditsModal(false)}
-        currentCredits={credits}
-      />
-
       <CreditsPurchaseManager
         activeModal={activeModal}
         onClose={closeModal}
@@ -761,7 +754,7 @@ const ChatTrialPage = () => {
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={() => {
-                  console.log('Máscara clicada - abrindo popup de compra de áudio');
+                  console.log('ChatTrialPage: Máscara clicada - abrindo popup de compra de áudio');
                   openAudioCreditsModal();
                 }}
               >

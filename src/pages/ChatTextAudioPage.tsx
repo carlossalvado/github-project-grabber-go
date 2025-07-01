@@ -302,7 +302,7 @@ const ChatTextAudioPage = () => {
       
       // Verificar se tem créditos disponíveis
       if (credits <= 0) { 
-        console.log('Sem créditos de áudio, abrindo modal de compra');
+        console.log('ChatTextAudioPage: Sem créditos de áudio, abrindo modal de compra');
         openAudioCreditsModal();
         return; 
       }
@@ -310,7 +310,7 @@ const ChatTextAudioPage = () => {
       // Consumir crédito ANTES de iniciar gravação
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
-        console.log('Falha ao consumir crédito, abrindo modal de compra');
+        console.log('ChatTextAudioPage: Falha ao consumir crédito, abrindo modal de compra');
         openAudioCreditsModal();
         return; 
       }
@@ -320,17 +320,16 @@ const ChatTextAudioPage = () => {
   };
 
   const handleAudioCreditsRequest = () => {
-    console.log('Solicitando créditos de áudio');
+    console.log('ChatTextAudioPage: Solicitando créditos de áudio');
     openAudioCreditsModal();
   };
 
   const handleVoiceCreditsRequest = () => {
-    console.log('Solicitando créditos de voz');
+    console.log('ChatTextAudioPage: Solicitando créditos de voz');
     openVoiceCreditsModal();
   };
 
   const handleCreditsModalClose = () => {
-    setShowCreditsModal(false);
     refreshCredits();
   };
 
@@ -471,12 +470,6 @@ const ChatTextAudioPage = () => {
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
       
-      <AudioCreditsModal 
-        isOpen={showCreditsModal} 
-        onClose={handleCreditsModalClose} 
-        currentCredits={credits} 
-      />
-      
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
@@ -544,7 +537,7 @@ const ChatTextAudioPage = () => {
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('Máscara de áudio clicada - abrindo popup de compra');
+                  console.log('ChatTextAudioPage: Máscara de áudio clicada - abrindo popup de compra');
                   handleAudioCreditsRequest();
                 }}
               >

@@ -7,19 +7,22 @@ export const useModalManager = () => {
   const [activeModal, setActiveModal] = useState<ModalType>('none');
 
   const openAudioCreditsModal = () => {
-    console.log('Abrindo modal de créditos de áudio');
+    console.log('useModalManager: Abrindo modal de créditos de áudio');
     setActiveModal('audioCredits');
   };
 
   const openVoiceCreditsModal = () => {
-    console.log('Abrindo modal de créditos de voz');
+    console.log('useModalManager: Abrindo modal de créditos de voz');
     setActiveModal('voiceCredits');
   };
 
   const closeModal = () => {
-    console.log('Fechando modal');
+    console.log('useModalManager: Fechando modal');
     setActiveModal('none');
   };
+
+  // Log do estado atual para debug
+  console.log('useModalManager: Estado atual do modal:', activeModal);
 
   return {
     activeModal,
