@@ -25,6 +25,8 @@ import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
 import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
+import CreditsPurchaseButton from '@/components/CreditsPurchaseButton';
+import CreditsSelection from '@/components/CreditsSelection';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -52,6 +54,7 @@ const ChatTextAudioPage = () => {
   // Estados locais para os modais - SOLUÇÃO DIRETA
   const [showAudioCreditsModal, setShowAudioCreditsModal] = useState(false);
   const [showVoiceCreditsModal, setShowVoiceCreditsModal] = useState(false);
+  const [showCreditsSelection, setShowCreditsSelection] = useState(false);
   
   const [agentData, setAgentData] = useState({
     id: '',
@@ -303,15 +306,15 @@ const ChatTextAudioPage = () => {
       if (n8nLoading || audioN8nLoading) return;
       
       if (credits <= 0) { 
-        console.log('ChatTextAudioPage: Sem créditos de áudio, abrindo modal local');
-        setShowAudioCreditsModal(true);
+        console.log('ChatTextAudioPage: Sem créditos de áudio, abrindo seleção de créditos');
+        setShowCreditsSelection(true);
         return; 
       }
       
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) { 
-        console.log('ChatTextAudioPage: Falha ao consumir crédito, abrindo modal local');
-        setShowAudioCreditsModal(true);
+        console.log('ChatTextAudioPage: Falha ao consumir crédito, abrindo seleção de créditos');
+        setShowCreditsSelection(true);
         return; 
       }
       
@@ -327,6 +330,25 @@ const ChatTextAudioPage = () => {
 
   const handleVoiceCreditsRequest = () => {
     console.log('ChatTextAudioPage: Abrindo modal local de créditos de voz');
+    setShowVoiceCreditsModal(true);
+  };
+
+  const handleCreditsPurchaseClick = () => {
+    console.log('ChatTextAudioPage: Abrindo seleção de créditos');
+    setShowCreditsSelection(true);
+  };
+
+  const handleCreditsSelectionClose = () => {
+    setShowCreditsSelection(false);
+  };
+
+  const handleSelectAudioCredits = () => {
+    setShowCreditsSelection(false);
+    setShowAudioCreditsModal(true);
+  };
+
+  const handleSelectVoiceCredits = () => {
+    setShowCreditsSelection(false);
     setShowVoiceCreditsModal(true);
   };
 
@@ -449,6 +471,7 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
+          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
           <VoiceCallButton 
             agentName={agentData.name}
             agentAvatar={agentData.avatar_url}
@@ -478,6 +501,13 @@ const ChatTextAudioPage = () => {
 
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} onSelectGift={handleGiftSelect} />)}
+      {showCreditsSelection && (
+        <CreditsSelection
+          onClose={handleCreditsSelectionClose}
+          onSelectAudioCredits={handleSelectAudioCredits}
+          onSelectVoiceCredits={handleSelectVoiceCredits}
+        />
+      )}
       
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
@@ -541,8 +571,8 @@ const ChatTextAudioPage = () => {
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('ChatTextAudioPage: Máscara de áudio clicada - abrindo modal local');
-                  handleAudioCreditsRequest();
+                  console.log('ChatTextAudioPage: Máscara de áudio clicada - abrindo seleção de créditos');
+                  handleCreditsPurchaseClick();
                 }}
               >
                 <Plus size={16} className="text-white" />

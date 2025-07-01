@@ -75,52 +75,45 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
     setShowModal(false);
   };
 
-  const getButtonText = () => {
-    if (isConnecting) return 'Conectando...';
-    if (isConnected) return 'Encerrar Chamada';
-    return 'Chamada de Voz';
-  };
-
   const getIcon = () => {
-    if (isConnecting) return <Loader2 size={16} className="animate-spin" />;
-    if (isConnected && isSpeaking) return <Mic size={16} className="animate-pulse" />;
-    if (isConnected) return <PhoneOff size={16} />;
-    return <Phone size={16} />;
+    if (isConnecting) return <Loader2 size={20} className="animate-spin" />;
+    if (isConnected && isSpeaking) return <Mic size={20} className="animate-pulse" />;
+    if (isConnected) return <PhoneOff size={20} />;
+    return <Phone size={20} />;
   };
 
   return (
     <>
-      <div className="flex flex-col items-center gap-1 relative">
+      <div className="relative flex flex-col items-center">
         <Button
-          variant={isConnected ? "destructive" : "default"}
-          size="sm"
-          onClick={handleClick}
-          disabled={isConnecting}
+          variant="ghost"
+          size="icon"
           className={cn(
-            "flex items-center gap-2 transition-all",
-            isConnected && isSpeaking && "bg-green-600 hover:bg-green-700",
+            "w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0",
+            isConnected && isSpeaking && "bg-green-600 hover:bg-green-700 animate-pulse",
             isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
           )}
+          onClick={handleClick}
+          disabled={isConnecting}
         >
           {getIcon()}
-          {getButtonText()}
         </Button>
         
         {credits <= 0 && !isConnected && (
           <div 
-            className="absolute inset-0 bg-black bg-opacity-30 rounded cursor-pointer flex items-center justify-center z-10"
+            className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
             onClick={(e) => {
               e.stopPropagation();
               console.log('VoiceCallButton: Máscara de voz clicada - chamando callback direto');
               handleVoiceCreditsRequest();
             }}
           >
-            <Plus size={12} className="text-white" />
+            <Plus size={16} className="text-white" />
           </div>
         )}
         
         {!creditsLoading && (
-          <span className="text-xs text-purple-400 font-medium">
+          <span className="absolute -bottom-1 text-xs text-purple-400 font-medium bg-[#1a1d29] px-1 rounded">
             {credits}
           </span>
         )}
