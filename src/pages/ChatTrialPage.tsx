@@ -19,13 +19,13 @@ import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
-import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
-import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useModalManager } from '@/hooks/useModalManager';
+import CreditsPurchaseManager from '@/components/CreditsPurchaseManager';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const ChatTrialPage = () => {
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
   const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
+  const { activeModal, openAudioCreditsModal, openVoiceCreditsModal, closeModal } = useModalManager();
   
   const [input, setInput] = useState('');
   const [messageCount, setMessageCount] = useState(0);
@@ -45,8 +46,6 @@ const ChatTrialPage = () => {
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [showAudioPurchaseModal, setShowAudioPurchaseModal] = useState(false);
-  const [showVoicePurchaseModal, setShowVoicePurchaseModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -406,14 +405,14 @@ const ChatTrialPage = () => {
       
       if (credits <= 0) {
         console.log('Sem créditos de áudio, abrindo popup de compra');
-        setShowAudioPurchaseModal(true);
+        openAudioCreditsModal();
         return;
       }
       
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         console.log('Falha ao consumir crédito de áudio');
-        setShowAudioPurchaseModal(true);
+        openAudioCreditsModal();
         return;
       }
       
@@ -569,7 +568,7 @@ const ChatTrialPage = () => {
           <VoiceCallButton 
             agentName={agentData.name}
             agentAvatar={agentData.avatar_url}
-            onShowPurchaseModal={() => setShowVoicePurchaseModal(true)}
+            onRequestVoiceCredits={openVoiceCreditsModal}
           />
           <Button
             variant="ghost"
@@ -681,14 +680,9 @@ const ChatTrialPage = () => {
         currentCredits={credits}
       />
 
-      <AudioCreditsPurchaseModal
-        isOpen={showAudioPurchaseModal}
-        onClose={() => setShowAudioPurchaseModal(false)}
-      />
-
-      <VoiceCreditsPurchaseModal
-        isOpen={showVoicePurchaseModal}
-        onClose={() => setShowVoicePurchaseModal(false)}
+      <CreditsPurchaseManager
+        activeModal={activeModal}
+        onClose={closeModal}
       />
 
       {/* Input Area - Fixed at bottom with safe area */}
@@ -768,7 +762,7 @@ const ChatTrialPage = () => {
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
                 onClick={() => {
                   console.log('Máscara clicada - abrindo popup de compra de áudio');
-                  setShowAudioPurchaseModal(true);
+                  openAudioCreditsModal();
                 }}
               >
                 <Plus size={16} className="text-white" />
