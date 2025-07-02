@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
@@ -81,11 +80,6 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
     if (isConnected) return <PhoneOff size={20} />;
     return <Phone size={20} />;
   };
-
-  // Se há créditos suficientes, não mostra o componente
-  if (credits >= 1) {
-    return null;
-  }
 
   return (
     <>
