@@ -343,13 +343,11 @@ const ChatTextAudioPage = () => {
   };
 
   const handleSelectAudioCredits = () => {
-    setShowCreditsSelection(false);
-    setShowAudioCreditsModal(true);
+    // Não precisa mais fazer nada aqui, o checkout é direto
   };
 
   const handleSelectVoiceCredits = () => {
-    setShowCreditsSelection(false);
-    setShowVoiceCreditsModal(true);
+    // Não precisa mais fazer nada aqui, o checkout é direto
   };
 
   const handleAudioCreditsModalClose = () => {
