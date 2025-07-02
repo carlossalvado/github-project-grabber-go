@@ -550,6 +550,8 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
           
+          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
+          
           <div className="relative flex flex-col items-center">
             <Button
               variant="ghost"
@@ -573,7 +575,7 @@ const ChatTextAudioPage = () => {
                   handleCreditsPurchaseClick();
                 }}
               >
-                <Plus size={16} className="text-white" />
+                <ShieldAlert size={16} className="text-white" />
               </div>
             )}
             
