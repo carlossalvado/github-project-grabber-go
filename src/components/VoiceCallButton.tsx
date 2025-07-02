@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, PhoneOff, Loader2, Mic, Plus } from 'lucide-react';
+import { Phone, PhoneOff, Loader2, Mic, ShieldAlert } from 'lucide-react';
 import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
 import { useVoiceCredits } from '@/hooks/useVoiceCredits';
 import { cn } from '@/lib/utils';
@@ -108,7 +108,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
               handleVoiceCreditsRequest();
             }}
           >
-            <Plus size={16} className="text-white" />
+            <ShieldAlert size={16} className="text-white" />
           </div>
         )}
         
