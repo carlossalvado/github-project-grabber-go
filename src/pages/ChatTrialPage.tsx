@@ -503,6 +503,7 @@ const ChatTrialPage = () => {
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
+      
       <style>{`
         .scrollbar-hide {
           scrollbar-width: none;
@@ -629,14 +630,19 @@ const ChatTrialPage = () => {
                     }`}>
                       <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
                       {message.audioUrl && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="w-8 h-8 mt-2 text-white hover:bg-white/20"
-                          onClick={() => handlePlayAudio(message.id!, message.audioUrl!)}
-                        >
-                          {currentlyPlaying === message.id ? <Pause size={16} /> : <Play size={16} />}
-                        </Button>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-8 h-8 text-white hover:bg-white/20 rounded-full"
+                            onClick={() => handlePlayAudio(message.id!, message.audioUrl!)}
+                          >
+                            {currentlyPlaying === message.id ? <Pause size={16} /> : <Play size={16} />}
+                          </Button>
+                          <div className="flex-1 h-1 bg-white bg-opacity-30 rounded-full">
+                            <div className="w-1/3 h-full bg-white rounded-full"></div>
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
@@ -664,19 +670,9 @@ const ChatTrialPage = () => {
         </div>
       </div>
 
-      {showEmoticonSelector && (
-        <EmoticonSelector
-          onSelect={handleEmoticonSelect}
-          onClose={() => setShowEmoticonSelector(false)}
-        />
-      )}
+      
 
-      {showGiftSelection && (
-        <GiftSelection
-          onClose={() => setShowGiftSelection(false)}
-          onSelectGift={handleGiftSelect}
-        />
-      )}
+      
 
       <CreditsPurchaseManager
         activeModal={activeModal}
@@ -739,7 +735,18 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Audio button with mask overlay and purchase button */}
+          {/* Send button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
+            onClick={handleSendMessage}
+            disabled={isLoading || !input.trim() || !isTrialActive || remainingMessages <= 0}
+          >
+            <Send size={20} />
+          </Button>
+          
+          {/* Audio button with purchase button */}
           <div className="flex items-center gap-1">
             <div className="relative flex flex-col items-center">
               <Button
@@ -776,8 +783,6 @@ const ChatTrialPage = () => {
             <CreditsPurchaseButton />
           </div>
         </div>
-        
-        <br></br>
       </div>
        
       <ProfileImageModal
