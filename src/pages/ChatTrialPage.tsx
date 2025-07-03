@@ -783,7 +783,6 @@ const ChatTrialPage = () => {
             <CreditsPurchaseButton />
           </div>
         </div>
-        <br></br>
       </div>
        
       <ProfileImageModal
