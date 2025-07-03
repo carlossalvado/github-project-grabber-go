@@ -670,10 +670,6 @@ const ChatTrialPage = () => {
         </div>
       </div>
 
-      
-
-      
-
       <CreditsPurchaseManager
         activeModal={activeModal}
         onClose={closeModal}
@@ -735,16 +731,7 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Send button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
-            onClick={handleSendMessage}
-            disabled={isLoading || !input.trim() || !isTrialActive || remainingMessages <= 0}
-          >
-            <Send size={20} />
-          </Button>
+          {/* --- BOTÃO DE ENVIAR REMOVIDO --- */}
           
           {/* Audio button with purchase button */}
           <div className="flex items-center gap-1">
