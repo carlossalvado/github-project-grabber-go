@@ -776,7 +776,7 @@ const ChatTrialPage = () => {
             <CreditsPurchaseButton />
           </div>
         </div>
-        <br></br>
+        
         <br></br>
       </div>
        
