@@ -20,6 +20,7 @@ import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection from '@/components/GiftSelection';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
+import CreditsPurchaseButton from '@/components/CreditsPurchaseButton';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
@@ -37,7 +38,7 @@ const ChatTrialPage = () => {
   const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
-  const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
+  const { credits: voiceCredits, refreshCredits: refreshVoiceCredits } = useVoiceCredits();
   const { activeModal, openAudioCreditsModal, openVoiceCreditsModal, closeModal } = useModalManager();
   
   const [input, setInput] = useState('');
@@ -569,6 +570,7 @@ const ChatTrialPage = () => {
             agentAvatar={agentData.avatar_url}
             onRequestVoiceCredits={openVoiceCreditsModal}
           />
+          <CreditsPurchaseButton onClick={openAudioCreditsModal} />
           <Button
             variant="ghost"
             size="sm"
@@ -758,7 +760,6 @@ const ChatTrialPage = () => {
                   openAudioCreditsModal();
                 }}
               >
-                <Plus size={16} className="text-white" />
               </div>
             )}
             
