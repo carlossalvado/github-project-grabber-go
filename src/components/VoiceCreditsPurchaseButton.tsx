@@ -1,16 +1,16 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Phone, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-interface CreditsPurchaseButtonProps {
+interface VoiceCreditsPurchaseButtonProps {
   onClick?: () => void;
   disabled?: boolean;
 }
 
-const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, disabled }) => {
+const VoiceCreditsPurchaseButton: React.FC<VoiceCreditsPurchaseButtonProps> = ({ onClick, disabled }) => {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -21,7 +21,7 @@ const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, 
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('create-audio-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-voice-credits-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -39,7 +39,7 @@ const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, 
         throw new Error("URL de checkout não recebida");
       }
     } catch (error: any) {
-      console.error('Erro ao processar compra:', error);
+      console.error('Erro ao processar compra de créditos de voz:', error);
       toast.error('Erro ao processar compra: ' + (error.message || 'Tente novamente'));
     } finally {
       setLoading(false);
@@ -50,13 +50,13 @@ const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, 
     <Button
       variant="ghost"
       size="icon"
-      className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 text-white flex-shrink-0"
+      className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
       onClick={handleClick}
       disabled={disabled || loading}
     >
-      {loading ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+      {loading ? <Loader2 size={20} className="animate-spin" /> : <Phone size={20} />}
     </Button>
   );
 };
 
-export default CreditsPurchaseButton;
+export default VoiceCreditsPurchaseButton;

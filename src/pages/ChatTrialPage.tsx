@@ -21,6 +21,7 @@ import GiftSelection from '@/components/GiftSelection';
 import AudioCreditsModal from '@/components/AudioCreditsModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import CreditsPurchaseButton from '@/components/CreditsPurchaseButton';
+import VoiceCreditsPurchaseButton from '@/components/VoiceCreditsPurchaseButton';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
@@ -570,7 +571,8 @@ const ChatTrialPage = () => {
             agentAvatar={agentData.avatar_url}
             onRequestVoiceCredits={openVoiceCreditsModal}
           />
-          <CreditsPurchaseButton onClick={openAudioCreditsModal} />
+          <VoiceCreditsPurchaseButton />
+          <CreditsPurchaseButton />
           <Button
             variant="ghost"
             size="sm"
