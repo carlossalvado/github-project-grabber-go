@@ -566,13 +566,14 @@ const ChatTrialPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <VoiceCallButton 
-            agentName={agentData.name}
-            agentAvatar={agentData.avatar_url}
-            onRequestVoiceCredits={openVoiceCreditsModal}
-          />
-          <VoiceCreditsPurchaseButton />
-          <CreditsPurchaseButton />
+          <div className="flex items-center gap-1">
+            <VoiceCallButton 
+              agentName={agentData.name}
+              agentAvatar={agentData.avatar_url}
+              onRequestVoiceCredits={openVoiceCreditsModal}
+            />
+            <VoiceCreditsPurchaseButton />
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -738,38 +739,41 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Audio button with mask overlay */}
-          <div className="relative flex flex-col items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
-                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
-              )}
-              onClick={handleAudioToggle}
-              disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
-            >
-              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-            </Button>
-            
-            {/* Mask overlay when no credits */}
-            {credits <= 0 && (
-              <div 
-                className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-                onClick={() => {
-                  console.log('ChatTrialPage: Máscara clicada - abrindo popup de compra de áudio');
-                  openAudioCreditsModal();
-                }}
+          {/* Audio button with mask overlay and purchase button */}
+          <div className="flex items-center gap-1">
+            <div className="relative flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
+                  isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
+                )}
+                onClick={handleAudioToggle}
+                disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
               >
-              </div>
-            )}
-            
-            {!creditsLoading && (
-              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
-                {credits}
-              </span>
-            )}
+                {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+              </Button>
+              
+              {/* Mask overlay when no credits */}
+              {credits <= 0 && (
+                <div 
+                  className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
+                  onClick={() => {
+                    console.log('ChatTrialPage: Máscara clicada - abrindo popup de compra de áudio');
+                    openAudioCreditsModal();
+                  }}
+                >
+                </div>
+              )}
+              
+              {!creditsLoading && (
+                <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
+                  {credits}
+                </span>
+              )}
+            </div>
+            <CreditsPurchaseButton />
           </div>
         </div>
         <br></br>

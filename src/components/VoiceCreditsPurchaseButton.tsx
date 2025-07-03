@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,11 +50,11 @@ const VoiceCreditsPurchaseButton: React.FC<VoiceCreditsPurchaseButtonProps> = ({
     <Button
       variant="ghost"
       size="icon"
-      className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
+      className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
       onClick={handleClick}
       disabled={disabled || loading}
     >
-      {loading ? <Loader2 size={20} className="animate-spin" /> : <Phone size={20} />}
+      {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
     </Button>
   );
 };
