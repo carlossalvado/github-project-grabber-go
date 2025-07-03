@@ -573,7 +573,8 @@ const ChatTrialPage = () => {
               agentAvatar={agentData.avatar_url}
               onRequestVoiceCredits={openVoiceCreditsModal}
             />
-            <VoiceCreditsPurchaseButton />
+            {/* Botão de compra de créditos de voz alterado para verde */}
+            <VoiceCreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
           </div>
           <Button
             variant="ghost"
@@ -735,16 +736,7 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Send button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
-            onClick={handleSendMessage}
-            disabled={isLoading || !input.trim() || !isTrialActive || remainingMessages <= 0}
-          >
-            <Send size={20} />
-          </Button>
+          {/* Botão de envio de texto REMOVIDO */}
           
           {/* Audio button with purchase button */}
           <div className="flex items-center gap-1">
@@ -780,7 +772,8 @@ const ChatTrialPage = () => {
                 </span>
               )}
             </div>
-            <CreditsPurchaseButton />
+            {/* Botão de compra de créditos de áudio alterado para verde */}
+            <CreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
           </div>
         </div>
       </div>
