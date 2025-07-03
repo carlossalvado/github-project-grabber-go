@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause, Plus, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
@@ -28,6 +28,9 @@ import TrialTimer from '@/components/TrialTimer';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import CreditsPurchaseManager from '@/components/CreditsPurchaseManager';
+import AudioCreditsPurchaseModal from '@/components/AudioCreditsPurchaseModal';
+import VoiceCreditsPurchaseModal from '@/components/VoiceCreditsPurchaseModal';
+import CreditsSelection from '@/components/CreditsSelection';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
@@ -405,20 +408,60 @@ const ChatTrialPage = () => {
       console.log('ChatTrialPage: Verificando créditos de áudio:', { credits, hasCredits });
       
       if (credits <= 0) {
-        console.log('ChatTrialPage: Sem créditos de áudio, abrindo popup de compra');
-        openAudioCreditsModal();
+        console.log('ChatTrialPage: Sem créditos de áudio, abrindo seleção de créditos');
+        setShowCreditsSelection(true);
         return;
       }
       
       const creditConsumed = await consumeCredit();
       if (!creditConsumed) {
         console.log('ChatTrialPage: Falha ao consumir crédito de áudio');
-        openAudioCreditsModal();
+        setShowCreditsSelection(true);
         return;
       }
       
       startRecording();
     }
+  };
+
+  // Handlers locais para os modais - SOLUÇÃO DIRETA IGUAL AO CHAT-TEXT-AUDIO
+  const handleAudioCreditsRequest = () => {
+    console.log('ChatTrialPage: Abrindo modal local de créditos de áudio');
+    setShowAudioCreditsModal(true);
+  };
+
+  const handleVoiceCreditsRequest = () => {
+    console.log('ChatTrialPage: Abrindo modal local de créditos de voz');
+    setShowVoiceCreditsModal(true);
+  };
+
+  const handleCreditsPurchaseClick = () => {
+    console.log('ChatTrialPage: Abrindo seleção de créditos');
+    setShowCreditsSelection(true);
+  };
+
+  const handleCreditsSelectionClose = () => {
+    setShowCreditsSelection(false);
+  };
+
+  const handleSelectAudioCredits = () => {
+    // Não precisa mais fazer nada aqui, o checkout é direto
+  };
+
+  const handleSelectVoiceCredits = () => {
+    // Não precisa mais fazer nada aqui, o checkout é direto
+  };
+
+  const handleAudioCreditsModalClose = () => {
+    console.log('ChatTrialPage: Fechando modal local de créditos de áudio');
+    setShowAudioCreditsModal(false);
+    refreshCredits();
+  };
+
+  const handleVoiceCreditsModalClose = () => {
+    console.log('ChatTrialPage: Fechando modal local de créditos de voz');
+    setShowVoiceCreditsModal(false);
+    refreshVoiceCredits();
   };
 
   useEffect(() => {
@@ -567,14 +610,12 @@ const ChatTrialPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1">
-            <VoiceCallButton 
-              agentName={agentData.name}
-              agentAvatar={agentData.avatar_url}
-              onRequestVoiceCredits={openVoiceCreditsModal}
-            />
-            <VoiceCreditsPurchaseButton />
-          </div>
+          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
+          <VoiceCallButton 
+            agentName={agentData.name}
+            agentAvatar={agentData.avatar_url}
+            onRequestVoiceCredits={handleVoiceCreditsRequest}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -670,14 +711,27 @@ const ChatTrialPage = () => {
         </div>
       </div>
 
-      
+      {showEmoticonSelector && (
+        <EmoticonSelector
+          onSelect={handleEmoticonSelect}
+          onClose={() => setShowEmoticonSelector(false)}
+        />
+      )}
 
-      
+      {showGiftSelection && (
+        <GiftSelection
+          onClose={() => setShowGiftSelection(false)}
+          onSelectGift={handleGiftSelect}
+        />
+      )}
 
-      <CreditsPurchaseManager
-        activeModal={activeModal}
-        onClose={closeModal}
-      />
+      {showCreditsSelection && (
+        <CreditsSelection
+          onClose={handleCreditsSelectionClose}
+          onSelectAudioCredits={handleSelectAudioCredits}
+          onSelectVoiceCredits={handleSelectVoiceCredits}
+        />
+      )}
 
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
@@ -735,56 +789,55 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Send button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
-            onClick={handleSendMessage}
-            disabled={isLoading || !input.trim() || !isTrialActive || remainingMessages <= 0}
-          >
-            <Send size={20} />
-          </Button>
+          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
           
-          {/* Audio button with purchase button */}
-          <div className="flex items-center gap-1">
-            <div className="relative flex flex-col items-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
-                  isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
-                )}
-                onClick={handleAudioToggle}
-                disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+          <div className="relative flex flex-col items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0",
+                isRecording && "bg-red-600 hover:bg-red-700 animate-pulse"
+              )}
+              onClick={handleAudioToggle}
+              disabled={isProcessing || !isTrialActive || remainingMessages <= 0}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </Button>
+            
+            {credits <= 0 && (
+              <div 
+                className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('ChatTrialPage: Máscara de áudio clicada - abrindo seleção de créditos');
+                  handleCreditsPurchaseClick();
+                }}
               >
-                {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-              </Button>
-              
-              {/* Mask overlay when no credits */}
-              {credits <= 0 && (
-                <div 
-                  className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-                  onClick={() => {
-                    console.log('ChatTrialPage: Máscara clicada - abrindo popup de compra de áudio');
-                    openAudioCreditsModal();
-                  }}
-                >
-                </div>
-              )}
-              
-              {!creditsLoading && (
-                <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
-                  {credits}
-                </span>
-              )}
-            </div>
-            <CreditsPurchaseButton />
+                <ShieldAlert size={16} className="text-white" />
+              </div>
+            )}
+            
+            {!creditsLoading && (
+              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">
+                {credits}
+              </span>
+            )}
           </div>
         </div>
       </div>
        
+      {/* MODAIS LOCAIS - SOLUÇÃO DIRETA SEM HOOK CENTRALIZADO IGUAL AO CHAT-TEXT-AUDIO */}
+      <AudioCreditsPurchaseModal
+        isOpen={showAudioCreditsModal}
+        onClose={handleAudioCreditsModalClose}
+      />
+      
+      <VoiceCreditsPurchaseModal
+        isOpen={showVoiceCreditsModal}
+        onClose={handleVoiceCreditsModalClose}
+      />
+
       <ProfileImageModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
