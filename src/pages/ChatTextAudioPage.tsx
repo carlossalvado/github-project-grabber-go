@@ -443,7 +443,7 @@ const ChatTextAudioPage = () => {
           }
         }
       `}</style>
-      
+      <br></br>
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
@@ -586,6 +586,7 @@ const ChatTextAudioPage = () => {
             )}
           </div>
         </div>
+          <br></br>
       </div>
       
       {/* MODAIS LOCAIS - SOLUÇÃO DIRETA SEM HOOK CENTRALIZADO */}

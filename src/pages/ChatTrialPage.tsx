@@ -248,7 +248,7 @@ const ChatTrialPage = () => {
     });
 
     try {
-      const responseText = await sendToN8n(messageText, user.email);
+      const responseText = await sendToN8n(messageText, user.email!);
       
       addMessage({
         type: 'assistant',
@@ -541,7 +541,7 @@ const ChatTrialPage = () => {
           }
         }
       `}</style>
-      
+      <br></br>
       <TrialTimer />
 
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
@@ -573,7 +573,6 @@ const ChatTrialPage = () => {
               agentAvatar={agentData.avatar_url}
               onRequestVoiceCredits={openVoiceCreditsModal}
             />
-            {/* Botão de compra de créditos de voz alterado para verde */}
             <VoiceCreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
           </div>
           <Button
@@ -599,6 +598,7 @@ const ChatTrialPage = () => {
               Faça upgrade agora!
             </Button>
           </p>
+          <br></br>
         </div>
       )}
 
@@ -670,15 +670,25 @@ const ChatTrialPage = () => {
           <div ref={messagesEndRef} />
         </div>
       </div>
-
       
-
-      
-
       <CreditsPurchaseManager
         activeModal={activeModal}
         onClose={closeModal}
       />
+
+      {/* CORREÇÃO ADICIONADA AQUI */}
+      {showEmoticonSelector && (
+        <EmoticonSelector 
+          onSelect={handleEmoticonSelect} 
+          onClose={() => setShowEmoticonSelector(false)} 
+        />
+      )}
+      {showGiftSelection && (
+        <GiftSelection 
+          onClose={() => setShowGiftSelection(false)} 
+          onSelectGift={handleGiftSelect} 
+        />
+      )}
 
       {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
@@ -736,8 +746,6 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Botão de envio de texto REMOVIDO */}
-          
           {/* Audio button with purchase button */}
           <div className="flex items-center gap-1">
             <div className="relative flex flex-col items-center">
@@ -754,7 +762,6 @@ const ChatTrialPage = () => {
                 {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
               </Button>
               
-              {/* Mask overlay when no credits */}
               {credits <= 0 && (
                 <div 
                   className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
@@ -772,10 +779,10 @@ const ChatTrialPage = () => {
                 </span>
               )}
             </div>
-            {/* Botão de compra de créditos de áudio alterado para verde */}
             <CreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
           </div>
         </div>
+        <br></br>
       </div>
        
       <ProfileImageModal

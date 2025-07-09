@@ -284,7 +284,7 @@ const LandingPage = () => {
                           <li className="flex items-center text-slate-300">
                             <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
                             <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Texto (Ilimitado)' : 'Mensagens de Texto'}
+                              {plan.name === 'Text & Audio' ? 'Mensagens de Texto' : 'Mensagens de Texto'}
                             </span>
                           </li>
                         )}
@@ -292,14 +292,14 @@ const LandingPage = () => {
                           <li className="flex items-center text-slate-300">
                             <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
                             <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Áudio - (10 Mensagens)' : 'Mensagens de Áudio'}
+                              {plan.name === 'Text & Audio' ? 'Mensagens de Áudio' : 'Mensagens de Áudio'}
                             </span>
                           </li>
                         )}
                         {plan.name === 'Text & Audio' && (
                           <li className="flex items-center text-slate-300">
                             <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">Ligações de Voz - (2 Ligações)</span>
+                            <span className="text-sm">Ligações de Voz </span>
                           </li>
                         )}
                         {plan.features.premium && (
