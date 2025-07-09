@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import AvatarUpload from '@/components/AvatarUpload';
+// 1. IMPORTAÇÃO ADICIONADA
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -28,6 +30,9 @@ const ProfilePage = () => {
     isTrialActive,
     getTrialHoursRemaining
   } = useUserProfile();
+
+  // 2. OBTENÇÃO DA FUNÇÃO DE UPGRADE DO CONTEXTO
+  const { selectTextAudioPlan } = useSubscription();
 
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -54,12 +59,11 @@ const ProfilePage = () => {
     }
   };
 
-  // CÓDIGO DA FUNÇÃO DE LOGOUT ATUALIZADO
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/'); // <-- AQUI A MUDANÇA: Redireciona para a home
-      toast.info('Você saiu da sua conta.'); // Feedback para o usuário
+      navigate('/'); 
+      toast.info('Você saiu da sua conta.'); 
     } catch (error: any) {
       console.error('Erro no logout:', error);
       toast.error('Não foi possível sair. Tente novamente.');
@@ -93,6 +97,15 @@ const ProfilePage = () => {
     }
     
     toast.info('Nenhum plano ativo encontrado para acessar o chat.');
+  };
+
+  // 3. NOVA FUNÇÃO HANDLEUPGRADE
+  const handleUpgrade = async () => {
+    if (selectTextAudioPlan) {
+      await selectTextAudioPlan();
+    } else {
+      toast.error("Não foi possível iniciar o processo de upgrade. Tente novamente mais tarde.");
+    }
   };
 
   const planIsActive = hasPlanActive();
@@ -131,7 +144,8 @@ const ProfilePage = () => {
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* User Info Card */}
         <Card className="card-isa">
-          <CardContent className="pt-6">
+          {/* ...código do card de informações do usuário permanece igual... */}
+           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
                 <Avatar
@@ -177,6 +191,7 @@ const ProfilePage = () => {
             <CardContent className="space-y-4">
                 {planIsActive && (
                     <div className="bg-isa-card/50 p-4 rounded-lg border border-isa-purple/30">
+                        {/* ...código de plano ativo permanece igual... */}
                         <div className="flex items-center justify-between">
                         <div>
                             <div className="flex items-center gap-2">
@@ -194,6 +209,7 @@ const ProfilePage = () => {
                 )}
                 {isTrialActive() && (
                     <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/30">
+                     {/* ...código de trial ativo permanece igual... */}
                     <div className="flex items-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
                         <span className="text-orange-400 font-medium">Trial Ativo</span>
@@ -203,13 +219,24 @@ const ProfilePage = () => {
                     </p>
                     </div>
                 )}
+
+                {/* 4. CONTEÚDO MODIFICADO PARA INCLUIR O BOTÃO DE UPGRADE */}
                 {!planIsActive && !isTrialActive() && (
-                    <p className="text-isa-muted text-center">Você não possui um plano ou trial ativo.</p>
+                  <div className="text-center space-y-4 py-4">
+                    <p className="text-isa-muted">Você não possui um plano ou trial ativo.</p>
+                    <Button 
+                      onClick={handleUpgrade} 
+                      className="btn-isa-primary"
+                    >
+                      Fazer Upgrade
+                    </Button>
+                  </div>
                 )}
             </CardContent>
           </Card>
           <Card className="card-isa">
-             <CardHeader>
+             {/* ...código do card de informações da conta permanece igual... */}
+              <CardHeader>
               <CardTitle className="text-isa-light flex items-center gap-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-isa-purple rounded"></div>
                 Informações da Conta
@@ -232,7 +259,8 @@ const ProfilePage = () => {
 
         {/* Personal Information */}
         <Card className="card-isa">
-          <CardHeader>
+          {/* ...código do card de informações pessoais permanece igual... */}
+           <CardHeader>
             <CardTitle className="text-isa-light">Informações Pessoais</CardTitle>
             <CardDescription className="text-isa-muted">
               Atualize suas informações básicas
@@ -280,7 +308,8 @@ const ProfilePage = () => {
 
         {/* Quick Actions - Ações Rápidas */}
         <Card className="card-isa">
-          <CardHeader>
+          {/* ...código do card de ações rápidas permanece igual... */}
+           <CardHeader>
             <CardTitle className="text-isa-pink flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-r from-isa-pink to-red-500 rounded"></div>
               Ações Rápidas

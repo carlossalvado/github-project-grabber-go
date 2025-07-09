@@ -109,14 +109,21 @@ const ChatTrialPage = () => {
     fetchUserAvatar();
   }, [user?.id]);
 
+
+  // ====================================================================
+  // ============== INÍCIO DA SEÇÃO MODIFICADA (useEffect) ==============
+  // ====================================================================
   useEffect(() => {
     if (!trialLoading && !isTrialActive && user) {
       toast.error('Seu trial de 72 horas expirou! Faça upgrade para continuar conversando.');
-      setTimeout(() => {
-        navigate('/');
-      }, 3000);
+      // O REDIRECIONAMENTO AUTOMÁTICO FOI REMOVIDO DAQUI
+      // para permitir que o usuário escolha uma das opções na tela.
     }
   }, [isTrialActive, trialLoading, user, navigate]);
+  // ====================================================================
+  // ================ FIM DA SEÇÃO MODIFICADA (useEffect) ===============
+  // ====================================================================
+
 
   useEffect(() => {
     const fetchAgentData = async () => {
@@ -266,6 +273,7 @@ const ChatTrialPage = () => {
     }
   };
 
+  // ... (demais funções handle... permanecem iguais)
   const handleEmoticonClick = () => {
     setShowEmoticonSelector(!showEmoticonSelector);
     setShowGiftSelection(false);
@@ -480,31 +488,53 @@ const ChatTrialPage = () => {
     );
   }
 
+  // ====================================================================
+  // ===== INÍCIO DA SEÇÃO MODIFICADA (Tela de Trial Expirado) ==========
+  // ====================================================================
   if (!isTrialActive) {
     return (
-      <div className="h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="h-screen bg-gray-900 text-white flex items-center justify-center p-4">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Trial Expirado</h2>
           <p className="text-gray-300 mb-6">Seu trial de 72 horas expirou. Faça upgrade para continuar!</p>
-          <Button
-            onClick={() => navigate('/')}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            Escolher Plano
-          </Button>
+          
+          {/* Container para os botões */}
+          <div className="mt-8 flex flex-col items-center gap-4 w-full px-4">
+            {/* Botão de Upgrade (Ação Primária) */}
+            <Button
+              onClick={handleUpgrade}
+              className="w-full max-w-xs bg-orange-600 hover:bg-orange-700 font-semibold"
+            >
+              Fazer Upgrade
+            </Button>
+            {/* Botão de Voltar para o Perfil (Ação Secundária) */}
+            <Button
+              onClick={() => navigate('/profile')}
+              variant="outline"
+              className="w-full max-w-xs border-gray-500 text-gray-300 hover:bg-gray-800 hover:text-white"
+            >
+              Voltar para o Perfil
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
+  // ====================================================================
+  // ====== FIM DA SEÇÃO MODIFICADA (Tela de Trial Expirado) ============
+  // ====================================================================
+
 
   const isProcessing = n8nLoading || audioN8nLoading;
   const isLoading = isProcessing || isRecording;
 
+  // O restante do código (a renderização do chat quando o trial está ativo) permanece o mesmo.
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
       
       <style>{`
+        /* ... estilos permanecem os mesmos ... */
         .scrollbar-hide {
           scrollbar-width: none;
           -ms-overflow-style: none;
@@ -543,7 +573,8 @@ const ChatTrialPage = () => {
       `}</style>
       <br></br>
       <TrialTimer />
-
+      
+      {/* Cabeçalho Principal */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button
@@ -575,15 +606,18 @@ const ChatTrialPage = () => {
             />
             <VoiceCreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-orange-400 hover:text-orange-300 hidden sm:flex"
-            onClick={handleUpgrade}
-          >
-            Fazer Upgrade
-          </Button>
         </div>
+      </div>
+
+      {/* Seção para o Botão de Upgrade - SEMPRE VISÍVEL */}
+      <div className="w-full flex justify-center items-center py-2 px-4 bg-gray-800 border-b border-gray-700">
+        <Button
+          onClick={handleUpgrade}
+          className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold"
+          size="sm"
+        >
+          Fazer Upgrade Agora
+        </Button>
       </div>
 
       {(hoursRemaining <= 12 || remainingMessages <= 3) && (
@@ -602,7 +636,8 @@ const ChatTrialPage = () => {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 relative overflow-hidden">
+      {/* ... o restante do JSX do chat permanece o mesmo ... */}
+       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4" style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
@@ -676,7 +711,6 @@ const ChatTrialPage = () => {
         onClose={closeModal}
       />
 
-      {/* CORREÇÃO ADICIONADA AQUI */}
       {showEmoticonSelector && (
         <EmoticonSelector 
           onSelect={handleEmoticonSelect} 
@@ -690,10 +724,8 @@ const ChatTrialPage = () => {
         />
       )}
 
-      {/* Input Area - Fixed at bottom with safe area */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
-          {/* Main input container with rounded background */}
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
             <Input
               ref={inputRef}
@@ -714,7 +746,6 @@ const ChatTrialPage = () => {
               disabled={isLoading || !isTrialActive || remainingMessages <= 0}
             />
             
-            {/* Action buttons inside the input */}
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -746,7 +777,6 @@ const ChatTrialPage = () => {
             </div>
           </div>
           
-          {/* Audio button with purchase button */}
           <div className="flex items-center gap-1">
             <div className="relative flex flex-col items-center">
               <Button
