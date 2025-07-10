@@ -8,9 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 interface CreditsPurchaseButtonProps {
   onClick?: () => void;
   disabled?: boolean;
+  className?: string;
 }
 
-const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, disabled }) => {
+const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, disabled, className }) => {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -21,7 +22,7 @@ const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, 
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('create-audio-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-paypal-audio-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -50,7 +51,7 @@ const CreditsPurchaseButton: React.FC<CreditsPurchaseButtonProps> = ({ onClick, 
     <Button
       variant="ghost"
       size="icon"
-      className="w-8 h-8 rounded-full bg-green-600 hover:bg-green-700 text-white flex-shrink-0"
+      className={className || "w-8 h-8 rounded-full bg-green-600 hover:bg-green-700 text-white flex-shrink-0"}
       onClick={handleClick}
       disabled={disabled || loading}
     >

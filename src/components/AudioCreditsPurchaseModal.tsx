@@ -21,7 +21,7 @@ const AudioCreditsPurchaseModal: React.FC<AudioCreditsPurchaseModalProps> = ({
   const handlePurchase = async () => {
     try {
       setPurchasing(true);
-      const { data, error } = await supabase.functions.invoke('create-audio-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-paypal-audio-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -90,7 +90,7 @@ const AudioCreditsPurchaseModal: React.FC<AudioCreditsPurchaseModalProps> = ({
           </Card>
 
           <div className="text-xs text-gray-500 text-center">
-            Pagamento seguro processado pelo Stripe
+            Pagamento seguro processado pelo PayPal
           </div>
         </div>
       </DialogContent>

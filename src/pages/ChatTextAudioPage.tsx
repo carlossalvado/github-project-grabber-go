@@ -271,7 +271,7 @@ const ChatTextAudioPage = () => {
   
   const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', { body: { giftId } });
+      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', { body: { giftId } });
       if (error || data?.error) { throw new Error(error?.message || data?.error); }
       if (data?.url) { window.location.href = data.url; } else { throw new Error("URL de checkout não recebida"); }
       setShowGiftSelection(false);

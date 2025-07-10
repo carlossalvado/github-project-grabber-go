@@ -68,7 +68,7 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, onSelectGift }) 
     try {
       console.log("Iniciando compra de presente:", gift.name);
       
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', {
         body: {
           giftId: gift.id
         }

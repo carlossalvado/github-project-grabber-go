@@ -147,7 +147,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     try {
       console.log("Iniciando envio de presente:", { giftId, giftName, giftPrice });
       
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', {
         body: {
           giftId
         }

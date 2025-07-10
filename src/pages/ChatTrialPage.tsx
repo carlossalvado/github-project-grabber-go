@@ -296,7 +296,7 @@ const ChatTrialPage = () => {
     try {
       console.log("Selecionando presente:", { giftId, giftName, giftPrice });
       
-      const { data, error } = await supabase.functions.invoke('create-gift-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', {
         body: {
           giftId
         }

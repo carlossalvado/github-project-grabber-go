@@ -289,7 +289,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       // Se tem Stripe price ID, criar checkout session
       if (selectedPlan.stripe_price_id) {
         console.log("💳 Criando checkout Stripe para:", selectedPlan);
-        const { data, error } = await supabase.functions.invoke('create-checkout', {
+        const { data, error } = await supabase.functions.invoke('create-paypal-checkout', {
           body: { planId: selectedPlan.id }
         });
         
@@ -352,7 +352,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       if (textAudioPlan.stripe_price_id) {
         console.log("💳 Criando checkout Stripe para Text & Audio:", textAudioPlan);
         
-        const { data, error } = await supabase.functions.invoke('create-checkout', {
+        const { data, error } = await supabase.functions.invoke('create-paypal-checkout', {
           body: { 
             planId: textAudioPlan.id
           }
@@ -403,7 +403,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
     try {
       console.log("Abrindo portal do cliente...");
-      const { data, error } = await supabase.functions.invoke('customer-portal');
+      const { data, error } = await supabase.functions.invoke('paypal-customer-portal');
       
       if (error) throw error;
       if (data.error) throw new Error(data.error);
