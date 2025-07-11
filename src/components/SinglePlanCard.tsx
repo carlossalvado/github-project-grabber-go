@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useUserCache } from '@/hooks/useUserCache';
 import { Check } from 'lucide-react';
+import PayPalCheckoutButton from './PayPalCheckoutButton';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -183,13 +184,11 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               </>
             ) : (
               <>
-                <Button 
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white" 
-                  onClick={handleSelectPlan}
+                <PayPalCheckoutButton 
+                  planId={plan.id}
                   disabled={processing}
-                >
-                  {processing ? "Processando..." : "Confirmar e Continuar"}
-                </Button>
+                  className="w-full bg-pink-500 hover:bg-pink-600 text-white"
+                />
                 <Button 
                   variant="outline" 
                   onClick={() => navigate('/')}

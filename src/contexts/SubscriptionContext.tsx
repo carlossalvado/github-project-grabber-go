@@ -19,7 +19,7 @@ export type Plan = {
     premium?: boolean;
   };
   trial_days: number;
-  stripe_price_id?: string;
+  paypal_plan_id?: string;
 };
 
 export type Subscription = {
@@ -253,15 +253,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log("🔍 Verificando status no Stripe...");
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      console.log("🔍 Verificando status no PayPal...");
+      const { data, error } = await supabase.functions.invoke('check-paypal-subscription');
       
       if (error) {
         console.error("Error calling check-subscription:", error);
         throw error;
       }
       
-      console.log("📧 Resposta do Stripe:", data);
+      console.log("📧 Resposta do PayPal:", data);
       
       if (data.error) {
         throw new Error(data.error);
@@ -286,9 +286,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         throw new Error("Plano não encontrado");
       }
 
-      // Se tem Stripe price ID, criar checkout session
-      if (selectedPlan.stripe_price_id) {
-        console.log("💳 Criando checkout Stripe para:", selectedPlan);
+      // Se tem PayPal plan ID, criar checkout session
+      if (selectedPlan.paypal_plan_id) {
+        console.log("💳 Criando checkout PayPal para:", selectedPlan);
         const { data, error } = await supabase.functions.invoke('create-paypal-checkout', {
           body: { planId: selectedPlan.id }
         });
@@ -348,9 +348,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       localStorage.setItem('selectedPlanId', textAudioPlan.id.toString());
       console.log("💾 Plano salvo no localStorage:", textAudioPlan.id);
 
-      // Se tem Stripe price ID, criar checkout session
-      if (textAudioPlan.stripe_price_id) {
-        console.log("💳 Criando checkout Stripe para Text & Audio:", textAudioPlan);
+      // Se tem PayPal plan ID, criar checkout session
+      if (textAudioPlan.paypal_plan_id) {
+        console.log("💳 Criando checkout PayPal para Text & Audio:", textAudioPlan);
         
         const { data, error } = await supabase.functions.invoke('create-paypal-checkout', {
           body: { 

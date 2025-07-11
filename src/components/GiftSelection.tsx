@@ -11,7 +11,7 @@ interface Gift {
   description: string;
   price: number;
   image_url: string;
-  stripe_price_id: string | null;
+  paypal_plan_id: string | null;
 }
 
 interface GiftSelectionProps {

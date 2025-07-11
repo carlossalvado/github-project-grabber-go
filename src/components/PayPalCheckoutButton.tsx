@@ -62,7 +62,7 @@ const PayPalCheckoutButton: React.FC<PayPalCheckoutButtonProps> = ({
       ) : (
         <>
           <CreditCard className="mr-2 h-4 w-4" />
-          Assinar com PayPal
+          Confirmar e Continuar
         </>
       )}
     </Button>

@@ -62,24 +62,24 @@ export type Database = {
           credits: number
           id: string
           name: string
+          paypal_plan_id: string | null
           price: number
-          stripe_price_id: string | null
         }
         Insert: {
           created_at?: string
           credits: number
           id?: string
           name: string
+          paypal_plan_id?: string | null
           price: number
-          stripe_price_id?: string | null
         }
         Update: {
           created_at?: string
           credits?: number
           id?: string
           name?: string
+          paypal_plan_id?: string | null
           price?: number
-          stripe_price_id?: string | null
         }
         Relationships: []
       }
@@ -89,7 +89,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          stripe_session_id: string | null
+          paypal_session_id: string | null
           transaction_type: string
           user_id: string
         }
@@ -98,7 +98,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          stripe_session_id?: string | null
+          paypal_session_id?: string | null
           transaction_type: string
           user_id: string
         }
@@ -107,7 +107,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          stripe_session_id?: string | null
+          paypal_session_id?: string | null
           transaction_type?: string
           user_id?: string
         }
@@ -199,24 +199,24 @@ export type Database = {
           id: string
           image_url: string
           name: string
+          paypal_plan_id: string | null
           price: number
-          stripe_price_id: string | null
         }
         Insert: {
           description: string
           id?: string
           image_url: string
           name: string
+          paypal_plan_id?: string | null
           price: number
-          stripe_price_id?: string | null
         }
         Update: {
           description?: string
           id?: string
           image_url?: string
           name?: string
+          paypal_plan_id?: string | null
           price?: number
-          stripe_price_id?: string | null
         }
         Relationships: []
       }
@@ -253,8 +253,8 @@ export type Database = {
           features: Json
           id: number
           name: string
+          paypal_plan_id: string | null
           price: number
-          stripe_price_id: string | null
           trial_days: number | null
         }
         Insert: {
@@ -262,8 +262,8 @@ export type Database = {
           features: Json
           id?: number
           name: string
+          paypal_plan_id?: string | null
           price: number
-          stripe_price_id?: string | null
           trial_days?: number | null
         }
         Update: {
@@ -271,8 +271,8 @@ export type Database = {
           features?: Json
           id?: number
           name?: string
+          paypal_plan_id?: string | null
           price?: number
-          stripe_price_id?: string | null
           trial_days?: number | null
         }
         Relationships: []
@@ -523,24 +523,24 @@ export type Database = {
           credits: number
           id: string
           name: string
+          paypal_plan_id: string | null
           price: number
-          stripe_price_id: string | null
         }
         Insert: {
           created_at?: string
           credits: number
           id?: string
           name: string
+          paypal_plan_id?: string | null
           price: number
-          stripe_price_id?: string | null
         }
         Update: {
           created_at?: string
           credits?: number
           id?: string
           name?: string
+          paypal_plan_id?: string | null
           price?: number
-          stripe_price_id?: string | null
         }
         Relationships: []
       }
@@ -550,7 +550,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          stripe_session_id: string | null
+          paypal_session_id: string | null
           transaction_type: string
           user_id: string
         }
@@ -559,7 +559,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          stripe_session_id?: string | null
+          paypal_session_id?: string | null
           transaction_type: string
           user_id: string
         }
@@ -568,7 +568,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          stripe_session_id?: string | null
+          paypal_session_id?: string | null
           transaction_type?: string
           user_id?: string
         }
