@@ -98,7 +98,7 @@ serve(async (req) => {
 
     // Create PayPal subscription
     const subscriptionData = {
-      plan_id: plan.stripe_price_id || "P-DEFAULT-PLAN", // Use existing field or default
+      plan_id: plan.paypal_plan_id || "P-DEFAULT-PLAN", // Use PayPal plan ID
       subscriber: {
         email_address: user.email,
       },
