@@ -27,13 +27,33 @@ export const useTrialManager = () => {
     }
 
     try {
+      // Primeiro, vamos verificar o status do plano do usuário.
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('plan_active, plan_name') // Pede também o nome do plano
+        .eq('id', user.id)
+        .single();
+
+      // Condição corrigida: o plano é pago se estiver ativo e NÃO for um trial.
+      const hasPaidPlan = profileData?.plan_active && profileData.plan_name && !profileData.plan_name.toLowerCase().includes('trial');
+
+      if (hasPaidPlan) {
+        console.log('🚫 Usuário tem plano PAGO ativo - o trial não é mais aplicável.');
+        localStorage.removeItem('sweet-ai-trial-data');
+        setIsTrialActive(false);
+        setHoursRemaining(0);
+        setLoading(false);
+        return; // Interrompe a execução aqui, pois o plano pago tem precedência.
+      }
+
+      // Se não tiver plano pago, prossegue com a verificação do trial.
       const { data, error } = await supabase
         .from('user_trials')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') { // PGRST116 = sem linhas retornadas
         console.error('Erro ao buscar trial:', error);
         setLoading(false);
         return;
@@ -50,36 +70,12 @@ export const useTrialManager = () => {
         setIsTrialActive(isActive);
         
         // Calcular horas restantes
-        let diffHours = 0;
         if (isActive) {
           const diffMs = trialEnd.getTime() - now.getTime();
-          diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+          const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
           setHoursRemaining(diffHours);
         } else {
           setHoursRemaining(0);
-        }
-
-        // VERIFICAR SE USUÁRIO TEM PLANO ATIVO - SE SIM, NÃO SALVAR TRIAL NO CACHE
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('plan_active')
-          .eq('id', user.id)
-          .single();
-
-        if (profileData?.plan_active) {
-          console.log('🚫 Usuário tem plano ativo - não salvando trial no cache');
-          // REMOVER TRIAL DO CACHE SE EXISTIR
-          localStorage.removeItem('sweet-ai-trial-data');
-          setIsTrialActive(false);
-          setHoursRemaining(0);
-        } else if (isActive) {
-          // Salvar apenas se não tiver plano ativo
-          localStorage.setItem('sweet-ai-trial-data', JSON.stringify({
-            ...data,
-            isActive,
-            hoursRemaining: diffHours,
-            cached_at: Date.now()
-          }));
         }
       }
     } catch (error) {
@@ -131,7 +127,6 @@ export const useTrialManager = () => {
       setIsTrialActive(false);
       setHoursRemaining(0);
       
-      // REMOVER COMPLETAMENTE DO CACHE
       localStorage.removeItem('sweet-ai-trial-data');
       console.log('🗑️ Trial desativado e removido do cache');
 
@@ -141,27 +136,8 @@ export const useTrialManager = () => {
       return false;
     }
   };
-
-  // Carregar dados do cache inicialmente
-  useEffect(() => {
-    const cachedData = localStorage.getItem('sweet-ai-trial-data');
-    if (cachedData) {
-      try {
-        const parsed = JSON.parse(cachedData);
-        // Verificar se o cache não está muito antigo (máximo 5 minutos)
-        const cacheAge = Date.now() - (parsed.cached_at || 0);
-        if (cacheAge < 5 * 60 * 1000) { // 5 minutos
-          setTrialData(parsed);
-          setIsTrialActive(parsed.isActive || false);
-          setHoursRemaining(parsed.hoursRemaining || 0);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar cache do trial:', error);
-      }
-    }
-  }, []);
-
-  // Buscar dados do Supabase quando usuário muda
+  
+  // Buscar dados do Supabase quando o usuário muda
   useEffect(() => {
     if (user?.id) {
       fetchTrialData();
