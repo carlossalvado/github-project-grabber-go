@@ -20,7 +20,7 @@ const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
   const handleAudioCreditsClick = async () => {
     try {
       setLoadingAudio(true);
-      const { data, error } = await supabase.functions.invoke('create-audio-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-paypal-audio-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -49,7 +49,7 @@ const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
   const handleVoiceCreditsClick = async () => {
     try {
       setLoadingVoice(true);
-      const { data, error } = await supabase.functions.invoke('create-voice-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);

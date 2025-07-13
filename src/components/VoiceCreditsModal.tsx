@@ -63,7 +63,7 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
 
     try {
       setPurchasing(true);
-      const { data, error } = await supabase.functions.invoke('create-voice-credits-checkout');
+      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout');
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -173,7 +173,7 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
           </Card>
 
           <div className="text-xs text-gray-500 text-center">
-            Pagamento seguro processado pelo Stripe
+            Pagamento seguro processado pelo PayPal
           </div>
         </div>
       </DialogContent>
