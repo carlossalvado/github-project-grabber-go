@@ -78,12 +78,14 @@ serve(async (req) => {
     const accessToken = authData.access_token;
     logStep("PayPal access token obtained");
 
-    // Determine success and cancel URLs
+    // Determine success and cancel URLs - detect current page
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    const successUrl = `${origin}/chat-trial?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(gift.name)}`;
-    const cancelUrl = `${origin}/chat-trial?gift_canceled=true`;
+    const referer = req.headers.get("referer") || "";
+    const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
+    const successUrl = `${origin}${currentPath}?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(gift.name)}`;
+    const cancelUrl = `${origin}${currentPath}?gift_canceled=true`;
 
-    // Create PayPal order for one-time payment
+    // Create PayPal order for one-time payment with structured custom_id
     const orderData = {
       intent: "CAPTURE",
       purchase_units: [
@@ -92,8 +94,12 @@ serve(async (req) => {
             currency_code: "USD",
             value: (gift.price / 100).toFixed(2),
           },
-          description: `Presente: ${gift.name}`,
-          custom_id: `gift_${giftId}_${user.id}_${Date.now()}`,
+          description: `${gift.name} - ${gift.description}`,
+          custom_id: JSON.stringify({
+            userId: user.id,
+            giftId: giftId,
+            type: "gift"
+          }),
         },
       ],
       payment_source: {

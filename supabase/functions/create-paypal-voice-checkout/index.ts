@@ -86,12 +86,14 @@ serve(async (req) => {
     const accessToken = authData.access_token;
     logStep("PayPal access token obtained");
 
-    // Determine success and cancel URLs
+    // Determine success and cancel URLs - detect current page
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    const successUrl = `${origin}/chat-trial?voice_credits_success=true&credits=${productData.credits}`;
-    const cancelUrl = `${origin}/chat-trial?voice_credits_canceled=true`;
+    const referer = req.headers.get("referer") || "";
+    const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
+    const successUrl = `${origin}${currentPath}?voice_credits_success=true&credits=${productData.credits}`;
+    const cancelUrl = `${origin}${currentPath}?voice_credits_canceled=true`;
 
-    // Create PayPal order for one-time payment
+    // Create PayPal order for one-time payment with structured custom_id
     const orderData = {
       intent: "CAPTURE",
       purchase_units: [
@@ -101,7 +103,11 @@ serve(async (req) => {
             value: (productData.price / 100).toFixed(2),
           },
           description: productData.name,
-          custom_id: `voice_credits_${user.id}_${Date.now()}`,
+          custom_id: JSON.stringify({
+            userId: user.id,
+            credits: productData.credits,
+            type: "voice_credits"
+          }),
         },
       ],
       payment_source: {
