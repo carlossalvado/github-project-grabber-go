@@ -20,7 +20,18 @@ const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
   const handleAudioCreditsClick = async () => {
     try {
       setLoadingAudio(true);
-      const { data, error } = await supabase.functions.invoke('create-paypal-audio-checkout');
+      
+      // Get current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-paypal-audio-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -49,7 +60,18 @@ const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
   const handleVoiceCreditsClick = async () => {
     try {
       setLoadingVoice(true);
-      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout');
+      
+      // Get current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) {
         console.error("Erro na function invoke:", error);

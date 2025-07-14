@@ -271,7 +271,18 @@ const ChatTextAudioPage = () => {
   
   const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', { body: { giftId } });
+      // Get current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', { 
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: { giftId } 
+      });
       if (error || data?.error) { throw new Error(error?.message || data?.error); }
       if (data?.url) { window.location.href = data.url; } else { throw new Error("URL de checkout não recebida"); }
       setShowGiftSelection(false);

@@ -103,11 +103,7 @@ serve(async (req) => {
             value: (productData.price / 100).toFixed(2),
           },
           description: productData.name,
-          custom_id: JSON.stringify({
-            userId: user.id,
-            credits: productData.credits,
-            type: "audio_credits"
-          }),
+      custom_id: `audio_credits_${user.id}_${productData.credits}`,
         },
       ],
       payment_source: {

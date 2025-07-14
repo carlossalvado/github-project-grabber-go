@@ -63,7 +63,18 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
 
     try {
       setPurchasing(true);
-      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout');
+      
+      // Get current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-paypal-voice-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) {
         console.error("Erro na function invoke:", error);
@@ -82,7 +93,7 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
         throw new Error("URL de checkout não recebida");
       }
     } catch (error: any) {
-      console.error('Erro ao processar compra:', error);
+      console.error('Erro ao processar compra de créditos de voz:', error);
       toast.error('Erro ao processar compra: ' + (error.message || 'Tente novamente'));
     } finally {
       setPurchasing(false);

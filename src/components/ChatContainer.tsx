@@ -147,7 +147,16 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     try {
       console.log("Iniciando envio de presente:", { giftId, giftName, giftPrice });
       
+      // Get current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
       const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           giftId
         }
