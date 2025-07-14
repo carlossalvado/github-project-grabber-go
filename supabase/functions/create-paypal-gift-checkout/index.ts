@@ -99,19 +99,14 @@ serve(async (req) => {
           custom_id: `gift_${gift.id}_${user.id}`,
         },
       ],
-      payment_source: {
-        paypal: {
-          experience_context: {
-            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
-            brand_name: "Isa Date",
-            locale: "pt-BR",
-            landing_page: "LOGIN",
-            shipping_preference: "NO_SHIPPING",
-            user_action: "PAY_NOW",
-            return_url: successUrl,
-            cancel_url: cancelUrl,
-          },
-        },
+      application_context: {
+        brand_name: "Isa Date",
+        locale: "pt-BR",
+        landing_page: "LOGIN",
+        shipping_preference: "NO_SHIPPING",
+        user_action: "PAY_NOW",
+        return_url: successUrl,
+        cancel_url: cancelUrl,
       },
     };
 
@@ -122,7 +117,6 @@ serve(async (req) => {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "application/json",
         "PayPal-Request-Id": crypto.randomUUID(),
-        "Prefer": "return=representation",
       },
       body: JSON.stringify(orderData),
     });

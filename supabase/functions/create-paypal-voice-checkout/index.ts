@@ -44,7 +44,6 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // CORREÇÃO: Remove .single() e trata o resultado como um array
     const { data: products, error: productError } = await supabaseClient
       .from("voice_credit_products")
       .select("*")
@@ -58,7 +57,7 @@ serve(async (req) => {
       throw new Error("No voice credit product found in the database.");
     }
 
-    const product = products[0]; // Pega o primeiro produto do array
+    const product = products[0];
 
     const productData = {
       name: product.name,
@@ -106,19 +105,14 @@ serve(async (req) => {
           custom_id: `voice_credits_${user.id}_${productData.credits}`,
         },
       ],
-      payment_source: {
-        paypal: {
-          experience_context: {
-            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
-            brand_name: "Isa Date",
-            locale: "pt-BR",
-            landing_page: "LOGIN",
-            shipping_preference: "NO_SHIPPING",
-            user_action: "PAY_NOW",
-            return_url: successUrl,
-            cancel_url: cancelUrl,
-          },
-        },
+      application_context: {
+        brand_name: "Isa Date",
+        locale: "pt-BR",
+        landing_page: "LOGIN",
+        shipping_preference: "NO_SHIPPING",
+        user_action: "PAY_NOW",
+        return_url: successUrl,
+        cancel_url: cancelUrl,
       },
     };
 
@@ -129,7 +123,6 @@ serve(async (req) => {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "application/json",
         "PayPal-Request-Id": crypto.randomUUID(),
-        "Prefer": "return=representation",
       },
       body: JSON.stringify(orderData),
     });
