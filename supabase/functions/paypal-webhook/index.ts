@@ -11,92 +11,6 @@ const logStep = (step: string, details?: any) => {
   console.log(`[PAYPAL-WEBHOOK] ${step}${detailsStr}`);
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    logStep("Webhook function started");
-
-    const paypalClientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const paypalClientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
-    const paypalWebhookId = Deno.env.get("PAYPAL_WEBHOOK_ID");
-    const paypalBaseUrl = Deno.env.get("PAYPAL_BASE_URL") || "https://api-m.sandbox.paypal.com";
-
-    if (!paypalClientId || !paypalClientSecret) {
-      throw new Error("PayPal credentials not configured");
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    const body = await req.text();
-    const event = JSON.parse(body);
-    
-    logStep("Webhook event received", { eventType: event.event_type, id: event.id });
-
-    // Verify webhook signature (optional but recommended)
-    if (paypalWebhookId) {
-      const headers = req.headers;
-      const verification = await verifyWebhookSignature(
-        body,
-        headers,
-        paypalWebhookId,
-        paypalClientId,
-        paypalClientSecret,
-        paypalBaseUrl
-      );
-      
-      if (!verification) {
-        throw new Error("Webhook signature verification failed");
-      }
-      logStep("Webhook signature verified");
-    }
-
-    // Handle different PayPal webhook events
-    switch (event.event_type) {
-      case 'PAYMENT.CAPTURE.COMPLETED':
-        await handlePaymentCaptureCompleted(supabaseClient, event);
-        break;
-        
-      case 'BILLING.SUBSCRIPTION.ACTIVATED':
-        await handleSubscriptionActivated(supabaseClient, event);
-        break;
-        
-      case 'BILLING.SUBSCRIPTION.CANCELLED':
-        await handleSubscriptionCancelled(supabaseClient, event);
-        break;
-        
-      case 'BILLING.SUBSCRIPTION.SUSPENDED':
-        await handleSubscriptionSuspended(supabaseClient, event);
-        break;
-        
-      default:
-        logStep("Unhandled event type", { eventType: event.event_type });
-        break;
-    }
-
-    logStep("Webhook processed successfully");
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in paypal-webhook", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
-  }
-});
-
 async function verifyWebhookSignature(
   body: string,
   headers: Headers,
@@ -106,7 +20,6 @@ async function verifyWebhookSignature(
   baseUrl: string
 ): Promise<boolean> {
   try {
-    // Get PayPal access token
     const authResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
       method: "POST",
       headers: {
@@ -119,16 +32,16 @@ async function verifyWebhookSignature(
     });
 
     if (!authResponse.ok) {
+      logStep("Webhook signature verification failed: Could not get access token.");
       return false;
     }
 
     const authData = await authResponse.json();
     const accessToken = authData.access_token;
 
-    // Verify webhook signature
     const verificationData = {
       auth_algo: headers.get("paypal-auth-algo"),
-      cert_id: headers.get("paypal-cert-id"),
+      cert_url: headers.get("paypal-cert-url"),
       transmission_id: headers.get("paypal-transmission-id"),
       transmission_sig: headers.get("paypal-transmission-sig"),
       transmission_time: headers.get("paypal-transmission-time"),
@@ -154,44 +67,67 @@ async function verifyWebhookSignature(
 }
 
 async function handlePaymentCaptureCompleted(supabaseClient: any, event: any) {
-  logStep("Processing payment capture completed", { paymentId: event.resource.id });
+  const purchaseUnit = event.resource?.purchase_units?.[0];
+  if (!purchaseUnit) {
+    logStep("No purchase_units found in payment resource");
+    return;
+  }
   
-  const customId = event.resource.purchase_units?.[0]?.custom_id;
+  const customId = purchaseUnit.custom_id;
+  logStep("Processing payment capture completed", { paymentId: event.resource.id, customId });
+
   if (!customId) {
     logStep("No custom_id found in payment");
     return;
   }
 
-  // Parse custom_id to determine the type of purchase
-  if (customId.startsWith("audio_credits_")) {
-    const userId = customId.split("_")[2];
-    await supabaseClient.rpc('add_audio_credits', {
-      user_uuid: userId,
-      credit_amount: 20, // Default amount, could be parsed from custom_id
-      session_id: event.resource.id
-    });
-    logStep("Audio credits added", { userId, amount: 20 });
-  } else if (customId.startsWith("voice_credits_")) {
-    const userId = customId.split("_")[2];
-    await supabaseClient.rpc('add_voice_credits', {
-      user_uuid: userId,
-      credit_amount: 4, // Default amount, could be parsed from custom_id
-      session_id: event.resource.id
-    });
-    logStep("Voice credits added", { userId, amount: 4 });
-  } else if (customId.startsWith("gift_")) {
-    const parts = customId.split("_");
-    const giftId = parts[1];
-    const userId = parts[2];
+  const parts = customId.split('_');
+  const type = parts[0];
+
+  try {
+    if (type === "audio" && parts[1] === "credits") {
+      const userId = parts[2];
+      const creditAmount = parseInt(parts[3], 10);
+      if (isNaN(creditAmount)) throw new Error(`Invalid credit amount in custom_id: ${parts[3]}`);
+      
+      const { error } = await supabaseClient.rpc('add_audio_credits', {
+        user_uuid: userId,
+        credit_amount: creditAmount,
+        session_id: event.resource.id
+      });
+      if (error) throw error;
+      logStep("Audio credits added successfully", { userId, amount: creditAmount });
     
-    // Record gift purchase
-    await supabaseClient.from("user_purchased_gifts").insert({
-      user_id: userId,
-      gift_id: giftId,
-      price: parseFloat(event.resource.amount.value) * 100, // Convert to cents
-      purchase_date: new Date().toISOString()
-    });
-    logStep("Gift purchase recorded", { userId, giftId });
+    } else if (type === "voice" && parts[1] === "credits") {
+      const userId = parts[2];
+      const creditAmount = parseInt(parts[3], 10);
+      if (isNaN(creditAmount)) throw new Error(`Invalid credit amount in custom_id: ${parts[3]}`);
+
+      const { error } = await supabaseClient.rpc('add_voice_credits', {
+        user_uuid: userId,
+        credit_amount: creditAmount,
+        session_id: event.resource.id
+      });
+      if (error) throw error;
+      logStep("Voice credits added successfully", { userId, amount: creditAmount });
+    
+    } else if (type === "gift") {
+      const giftId = parts[1];
+      const userId = parts[2];
+      
+      const { error } = await supabaseClient.from("user_purchased_gifts").insert({
+        user_id: userId,
+        gift_id: giftId,
+        price: Math.round(parseFloat(purchaseUnit.amount.value) * 100),
+        purchase_date: new Date().toISOString()
+      });
+      if (error) throw error;
+      logStep("Gift purchase recorded successfully", { userId, giftId });
+    } else {
+      logStep("Unknown custom_id format", { customId });
+    }
+  } catch (error) {
+    logStep("Error processing payment capture logic", { error: error.message, customId });
   }
 }
 
@@ -204,20 +140,19 @@ async function handleSubscriptionActivated(supabaseClient: any, event: any) {
     return;
   }
 
-  // Update user profile to activate plan
   await supabaseClient
     .from("profiles")
     .update({ 
       plan_active: true,
       updated_at: new Date().toISOString()
     })
-    .eq("id", (await supabaseClient.auth.admin.getUserByEmail(subscriberEmail)).data?.user?.id);
+    .eq("email", subscriberEmail);
 
-  logStep("User subscription activated", { email: subscriberEmail });
+  logStep("User subscription activated in profiles table", { email: subscriberEmail });
 }
 
-async function handleSubscriptionCancelled(supabaseClient: any, event: any) {
-  logStep("Processing subscription cancelled", { subscriptionId: event.resource.id });
+async function handleSubscriptionCancelledOrSuspended(supabaseClient: any, event: any, eventType: string) {
+  logStep(`Processing ${eventType}`, { subscriptionId: event.resource.id });
   
   const subscriberEmail = event.resource.subscriber?.email_address;
   if (!subscriberEmail) {
@@ -225,35 +160,85 @@ async function handleSubscriptionCancelled(supabaseClient: any, event: any) {
     return;
   }
 
-  // Update user profile to deactivate plan
   await supabaseClient
     .from("profiles")
     .update({ 
       plan_active: false,
       updated_at: new Date().toISOString()
     })
-    .eq("id", (await supabaseClient.auth.admin.getUserByEmail(subscriberEmail)).data?.user?.id);
+    .eq("email", subscriberEmail);
 
-  logStep("User subscription cancelled", { email: subscriberEmail });
+  logStep(`User subscription marked as inactive for ${eventType}`, { email: subscriberEmail });
 }
 
-async function handleSubscriptionSuspended(supabaseClient: any, event: any) {
-  logStep("Processing subscription suspended", { subscriptionId: event.resource.id });
-  
-  const subscriberEmail = event.resource.subscriber?.email_address;
-  if (!subscriberEmail) {
-    logStep("No subscriber email found");
-    return;
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
-  // Update user profile to deactivate plan
-  await supabaseClient
-    .from("profiles")
-    .update({ 
-      plan_active: false,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", (await supabaseClient.auth.admin.getUserByEmail(subscriberEmail)).data?.user?.id);
+  try {
+    logStep("Webhook function started");
 
-  logStep("User subscription suspended", { email: subscriberEmail });
-}
+    const paypalClientId = Deno.env.get("PAYPAL_CLIENT_ID");
+    const paypalClientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
+    const paypalWebhookId = Deno.env.get("PAYPAL_WEBHOOK_ID");
+    const paypalBaseUrl = Deno.env.get("PAYPAL_BASE_URL") || "https://api-m.sandbox.paypal.com";
+
+    if (!paypalClientId || !paypalClientSecret || !paypalWebhookId) {
+      throw new Error("PayPal credentials or Webhook ID not configured");
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const body = await req.text();
+    const event = JSON.parse(body);
+    
+    logStep("Webhook event received", { eventType: event.event_type, id: event.id });
+
+    const signatureVerified = await verifyWebhookSignature(
+      body, req.headers, paypalWebhookId, paypalClientId, paypalClientSecret, paypalBaseUrl
+    );
+      
+    if (!signatureVerified) {
+      logStep("Webhook signature verification failed");
+      return new Response("Webhook signature verification failed", { status: 400 });
+    }
+    logStep("Webhook signature verified");
+
+    switch (event.event_type) {
+      case 'PAYMENT.CAPTURE.COMPLETED':
+        await handlePaymentCaptureCompleted(supabaseClient, event);
+        break;
+      case 'BILLING.SUBSCRIPTION.ACTIVATED':
+        await handleSubscriptionActivated(supabaseClient, event);
+        break;
+      case 'BILLING.SUBSCRIPTION.CANCELLED':
+        await handleSubscriptionCancelledOrSuspended(supabaseClient, event, 'CANCELLED');
+        break;
+      case 'BILLING.SUBSCRIPTION.SUSPENDED':
+        await handleSubscriptionCancelledOrSuspended(supabaseClient, event, 'SUSPENDED');
+        break;
+      default:
+        logStep("Unhandled event type", { eventType: event.event_type });
+        break;
+    }
+
+    logStep("Webhook processed successfully");
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR in paypal-webhook", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
+});

@@ -71,21 +71,22 @@ serve(async (req) => {
     });
 
     if (!authResponse.ok) {
-      throw new Error(`PayPal auth failed: ${authResponse.status}`);
+      const errorText = await authResponse.text();
+      throw new Error(`PayPal auth failed: ${authResponse.status} - ${errorText}`);
     }
 
     const authData = await authResponse.json();
     const accessToken = authData.access_token;
     logStep("PayPal access token obtained");
 
-    // Determine success and cancel URLs - detect current page
+    // Determine success and cancel URLs
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const referer = req.headers.get("referer") || "";
     const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
     const successUrl = `${origin}${currentPath}?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(gift.name)}`;
     const cancelUrl = `${origin}${currentPath}?gift_canceled=true`;
 
-    // Create PayPal order for one-time payment with structured custom_id
+    // Create PayPal order for one-time payment
     const orderData = {
       intent: "CAPTURE",
       purchase_units: [
@@ -94,19 +95,15 @@ serve(async (req) => {
             currency_code: "USD",
             value: (gift.price / 100).toFixed(2),
           },
-          description: `${gift.name} - ${gift.description}`,
-          custom_id: JSON.stringify({
-            userId: user.id,
-            giftId: giftId,
-            type: "gift"
-          }),
+          description: `Presente: ${gift.name}`,
+          custom_id: `gift_${gift.id}_${user.id}`,
         },
       ],
       payment_source: {
         paypal: {
           experience_context: {
             payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
-            brand_name: "Your App Name",
+            brand_name: "Isa Date",
             locale: "pt-BR",
             landing_page: "LOGIN",
             shipping_preference: "NO_SHIPPING",
@@ -138,7 +135,6 @@ serve(async (req) => {
     const order = await orderResponse.json();
     logStep("PayPal order created", { orderId: order.id });
 
-    // Find approval URL
     const approvalUrl = order.links?.find((link: any) => link.rel === "approve")?.href;
     
     if (!approvalUrl) {

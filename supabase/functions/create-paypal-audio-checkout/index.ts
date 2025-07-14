@@ -44,29 +44,30 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get audio credit product details from database
-    const { data: product, error: productError } = await supabaseClient
+    // CORREÇÃO: Remove .single() e trata o resultado como um array
+    const { data: products, error: productError } = await supabaseClient
       .from("audio_credit_products")
       .select("*")
       .limit(1);
 
-    let productData = {
-      name: "20 Créditos de Áudio",
-      price: 499, // $4.99 in cents
-      credits: 20
-    };
-
-    if (!productError && product && product.length > 0) {
-      productData = {
-        name: product[0].name,
-        price: product[0].price,
-        credits: product[0].credits
-      };
+    if (productError) {
+      throw new Error(`Error fetching audio credit products: ${productError.message}`);
     }
+
+    if (!products || products.length === 0) {
+      throw new Error("No audio credit product found in the database.");
+    }
+    
+    const product = products[0]; // Pega o primeiro produto do array
+
+    const productData = {
+      name: product.name,
+      price: product.price,
+      credits: product.credits
+    };
 
     logStep("Product data retrieved", productData);
 
-    // Get PayPal access token
     const authResponse = await fetch(`${paypalBaseUrl}/v1/oauth2/token`, {
       method: "POST",
       headers: {
@@ -79,21 +80,20 @@ serve(async (req) => {
     });
 
     if (!authResponse.ok) {
-      throw new Error(`PayPal auth failed: ${authResponse.status}`);
+      const errorText = await authResponse.text();
+      throw new Error(`PayPal auth failed: ${authResponse.status} - ${errorText}`);
     }
 
     const authData = await authResponse.json();
     const accessToken = authData.access_token;
     logStep("PayPal access token obtained");
 
-    // Determine success and cancel URLs - detect current page
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const referer = req.headers.get("referer") || "";
     const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
     const successUrl = `${origin}${currentPath}?credits_success=true&credits=${productData.credits}`;
     const cancelUrl = `${origin}${currentPath}?credits_canceled=true`;
 
-    // Create PayPal order for one-time payment with structured custom_id
     const orderData = {
       intent: "CAPTURE",
       purchase_units: [
@@ -103,14 +103,14 @@ serve(async (req) => {
             value: (productData.price / 100).toFixed(2),
           },
           description: productData.name,
-      custom_id: `audio_credits_${user.id}_${productData.credits}`,
+          custom_id: `audio_credits_${user.id}_${productData.credits}`,
         },
       ],
       payment_source: {
         paypal: {
           experience_context: {
             payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
-            brand_name: "Your App Name",
+            brand_name: "Isa Date",
             locale: "pt-BR",
             landing_page: "LOGIN",
             shipping_preference: "NO_SHIPPING",
@@ -142,7 +142,6 @@ serve(async (req) => {
     const order = await orderResponse.json();
     logStep("PayPal order created", { orderId: order.id });
 
-    // Find approval URL
     const approvalUrl = order.links?.find((link: any) => link.rel === "approve")?.href;
     
     if (!approvalUrl) {
