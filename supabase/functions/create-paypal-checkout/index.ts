@@ -8,8 +8,36 @@ const corsHeaders = {
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CREATE-PAYPAL-AUDIO-CHECKOUT] ${step}${detailsStr}`);
+  console.log(`[CREATE-PAYPAL-SUBSCRIPTION] ${step}${detailsStr}`);
 };
+
+async function getPayPalAccessToken(paypalBaseUrl: string, paypalClientId: string, paypalClientSecret: string) {
+  const auth = btoa(`${paypalClientId}:${paypalClientSecret}`);
+  const response = await fetch(`${paypalBaseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    logStep("Failed to get PayPal access token", { error: errorText });
+    throw new Error("Failed to get PayPal access token");
+  }
+  const data = await response.json();
+  return data.access_token;
+}
+
+async function authenticateUser(req: Request, client: any) {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error } = await client.auth.getUser(token);
+    if (error || !user) throw new Error("User not authenticated or token is invalid");
+    return user;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,7 +45,7 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logStep("Function started for SUBSCRIPTION checkout");
 
     const paypalClientId = Deno.env.get("PAYPAL_CLIENT_ID");
     const paypalClientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
@@ -33,128 +61,80 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    const { planId } = await req.json();
+    if (!planId) throw new Error("planId is required");
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    const user = await authenticateUser(req, supabaseClient);
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { data: product, error: productError } = await supabaseClient
-      .from("audio_credit_products")
-      .select("*")
-      .limit(1)
+    const { data: plan, error: planError } = await supabaseClient
+      .from("plans")
+      .select("paypal_plan_id")
+      .eq("id", planId)
       .single();
 
-    if (productError) {
-      throw new Error(`Audio credit product not found: ${productError.message}`);
+    if (planError || !plan?.paypal_plan_id) {
+      throw new Error(`Plan or PayPal Plan ID not found for planId: ${planId}`);
     }
 
-    const productData = {
-      name: product.name,
-      price: product.price,
-      credits: product.credits
-    };
+    logStep("Plan data retrieved", { paypalPlanId: plan.paypal_plan_id });
 
-    logStep("Product data retrieved", productData);
-
-    const authResponse = await fetch(`${paypalBaseUrl}/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Accept-Language": "en_US",
-        "Authorization": `Basic ${btoa(`${paypalClientId}:${paypalClientSecret}`)}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    });
-
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text();
-      throw new Error(`PayPal auth failed: ${authResponse.status} - ${errorText}`);
-    }
-
-    const authData = await authResponse.json();
-    const accessToken = authData.access_token;
+    const accessToken = await getPayPalAccessToken(paypalBaseUrl, paypalClientId, paypalClientSecret);
     logStep("PayPal access token obtained");
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    const referer = req.headers.get("referer") || "";
-    const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
-    const successUrl = `${origin}${currentPath}?credits_success=true&credits=${productData.credits}`;
-    const cancelUrl = `${origin}${currentPath}?credits_canceled=true`;
+    const successUrl = `${origin}/profile?checkout=success`;
+    const cancelUrl = `${origin}/profile?checkout=canceled`;
 
-    const orderData = {
-      intent: "CAPTURE",
-      purchase_units: [
-        {
-          amount: {
-            currency_code: "USD",
-            value: (productData.price / 100).toFixed(2),
-          },
-          description: productData.name,
-          custom_id: `audio_credits_${user.id}_${productData.credits}`,
-        },
-      ],
-      payment_source: {
-        paypal: {
-          experience_context: {
-            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
-            brand_name: "Isa Date",
-            locale: "pt-BR",
-            landing_page: "LOGIN",
-            shipping_preference: "NO_SHIPPING",
-            user_action: "PAY_NOW",
-            return_url: successUrl,
-            cancel_url: cancelUrl,
-          },
-        },
+    const subscriptionData = {
+      plan_id: plan.paypal_plan_id,
+      subscriber: {
+        email_address: user.email,
+      },
+      application_context: {
+        brand_name: "Isa Date",
+        shipping_preference: "NO_SHIPPING",
+        user_action: "SUBSCRIBE_NOW",
+        return_url: successUrl,
+        cancel_url: cancelUrl,
       },
     };
 
-    const orderResponse = await fetch(`${paypalBaseUrl}/v2/checkout/orders`, {
+    const subscriptionResponse = await fetch(`${paypalBaseUrl}/v1/billing/subscriptions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
-        "PayPal-Request-Id": crypto.randomUUID(),
         "Prefer": "return=representation",
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(subscriptionData),
     });
 
-    if (!orderResponse.ok) {
-      const errorText = await orderResponse.text();
-      throw new Error(`PayPal order creation failed: ${orderResponse.status} - ${errorText}`);
+    if (!subscriptionResponse.ok) {
+      const errorText = await subscriptionResponse.text();
+      logStep("PayPal subscription creation failed", { status: subscriptionResponse.status, error: errorText });
+      throw new Error(`PayPal subscription creation failed: ${errorText}`);
     }
 
-    const order = await orderResponse.json();
-    logStep("PayPal order created", { orderId: order.id });
+    const subscriptionResult = await subscriptionResponse.json();
+    logStep("PayPal subscription created", { subscriptionId: subscriptionResult.id });
 
-    const approvalUrl = order.links?.find((link: any) => link.rel === "approve")?.href;
-    
+    const approvalUrl = subscriptionResult.links?.find((link: any) => link.rel === "approve")?.href;
     if (!approvalUrl) {
-      throw new Error("No approval URL found in PayPal response");
+      logStep("CRITICAL: No approval URL found in response", { response: subscriptionResult });
+      throw new Error("No approval URL found in PayPal subscription response");
     }
 
-    logStep("PayPal audio credits checkout created successfully", { url: approvalUrl });
+    logStep("PayPal subscription checkout created successfully", { url: approvalUrl });
 
-    return new Response(JSON.stringify({ 
-      url: approvalUrl,
-      order_id: order.id 
-    }), {
+    return new Response(JSON.stringify({ url: approvalUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-paypal-audio-checkout", { message: errorMessage });
+    logStep("FATAL ERROR", { error: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
