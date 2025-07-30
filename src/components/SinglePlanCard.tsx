@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useUserCache } from '@/hooks/useUserCache';
 import { Check } from 'lucide-react';
-import PayPalCheckoutButton from './PayPalCheckoutButton';
+// 1. Importamos o nosso novo botão do PicPay
+import PicPayCheckoutButton from './PicPayCheckoutButton';
 
 interface SinglePlanCardProps {
   plan: Plan;
@@ -184,11 +185,14 @@ const SinglePlanCard = ({ plan, onSelectPlan }: SinglePlanCardProps) => {
               </>
             ) : (
               <>
-                <PayPalCheckoutButton 
-                  planId={plan.id}
-                  disabled={processing}
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white"
-                />
+                {/* 2. Substituímos o botão do PayPal pelo do PicPay */}
+                <PicPayCheckoutButton
+                  checkoutType="subscription"
+                  planId={plan.id.toString()}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white"
+                >
+                  Assinar com PicPay
+                </PicPayCheckoutButton>
                 <Button 
                   variant="outline" 
                   onClick={() => navigate('/')}
