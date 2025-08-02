@@ -8,57 +8,65 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    const picpayToken = Deno.env.get("PICPAY_API_TOKEN");
+    if (!picpayToken) throw new Error("Secret 'PICPAY_API_TOKEN' não encontrada.");
 
-    const { planId } = await req.json();
-    if (!planId) throw new Error("planId is required");
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    
+    const { giftId, recipientId } = await req.json();
+    if (!giftId) throw new Error("O ID do presente (giftId) é obrigatório.");
+    if (!recipientId) throw new Error("O ID do destinatário (recipientId) é obrigatório.");
 
-    // Lógica para autenticar o usuário (igual às suas outras funções)
-    // ...
+    const authHeader = req.headers.get("Authorization")!;
+    const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (!user) throw new Error("Usuário não autenticado.");
 
-    const { data: plan } = await supabaseClient
-      .from("plans")
-      .select("name, price")
-      .eq("id", planId)
-      .single();
-
-    if (!plan) {
-      throw new Error(`Plan not found for planId: ${planId}`);
+    const { data: buyerProfile } = await supabaseClient.from("profiles").select("full_name, cpf, phone").eq("id", user.id).single();
+    if (!buyerProfile?.full_name || !buyerProfile?.cpf || !buyerProfile?.phone) {
+      throw new Error("Dados do comprador (nome, CPF, telefone) estão incompletos no perfil.");
     }
+    
+    const { data: gift } = await supabaseClient.from("gifts").select("price").eq("id", giftId).single();
+    if (!gift) throw new Error("Presente não encontrado.");
+
+    const nameParts = buyerProfile.full_name.split(" ");
+    const referenceId = `GIFT-${giftId.substring(0, 8)}-${Date.now()}`;
+
+    const picpayPayload = {
+      referenceId,
+      callbackUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/picpay-webhook`,
+      returnUrl: `${req.headers.get("origin")}/chat/text-audio?gift_success=true`,
+      value: gift.price / 100,
+      buyer: {
+        firstName: nameParts.shift() || "",
+        lastName: nameParts.join(" ") || " ",
+        document: buyerProfile.cpf,
+        email: user.email!,
+        phone: buyerProfile.phone,
+      },
+      "paymentMethods": ["PIX"]
+    };
 
     const picpayResponse = await fetch("https://appws.picpay.com/ecommerce/public/payments", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-picpay-token": Deno.env.get("X_PICPAY_TOKEN")!,
-      },
-      body: JSON.stringify({
-        // Adapte o corpo da requisição conforme a documentação da API PicPay
-        // Exemplo:
-        referenceId: `plan_${planId}_${user.id}`,
-        callbackUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/picpay-webhook`,
-        returnUrl: `${req.headers.get("origin")}/profile?checkout=success`,
-        value: plan.price / 100,
-        buyer: {
-          // Dados do comprador
-        },
-      }),
+      headers: { "Content-Type": "application/json", "x-picpay-token": picpayToken },
+      body: JSON.stringify(picpayPayload),
     });
 
     const picpayData = await picpayResponse.json();
     if (!picpayResponse.ok) {
-      throw new Error(`PicPay API error: ${picpayData.message}`);
+      const errorMessage = picpayData.errors?.[0]?.message || picpayData.message || 'Erro de validação.';
+      throw new Error(`Erro na API do PicPay: ${errorMessage}`);
     }
 
-    return new Response(JSON.stringify({ url: picpayData.paymentUrl }), {
+    return new Response(JSON.stringify({ 
+      paymentUrl: picpayData.paymentUrl,
+      qrCode: picpayData.qrcode.base64
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

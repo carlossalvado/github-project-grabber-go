@@ -1,3 +1,4 @@
+// Caminho: supabase/functions/create-picpay-gift-checkout/index.ts
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -6,149 +7,91 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CREATE-PAYPAL-GIFT-CHECKOUT] ${step}${detailsStr}`);
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    logStep("Function started");
-
-    const paypalClientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const paypalClientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
-    const paypalBaseUrl = Deno.env.get("PAYPAL_BASE_URL") || "https://api-m.sandbox.paypal.com";
-
-    if (!paypalClientId || !paypalClientSecret) {
-      throw new Error("PayPal credentials not configured");
+    // === VALIDAÇÃO DA SECRET ADICIONADA AQUI ===
+    const picpayToken = Deno.env.get("PICPAY_API_TOKEN");
+    if (!picpayToken) {
+      throw new Error("A Secret 'PICPAY_API_TOKEN' não foi encontrada nas configurações do projeto Supabase.");
     }
+    // ===========================================
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    const { giftId, recipientId } = await req.json();
+    if (!giftId) throw new Error("O ID do presente (giftId) é obrigatório");
+    if (!recipientId) throw new Error("O ID do destinatário (recipientId) é obrigatório");
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    const authHeader = req.headers.get("Authorization")!;
+    const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (!user) throw new Error("Usuário não autenticado");
 
-    const { giftId } = await req.json();
-    if (!giftId) throw new Error("Gift ID is required");
-    logStep("Request body parsed", { giftId });
+    const { data: buyerProfile, error: profileError } = await supabaseClient
+      .from("profiles")
+      .select("full_name, cpf, phone")
+      .eq("id", user.id)
+      .single();
 
-    // Fetch gift details from Supabase
+    if (profileError || !buyerProfile || !buyerProfile.full_name || !buyerProfile.cpf || !buyerProfile.phone) {
+      throw new Error("Dados do comprador (nome, CPF, telefone) estão incompletos no perfil.");
+    }
+
     const { data: gift, error: giftError } = await supabaseClient
       .from("gifts")
-      .select("*")
+      .select("price")
       .eq("id", giftId)
       .single();
 
-    if (giftError) throw new Error(`Gift not found: ${giftError.message}`);
-    logStep("Gift found", { name: gift.name, price: gift.price });
+    if (giftError || !gift) throw new Error("Presente não encontrado");
 
-    // Get PayPal access token
-    const authResponse = await fetch(`${paypalBaseUrl}/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Accept-Language": "en_US",
-        "Authorization": `Basic ${btoa(`${paypalClientId}:${paypalClientSecret}`)}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    });
+    const nameParts = buyerProfile.full_name.split(" ");
+    const firstName = nameParts.shift() || "";
+    const lastName = nameParts.join(" ") || " ";
 
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text();
-      throw new Error(`PayPal auth failed: ${authResponse.status} - ${errorText}`);
-    }
-
-    const authData = await authResponse.json();
-    const accessToken = authData.access_token;
-    logStep("PayPal access token obtained");
-
-    // Determine success and cancel URLs
-    const origin = req.headers.get("origin") || "http://localhost:3000";
-    const referer = req.headers.get("referer") || "";
-    const currentPath = referer.includes("/chat-text-audio") ? "/chat-text-audio" : "/chat-trial";
-    const successUrl = `${origin}${currentPath}?gift_success=true&gift_id=${giftId}&gift_name=${encodeURIComponent(gift.name)}`;
-    const cancelUrl = `${origin}${currentPath}?gift_canceled=true`;
-
-    // Create PayPal order for one-time payment
-    const orderData = {
-      intent: "CAPTURE",
-      purchase_units: [
-        {
-          amount: {
-            currency_code: "USD",
-            value: (gift.price / 100).toFixed(2),
-          },
-          description: `Presente: ${gift.name}`,
-          custom_id: `gift_${gift.id}_${user.id}`,
-        },
-      ],
-      application_context: {
-        brand_name: "Isa Date",
-        locale: "pt-BR",
-        landing_page: "LOGIN",
-        shipping_preference: "NO_SHIPPING",
-        user_action: "PAY_NOW",
-        return_url: successUrl,
-        cancel_url: cancelUrl,
+    const picpayPayload = {
+      referenceId: `gift_${giftId}_from_${user.id}_to_${recipientId}_${Date.now()}`,
+      callbackUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/picpay-webhook`,
+      returnUrl: `${req.headers.get("origin")}/chat/text-audio?gift_success=true`,
+      value: gift.price / 100,
+      buyer: {
+        firstName,
+        lastName,
+        document: buyerProfile.cpf,
+        email: user.email!,
+        phone: buyerProfile.phone,
       },
     };
 
-    const orderResponse = await fetch(`${paypalBaseUrl}/v2/checkout/orders`, {
+    const picpayResponse = await fetch("https://appws.picpay.com/ecommerce/public/payments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
-        "PayPal-Request-Id": crypto.randomUUID(),
+        "x-picpay-token": picpayToken, // Usando a variável validada
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(picpayPayload),
     });
 
-    if (!orderResponse.ok) {
-      const errorText = await orderResponse.text();
-      throw new Error(`PayPal order creation failed: ${orderResponse.status} - ${errorText}`);
+    const picpayData = await picpayResponse.json();
+    if (!picpayResponse.ok) {
+      console.error("PicPay API Error Body:", picpayData);
+      throw new Error(`Erro na API do PicPay: ${picpayData.message || 'Erro de validação.'}`);
     }
 
-    const order = await orderResponse.json();
-    logStep("PayPal order created", { orderId: order.id });
-
-    const approvalUrl = order.links?.find((link: any) => link.rel === "approve")?.href;
-    
-    if (!approvalUrl) {
-      throw new Error("No approval URL found in PayPal response");
-    }
-
-    logStep("PayPal gift checkout created successfully", { url: approvalUrl });
-
-    return new Response(JSON.stringify({ 
-      url: approvalUrl,
-      order_id: order.id 
-    }), {
+    return new Response(JSON.stringify({ url: picpayData.paymentUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-paypal-gift-checkout", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error("Erro fatal na função:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

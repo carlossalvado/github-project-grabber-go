@@ -8,65 +8,68 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    const picpayToken = Deno.env.get("PICPAY_API_TOKEN");
+    if (!picpayToken) throw new Error("A Secret 'PICPAY_API_TOKEN' não foi encontrada.");
 
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    
     const { giftId, recipientId } = await req.json();
-    if (!giftId) throw new Error("O ID do presente (giftId) é obrigatório");
-    if (!recipientId) throw new Error("O ID do destinatário (recipientId) é obrigatório");
+    if (!giftId || !recipientId) throw new Error("giftId e recipientId são obrigatórios.");
 
-    // Autenticação do usuário
     const authHeader = req.headers.get("Authorization")!;
     const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (!user) throw new Error("Usuário não encontrado");
+    if (!user) throw new Error("Usuário não autenticado.");
 
-    // Busca o preço do presente no banco de dados
-    const { data: gift } = await supabaseClient
-      .from("gifts")
-      .select("name, price")
-      .eq("id", giftId)
-      .single();
+    const { data: buyerProfile } = await supabaseClient.from("profiles").select("full_name, cpf, phone").eq("id", user.id).single();
+    if (!buyerProfile?.full_name || !buyerProfile?.cpf || !buyerProfile?.phone) {
+      throw new Error("Dados do comprador (nome, CPF, telefone) estão incompletos no perfil.");
+    }
+    
+    const { data: gift } = await supabaseClient.from("gifts").select("price").eq("id", giftId).single();
+    if (!gift) throw new Error("Presente não encontrado.");
 
-    if (!gift) throw new Error("Presente não encontrado");
+    const nameParts = buyerProfile.full_name.split(" ");
+    const referenceId = `GIFT-${giftId.substring(0, 8)}-${Date.now()}`;
 
-    // Adapte o corpo da requisição (buyer) conforme a documentação da API PicPay
     const picpayPayload = {
-      referenceId: `gift_${giftId}_from_${user.id}_to_${recipientId}`,
+      referenceId,
       callbackUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/picpay-webhook`,
-      returnUrl: `${req.headers.get("origin")}/profile?checkout=success`,
-      value: gift.price / 100, // O valor deve ser em Reais (ex: 10.00)
+      returnUrl: `${req.headers.get("origin")}/chat/text-audio?gift_success=true`,
+      value: gift.price / 100,
       buyer: {
-        firstName: user.user_metadata?.name?.split(' ')[0] || "Comprador",
-        lastName: user.user_metadata?.name?.split(' ').slice(1).join(' ') || "Teste",
-        document: "123.456.789-10", // Obtenha o CPF do seu usuário
-        email: user.email,
-        phone: "+55 27 12345-6789" // Obtenha o telefone do seu usuário
+        firstName: nameParts.shift() || "",
+        lastName: nameParts.join(" ") || " ",
+        document: buyerProfile.cpf,
+        email: user.email!,
+        phone: buyerProfile.phone,
       },
+      "paymentMethods": ["PIX"]
     };
 
     const picpayResponse = await fetch("https://appws.picpay.com/ecommerce/public/payments", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-picpay-token": Deno.env.get("X_PICPAY_TOKEN")!,
-      },
+      headers: { "Content-Type": "application/json", "x-picpay-token": picpayToken },
       body: JSON.stringify(picpayPayload),
     });
 
     const picpayData = await picpayResponse.json();
     if (!picpayResponse.ok) {
-      console.error("PicPay API Error:", picpayData);
-      throw new Error(`Erro na API do PicPay: ${picpayData.message}`);
+      const errorMessage = picpayData.errors?.[0]?.message || picpayData.message || 'Erro de validação.';
+      throw new Error(`Erro na API do PicPay: ${errorMessage}`);
     }
 
-    return new Response(JSON.stringify({ url: picpayData.paymentUrl }), {
+    if (!picpayData.qrcode?.base64 || !picpayData.paymentUrl) {
+      throw new Error("A resposta da API do PicPay não continha os dados do PIX.");
+    }
+
+    return new Response(JSON.stringify({ 
+      paymentUrl: picpayData.paymentUrl,
+      qrCode: picpayData.qrcode.base64
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

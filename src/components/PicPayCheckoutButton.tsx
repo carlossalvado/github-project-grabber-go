@@ -1,103 +1,98 @@
-import { useState } from 'react';
-import { supabase } from '../integrations/supabase/client'; 
-import { Button } from './ui/button';
-import { useToast } from '../hooks/use-toast';
+import React, { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import BuyerInfoForm from './BuyerInfoForm';
+import PixModal from './PixModal';
 
 interface PicPayCheckoutButtonProps {
-  checkoutType: 'subscription' | 'audio-credits' | 'voice-credits' | 'gift';
-  planId?: string;
-  amount?: number;
-  giftId?: string;
+  checkoutType: 'gift'; // Simplificado para o seu caso de uso
+  giftId?: string | null;
   recipientId?: string;
-  className?: string;
   children: React.ReactNode;
-  disabled?: boolean; 
+  className?: string;
+  disabled?: boolean;
 }
 
-const PicPayCheckoutButton = ({
-  checkoutType,
-  planId,
-  amount,
-  giftId,
-  recipientId,
-  className,
-  children,
-  disabled = false,
-}: PicPayCheckoutButtonProps) => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+const PicPayCheckoutButton: React.FC<PicPayCheckoutButtonProps> = ({ checkoutType, giftId, recipientId, children, className, disabled }) => {
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBuyerForm, setShowBuyerForm] = useState(false);
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [qrCode, setQrCode] = useState('');
+  const [pixUrl, setPixUrl] = useState('');
 
-  const handleCheckout = async () => {
-    setLoading(true);
+  const proceedToCheckout = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("Usuário não autenticado. Por favor, faça login novamente.");
-      }
+      const body = { giftId, recipientId };
+      const { data, error } = await supabase.functions.invoke('create-picpay-gift-checkout', { body });
 
-      let functionName = '';
-      let body: any = {};
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
-      switch (checkoutType) {
-        case 'subscription':
-          functionName = 'create-picpay-checkout';
-          body = { planId };
-          break;
-        case 'audio-credits':
-          functionName = 'create-picpay-audio-checkout';
-          body = { amount };
-          break;
-        case 'voice-credits':
-          functionName = 'create-picpay-voice-checkout';
-          body = { amount };
-          break;
-        case 'gift':
-          functionName = 'create-picpay-gift-checkout';
-          body = { giftId, recipientId };
-          break;
-        default:
-          throw new Error('Tipo de checkout inválido.');
-      }
-
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (error) {
-        const errorBody = await (error as any).context.json();
-        throw new Error(errorBody.error || error.message);
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.qrCode && data.paymentUrl) {
+        setQrCode(data.qrCode);
+        setPixUrl(data.paymentUrl);
+        setShowPixModal(true);
       } else {
-        if (data.error) {
-            throw new Error(data.error)
-        }
-        throw new Error('URL de pagamento do PicPay não recebida.');
+        throw new Error('Dados do PIX não foram recebidos do servidor.');
       }
-
     } catch (error: any) {
-      console.error("Erro no checkout do PicPay:", error);
-      toast({
-        title: "Erro no Checkout",
-        description: error.message || "Não foi possível iniciar o pagamento. Tente novamente.",
-        variant: "destructive",
-      });
+      toast.error(`Erro no checkout: ${error.message}`);
     } finally {
-        setLoading(false);
+      setIsLoading(false);
+    }
+  };
+  
+  const handleInitialClick = async () => {
+    if (disabled || isLoading) return;
+    if (!user) {
+      toast.error('Você precisa estar logado.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.from('profiles').select('full_name, cpf, phone').eq('id', user.id).single();
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (!data?.full_name?.trim() || !data?.cpf?.trim() || !data?.phone?.trim()) {
+        setShowBuyerForm(true);
+      } else {
+        await proceedToCheckout();
+      }
+    } catch (error: any) {
+      toast.error("Erro ao verificar suas informações: " + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Button onClick={handleCheckout} disabled={disabled || loading} className={className}>
-      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-      {children}
-    </Button>
+    <>
+      <BuyerInfoForm 
+        isOpen={showBuyerForm}
+        onClose={() => setShowBuyerForm(false)}
+        onSuccess={() => {
+          setShowBuyerForm(false);
+          proceedToCheckout();
+        }}
+      />
+      <PixModal 
+        isOpen={showPixModal}
+        onClose={() => setShowPixModal(false)}
+        qrCodeBase64={qrCode}
+        copyPasteCode={pixUrl}
+      />
+      <Button onClick={handleInitialClick} className={className} disabled={disabled || isLoading}>
+        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : children}
+      </Button>
+    </>
   );
 };
 
