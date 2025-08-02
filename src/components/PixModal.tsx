@@ -19,6 +19,9 @@ const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copy
     }
   };
 
+  // Constrói a Data URL completa para a imagem do QR Code
+  const qrCodeSrc = qrCodeBase64 ? `data:image/png;base64,${qrCodeBase64}` : '';
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md bg-[#1a1d29] border-blue-800/30 text-white">
@@ -30,7 +33,8 @@ const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copy
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="p-2 bg-white rounded-lg">
-            {qrCodeBase64 && <img src={qrCodeBase64} alt="PIX QR Code" className="w-48 h-48" />}
+            {/* CORREÇÃO: Utiliza a variável qrCodeSrc que contém o prefixo correto */}
+            {qrCodeSrc && <img src={qrCodeSrc} alt="PIX QR Code" className="w-48 h-48" />}
           </div>
           <div className="w-full p-3 bg-[#2F3349] rounded-lg">
             <p className="text-center font-mono text-xs break-all">
