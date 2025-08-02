@@ -1,68 +1,83 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mic, Phone, X } from 'lucide-react';
-// 1. Importamos o nosso novo botão do PicPay
-import PicPayCheckoutButton from './PicPayCheckoutButton';
+import PixCheckoutButton from '@/components/PixCheckoutButton';
 
-interface CreditsSelectionProps {
-  onClose: () => void;
-  // As props 'onSelect' não são mais necessárias aqui, mas mantemos caso sejam usadas em outro lugar
-  onSelectAudioCredits: () => void;
-  onSelectVoiceCredits: () => void;
-}
+const CreditsSelection = ({ onClose }) => {
+  const [selectedType, setSelectedType] = useState('audio'); // 'audio' ou 'voice'
+  const [selectedAmount, setSelectedAmount] = useState(null);
 
-const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
-  // 2. Removemos os estados de loading e as funções de handle, pois o PicPayCheckoutButton cuida disso.
+  const audioOptions = [
+    { amount: 100, price: 10 },
+    { amount: 250, price: 20 },
+    { amount: 500, price: 35 },
+  ];
 
-  // Valor fixo baseado na sua implementação original do backend
-  const AUDIO_CREDITS_AMOUNT = 100;
-  const VOICE_CREDITS_AMOUNT = 50;
+  const voiceOptions = [
+    { amount: 50, price: 10 },
+    { amount: 120, price: 20 },
+    { amount: 250, price: 35 },
+  ];
+
+  const options = selectedType === 'audio' ? audioOptions : voiceOptions;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-white">
-        <CardHeader className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-2 top-2"
-            onClick={onClose}
-          >
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-[#1a1d29] border border-blue-800/30 rounded-2xl w-full max-w-md flex flex-col text-white">
+        <div className="flex justify-between items-center p-4 border-b border-blue-800/30">
+          <h3 className="text-lg font-semibold">Comprar Créditos</h3>
+          <button onClick={onClose} className="text-blue-200 hover:text-white p-1 rounded-full">
             <X size={20} />
-          </Button>
-          <CardTitle className="text-center text-gray-800">
-            Comprar Créditos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 3. Substituímos o botão e a lógica de áudio */}
-          <PicPayCheckoutButton
-            checkoutType="audio-credits"
-            amount={AUDIO_CREDITS_AMOUNT}
-            className="w-full h-16 bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-3"
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="grid grid-cols-2 gap-2 mb-4 bg-[#2F3349] p-1 rounded-lg">
+            <Button
+              onClick={() => { setSelectedType('audio'); setSelectedAmount(null); }}
+              className={`w-full ${selectedType === 'audio' ? 'bg-blue-600' : 'bg-transparent text-blue-200'}`}
+            >
+              <Mic className="mr-2 h-4 w-4" /> Áudio
+            </Button>
+            <Button
+              onClick={() => { setSelectedType('voice'); setSelectedAmount(null); }}
+              className={`w-full ${selectedType === 'voice' ? 'bg-blue-600' : 'bg-transparent text-blue-200'}`}
+            >
+              <Phone className="mr-2 h-4 w-4" /> Voz
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {options.map((option) => (
+              <button
+                key={option.amount}
+                onClick={() => setSelectedAmount(option.amount)}
+                className={`p-4 rounded-lg border-2 text-center transition-all ${
+                  selectedAmount === option.amount 
+                    ? 'border-blue-500 bg-blue-900/50' 
+                    : 'border-blue-800/50 hover:border-blue-400'
+                }`}
+              >
+                <div className="text-xl font-bold">{option.amount}</div>
+                <div className="text-sm text-blue-300">R$ {option.price.toFixed(2)}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-blue-800/30">
+          <PixCheckoutButton
+            checkoutType={selectedType === 'audio' ? 'audio' : 'voice'}
+            amount={selectedAmount}
+            className="w-full bg-blue-600 hover:bg-blue-700 font-semibold py-3"
+            disabled={!selectedAmount}
           >
-            <Mic size={24} />
-            <div className="text-left">
-              <div className="font-semibold">Créditos de Áudio</div>
-              <div className="text-sm opacity-90">Para envio de mensagens de áudio</div>
-            </div>
-          </PicPayCheckoutButton>
-          
-          {/* 4. Substituímos o botão e a lógica de voz */}
-          <PicPayCheckoutButton
-            checkoutType="voice-credits"
-            amount={VOICE_CREDITS_AMOUNT}
-            className="w-full h-16 bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-3"
-          >
-            <Phone size={24} />
-            <div className="text-left">
-              <div className="font-semibold">Créditos de Chamada de Voz</div>
-              <div className="text-sm opacity-90">Para chamadas de voz com IA</div>
-            </div>
-          </PicPayCheckoutButton>
-        </CardContent>
-      </Card>
+            {selectedAmount 
+              ? `Pagar com PIX` 
+              : 'Selecione um pacote'}
+          </PixCheckoutButton>
+        </div>
+      </div>
     </div>
   );
 };

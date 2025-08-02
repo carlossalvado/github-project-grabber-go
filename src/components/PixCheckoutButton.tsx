@@ -7,16 +7,28 @@ import { toast } from 'sonner';
 import BuyerInfoForm from './BuyerInfoForm';
 import PixModal from './PixModal';
 
-interface PicPayCheckoutButtonProps {
-  checkoutType: 'gift'; // Simplificado para o seu caso de uso
+interface PixCheckoutButtonProps {
+  checkoutType: 'gift' | 'audio' | 'voice' | 'plan';
   giftId?: string | null;
   recipientId?: string;
+  amount?: number | null;
+  planId?: string;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
 }
 
-const PicPayCheckoutButton: React.FC<PicPayCheckoutButtonProps> = ({ checkoutType, giftId, recipientId, children, className, disabled }) => {
+// O nome do componente agora é PixCheckoutButton, alinhado com o nome do arquivo.
+const PixCheckoutButton: React.FC<PixCheckoutButtonProps> = ({
+  checkoutType,
+  giftId,
+  recipientId,
+  amount,
+  planId,
+  children,
+  className,
+  disabled,
+}) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showBuyerForm, setShowBuyerForm] = useState(false);
@@ -29,15 +41,34 @@ const PicPayCheckoutButton: React.FC<PicPayCheckoutButtonProps> = ({ checkoutTyp
     
     setIsLoading(true);
     try {
-      const body = { giftId, recipientId };
-      const { data, error } = await supabase.functions.invoke('create-picpay-gift-checkout', { body });
+      let functionName = '';
+      let body: any = {};
+
+      // Lógica para definir qual função do Supabase chamar
+      switch (checkoutType) {
+        case 'gift':
+          // AQUI ESTÁ A CHAMADA CORRETA PARA A FUNÇÃO DO ASAAS
+          functionName = 'create-asaas-pix-checkout';
+          body = { giftId };
+          break;
+        // Adicione aqui a lógica para outros tipos de checkout (áudio, voz, etc.) se necessário
+        // Exemplo:
+        // case 'audio':
+        //   functionName = 'create-asaas-audio-checkout';
+        //   body = { amount };
+        //   break;
+        default:
+          throw new Error("Tipo de checkout não implementado.");
+      }
+      
+      const { data, error } = await supabase.functions.invoke(functionName, { body });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      if (data.qrCode && data.paymentUrl) {
+      if (data.qrCode && data.copyPasteCode) {
         setQrCode(data.qrCode);
-        setPixUrl(data.paymentUrl);
+        setPixUrl(data.copyPasteCode);
         setShowPixModal(true);
       } else {
         throw new Error('Dados do PIX não foram recebidos do servidor.');
@@ -61,7 +92,8 @@ const PicPayCheckoutButton: React.FC<PicPayCheckoutButtonProps> = ({ checkoutTyp
       const { data, error } = await supabase.from('profiles').select('full_name, cpf, phone').eq('id', user.id).single();
       if (error && error.code !== 'PGRST116') throw error;
 
-      if (!data?.full_name?.trim() || !data?.cpf?.trim() || !data?.phone?.trim()) {
+      // Asaas PIX só precisa de nome e CPF
+      if (!data?.full_name?.trim() || !data?.cpf?.trim()) {
         setShowBuyerForm(true);
       } else {
         await proceedToCheckout();
@@ -96,4 +128,4 @@ const PicPayCheckoutButton: React.FC<PicPayCheckoutButtonProps> = ({ checkoutTyp
   );
 };
 
-export default PicPayCheckoutButton;
+export default PixCheckoutButton;

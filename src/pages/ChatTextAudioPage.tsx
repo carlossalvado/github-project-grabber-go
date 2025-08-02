@@ -57,7 +57,7 @@ const ChatTextAudioPage = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   
   useEffect(() => {
-    // ... seu useEffect de viewport continua igual ...
+    // ... (seu useEffect de viewport continua igual)
   }, []);
   
   useEffect(() => {
@@ -90,32 +90,34 @@ const ChatTextAudioPage = () => {
   }, [messages]);
 
   useEffect(() => {
-    // ... sua lógica de URL params ...
+    // ... (sua lógica de URL params continua igual, mas a lógica de 'gift_success' agora é gerenciada pelo webhook)
   }, [refreshCredits, refreshVoiceCredits]);
 
   const getAssistantResponse = async (messageText: string) => {
-    // ... sua lógica de resposta de texto ...
+    // ... (sua lógica de resposta de texto continua igual)
   };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
-    // ... sua lógica de resposta de áudio ...
+    // ... (sua lógica de resposta de áudio continua igual)
   };
 
   const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    // ... sua lógica de play de áudio ...
+    // ... (sua lógica de play de áudio continua igual)
   };
 
   const handleSendTextMessage = async () => {
-    // ... sua lógica de envio de texto ...
+    // ... (sua lógica de envio de texto continua igual)
   };
   
   const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
   const handleGiftClick = () => { setShowGiftSelection(!showGiftSelection); setShowEmoticonSelector(false); };
   const handleEmoticonSelect = (emoticon: string) => { setInput(prev => prev + emoticon); setShowEmoticonSelector(false); if (inputRef.current) { inputRef.current.focus(); } };
   
+  // A FUNÇÃO ANTIGA 'handleGiftSelect' FOI REMOVIDA. A LÓGICA AGORA ESTÁ NO 'PicPayCheckoutButton'.
+  
   useEffect(() => { 
     if (audioBlob && audioUrl) { 
-      // ... sua lógica de processamento de áudio ...
+      // ... (sua lógica de processamento de áudio continua igual)
     } 
   }, [audioBlob, audioUrl]);
   
@@ -148,14 +150,22 @@ const ChatTextAudioPage = () => {
     return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
-  if (profileLoading) { return <div><Loader2 className="animate-spin" /></div>; }
-  if (!user) { return <Navigate to="/login" />; }
-  
+  if (profileLoading) {
+    return (
+      <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
+        <Loader2 className="animate-spin" size={32} />
+        <p className="ml-4">Verificando seu perfil...</p>
+      </div>
+    );
+  }
+
+  // ... (sua lógica de verificação de plano e usuário continua igual)
+
   const isLoading = n8nLoading || audioN8nLoading || isRecording;
 
   return (
-    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden">
-      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20">
+    <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
+      <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-blue-200 hover:text-white" onClick={() => navigate('/profile')}><ArrowLeft size={20} /></Button>
           <Avatar className="cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
@@ -181,11 +191,15 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
       
+      {/* ===== CORREÇÃO NA CHAMADA DO GiftSelection ===== */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} recipientId={agentData.id} />)}
       {showCreditsSelection && (<CreditsSelection onClose={() => setShowCreditsSelection(false)} onSelectAudioCredits={() => {}} onSelectVoiceCredits={() => {}} />)}
       
-      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20">
+      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
+      <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
+      
+      <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
             <Input 
@@ -219,7 +233,6 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
           
-          {/* BOTÃO DE COMPRA DE CRÉDITOS RESTAURADO AQUI */}
           <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
           
           <div className="relative flex flex-col items-center">

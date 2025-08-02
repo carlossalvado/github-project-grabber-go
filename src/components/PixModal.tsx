@@ -13,8 +13,10 @@ interface PixModalProps {
 
 const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copyPasteCode }) => {
   const handleCopy = () => {
-    navigator.clipboard.writeText(copyPasteCode);
-    toast.success("Código PIX copiado!");
+    if (copyPasteCode) {
+      navigator.clipboard.writeText(copyPasteCode);
+      toast.success("Código PIX copiado!");
+    }
   };
 
   return (
@@ -31,9 +33,11 @@ const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copy
             {qrCodeBase64 && <img src={qrCodeBase64} alt="PIX QR Code" className="w-48 h-48" />}
           </div>
           <div className="w-full p-3 bg-[#2F3349] rounded-lg">
-            <p className="text-center font-mono text-xs break-all">{copyPasteCode}</p>
+            <p className="text-center font-mono text-xs break-all">
+              {copyPasteCode || 'Carregando código...'}
+            </p>
           </div>
-          <Button onClick={handleCopy} className="w-full bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleCopy} className="w-full bg-blue-600 hover:bg-blue-700" disabled={!copyPasteCode}>
             <Copy className="mr-2 h-4 w-4" />
             Copiar Código
           </Button>
@@ -42,4 +46,5 @@ const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copy
     </Dialog>
   );
 };
+
 export default PixModal;
