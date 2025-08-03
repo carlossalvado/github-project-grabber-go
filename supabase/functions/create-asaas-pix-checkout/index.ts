@@ -89,6 +89,8 @@ serve(async (req) => {
       value: gift.price / 100,
       description: `Compra do presente: ${gift.name}`,
       externalReference: `GIFT-${giftId.substring(0, 8)}-${Date.now()}`,
+      // Define tempo de expiração do PIX para 5 minutos
+      postalService: false,
     };
 
     const asaasResponse = await fetch("https://api.asaas.com/v3/payments", {
@@ -114,6 +116,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       qrCode: pixQrCodeData.encodedImage,
       copyPasteCode: pixQrCodeData.payload,
+      paymentId: asaasData.id,
+      externalReference: asaasPayload.externalReference,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
