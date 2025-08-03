@@ -39,6 +39,39 @@ const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copy
     return () => clearInterval(timer);
   }, [isOpen, onClose, onTimeout]);
 
+  // Polling para verificar se o pagamento foi confirmado
+  useEffect(() => {
+    if (!isOpen || !paymentId) return;
+
+    const checkPayment = async () => {
+      try {
+        const response = await fetch(`https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/check-asaas-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhlZHh4YnNpZW9henJtYmF5emFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczNjAxNjQsImV4cCI6MjA2MjkzNjE2NH0.pPjEGJ0gTtLxeGUrkDeuh_7zkQWGbD2liccv8kRPJXw'
+          },
+          body: JSON.stringify({ paymentId })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'RECEIVED') {
+            toast.success("Pagamento confirmado! Presente enviado!");
+            onClose();
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar pagamento:", error);
+      }
+    };
+
+    // Verifica a cada 3 segundos
+    const pollInterval = setInterval(checkPayment, 3000);
+    
+    return () => clearInterval(pollInterval);
+  }, [isOpen, paymentId, onClose]);
+
   const handleCopy = () => {
     if (copyPasteCode) {
       navigator.clipboard.writeText(copyPasteCode);
