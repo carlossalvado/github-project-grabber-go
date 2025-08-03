@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Mic, Phone, X } from 'lucide-react';
 import PixCheckoutButton from '@/components/PixCheckoutButton';
 
-const CreditsSelection = ({ onClose }) => {
+const CreditsSelection = ({ onClose }: { onClose: () => void }) => {
   const [selectedType, setSelectedType] = useState('audio'); // 'audio' ou 'voice'
   const [selectedAmount, setSelectedAmount] = useState(null);
 

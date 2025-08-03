@@ -193,8 +193,8 @@ const ChatTextAudioPage = () => {
       
       {/* ===== CORREÇÃO NA CHAMADA DO GiftSelection ===== */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
-      {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} recipientId={agentData.id} />)}
-      {showCreditsSelection && (<CreditsSelection onClose={() => setShowCreditsSelection(false)} onSelectAudioCredits={() => {}} onSelectVoiceCredits={() => {}} />)}
+      {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} />)}
+      {showCreditsSelection && (<CreditsSelection onClose={() => setShowCreditsSelection(false)} />)}
       
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />

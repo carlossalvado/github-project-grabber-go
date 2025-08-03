@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import PixCheckoutButton from './PixCheckoutButton';
+import PixModal from './PixModal';
 
 interface Gift {
   id: string;
@@ -15,13 +15,19 @@ interface Gift {
 
 interface GiftSelectionProps {
   onClose: () => void;
-  recipientId: string; 
 }
 
-const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, recipientId }) => {
+const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose }) => {
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [selectedGift, setSelectedGift] = useState<string | null>(null);
   const [loadingGifts, setLoadingGifts] = useState(true);
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [pixData, setPixData] = useState<{
+    qrCode: string;
+    copyPasteCode: string;
+    paymentId: string;
+  } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchGifts = async () => {
@@ -45,6 +51,69 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, recipientId }) =
 
     fetchGifts();
   }, []);
+
+  const handleGiftPurchase = async () => {
+    if (!selectedGift) return;
+
+    console.log("Iniciando compra de presente:", selectedGiftDetails?.name);
+    setIsProcessing(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await supabase.functions.invoke('create-asaas-pix-checkout', {
+        body: { giftId: selectedGift },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      console.log("Resposta da function invoke:", response);
+
+      if (response.error) {
+        console.log("Erro na function invoke:", response.error);
+        throw response.error;
+      }
+
+      if (response.data?.qrCode && response.data?.copyPasteCode) {
+        setPixData({
+          qrCode: response.data.qrCode,
+          copyPasteCode: response.data.copyPasteCode,
+          paymentId: response.data.paymentId,
+        });
+        setIsPixModalOpen(true);
+      } else {
+        throw new Error("Dados de pagamento incompletos");
+      }
+    } catch (error) {
+      console.log("Erro ao processar compra:", error);
+      toast.error("Erro ao processar compra. Tente novamente.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePixModalTimeout = async () => {
+    if (pixData?.paymentId) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await supabase.functions.invoke('cancel-asaas-payment', {
+            body: { paymentId: pixData.paymentId },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao cancelar pagamento:", error);
+      }
+    }
+    setPixData(null);
+  };
 
   const selectedGiftDetails = gifts.find(g => g.id === selectedGift);
 
@@ -91,20 +160,36 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, recipientId }) =
             ))}
           </div>
           
-          {/* ===== ESTA É A LINHA ONDE A INTEGRAÇÃO ACONTECE ===== */}
-          <PixCheckoutButton
-            checkoutType="gift"
-            giftId={selectedGift}
-            recipientId={recipientId}
+          <Button
+            onClick={handleGiftPurchase}
+            disabled={!selectedGift || isProcessing}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed"
-            disabled={!selectedGift}
           >
-            {selectedGiftDetails 
-              ? `Pagar com PIX (R$ ${(selectedGiftDetails.price / 100).toFixed(2)})`
-              : 'Selecione um Presente'}
-          </PixCheckoutButton>
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processando...
+              </>
+            ) : selectedGiftDetails ? (
+              `Pagar com PIX (R$ ${(selectedGiftDetails.price / 100).toFixed(2)})`
+            ) : (
+              'Selecione um Presente'
+            )}
+          </Button>
         </div>
       )}
+
+      <PixModal
+        isOpen={isPixModalOpen}
+        onClose={() => {
+          setIsPixModalOpen(false);
+          setPixData(null);
+        }}
+        qrCodeBase64={pixData?.qrCode || ''}
+        copyPasteCode={pixData?.copyPasteCode || ''}
+        paymentId={pixData?.paymentId}
+        onTimeout={handlePixModalTimeout}
+      />
     </div>
   );
 };

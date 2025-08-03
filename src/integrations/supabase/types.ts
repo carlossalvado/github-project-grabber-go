@@ -220,6 +220,54 @@ export type Database = {
         }
         Relationships: []
       }
+      picpay_payments: {
+        Row: {
+          created_at: string
+          id: number
+          picpay_authorization_id: string | null
+          plan_id: number | null
+          reference_id: string
+          status: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          picpay_authorization_id?: string | null
+          plan_id?: number | null
+          reference_id: string
+          status?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          picpay_authorization_id?: string | null
+          plan_id?: number | null
+          reference_id?: string
+          status?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picpay_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picpay_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_credits_config: {
         Row: {
           created_at: string
@@ -279,30 +327,45 @@ export type Database = {
       }
       profiles: {
         Row: {
+          asaas_customer_id: string | null
           avatar_url: string | null
+          cpf: string | null
           created_at: string
           full_name: string | null
           id: string
+          phone: string | null
           plan_active: boolean | null
           plan_name: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string
         }
         Insert: {
+          asaas_customer_id?: string | null
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name?: string | null
           id: string
+          phone?: string | null
           plan_active?: boolean | null
           plan_name?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
         }
         Update: {
+          asaas_customer_id?: string | null
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          phone?: string | null
           plan_active?: boolean | null
           plan_name?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -350,6 +413,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          picpay_reference_id: string
+          product_details: Json | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          picpay_reference_id: string
+          product_details?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          picpay_reference_id?: string
+          product_details?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_audio_credits: {
         Row: {

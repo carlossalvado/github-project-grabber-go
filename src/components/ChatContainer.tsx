@@ -302,7 +302,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       {showGiftSelection && (
         <GiftSelection 
           onClose={() => setShowGiftSelection(false)} 
-          onSelectGift={handleSendGift}
         />
       )}
     </div>
