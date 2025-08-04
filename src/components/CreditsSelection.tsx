@@ -1,83 +1,60 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Mic, Phone, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 import PixCheckoutButton from '@/components/PixCheckoutButton';
+import { Database } from '@/integrations/supabase/types'; // Importa os tipos atualizados
 
-const CreditsSelection = ({ onClose }: { onClose: () => void }) => {
-  const [selectedType, setSelectedType] = useState('audio'); // 'audio' ou 'voice'
-  const [selectedAmount, setSelectedAmount] = useState(null);
+// Usa o tipo gerado pelo Supabase para garantir consistência
+type CreditPackage = Database['public']['Tables']['credit_packages']['Row'];
 
-  const audioOptions = [
-    { amount: 100, price: 10 },
-    { amount: 250, price: 20 },
-    { amount: 500, price: 35 },
-  ];
+interface CreditsSelectionProps {
+  onClose: () => void;
+}
 
-  const voiceOptions = [
-    { amount: 50, price: 10 },
-    { amount: 120, price: 20 },
-    { amount: 250, price: 35 },
-  ];
+const CreditsSelection: React.FC<CreditsSelectionProps> = ({ onClose }) => {
+  const [packages, setPackages] = useState<CreditPackage[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const options = selectedType === 'audio' ? audioOptions : voiceOptions;
+  useEffect(() => {
+    const fetchPackages = async () => {
+      setLoading(true);
+      // O 'from' agora entende 'credit_packages' por causa dos tipos atualizados
+      const { data, error } = await supabase
+        .from('credit_packages')
+        .select('*')
+        .order('price_in_cents', { ascending: true });
+
+      if (error) {
+        console.error("Erro ao buscar pacotes de crédito:", error);
+      } else {
+        // O 'data' agora corresponde ao tipo CreditPackage[]
+        setPackages(data || []);
+      }
+      setLoading(false);
+    };
+    fetchPackages();
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-[#1a1d29] border border-blue-800/30 rounded-2xl w-full max-w-md flex flex-col text-white">
-        <div className="flex justify-between items-center p-4 border-b border-blue-800/30">
-          <h3 className="text-lg font-semibold">Comprar Créditos</h3>
-          <button onClick={onClose} className="text-blue-200 hover:text-white p-1 rounded-full">
-            <X size={20} />
-          </button>
+    <div className="absolute bottom-20 right-4 bg-[#2F3349] p-4 rounded-lg shadow-lg z-30 w-64 border border-blue-800/50">
+      <h3 className="text-white font-bold mb-4 text-center">Comprar Créditos</h3>
+      {loading ? (
+        <div className="flex justify-center items-center h-24">
+          <Loader2 className="animate-spin text-white" />
         </div>
-
-        <div className="p-4">
-          <div className="grid grid-cols-2 gap-2 mb-4 bg-[#2F3349] p-1 rounded-lg">
-            <Button
-              onClick={() => { setSelectedType('audio'); setSelectedAmount(null); }}
-              className={`w-full ${selectedType === 'audio' ? 'bg-blue-600' : 'bg-transparent text-blue-200'}`}
-            >
-              <Mic className="mr-2 h-4 w-4" /> Áudio
-            </Button>
-            <Button
-              onClick={() => { setSelectedType('voice'); setSelectedAmount(null); }}
-              className={`w-full ${selectedType === 'voice' ? 'bg-blue-600' : 'bg-transparent text-blue-200'}`}
-            >
-              <Phone className="mr-2 h-4 w-4" /> Voz
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            {options.map((option) => (
-              <button
-                key={option.amount}
-                onClick={() => setSelectedAmount(option.amount)}
-                className={`p-4 rounded-lg border-2 text-center transition-all ${
-                  selectedAmount === option.amount 
-                    ? 'border-blue-500 bg-blue-900/50' 
-                    : 'border-blue-800/50 hover:border-blue-400'
-                }`}
-              >
-                <div className="text-xl font-bold">{option.amount}</div>
-                <div className="text-sm text-blue-300">R$ {option.price.toFixed(2)}</div>
-              </button>
-            ))}
-          </div>
+      ) : (
+        <div className="space-y-2">
+          {packages.map((pkg) => (
+            <PixCheckoutButton
+              key={pkg.id}
+              purchaseType="credit"
+              itemId={pkg.id}
+              displayText={`${pkg.credits_amount} Créditos - R$ ${(pkg.price_in_cents / 100).toFixed(2)}`}
+              onPurchaseSuccess={onClose}
+            />
+          ))}
         </div>
-
-        <div className="p-4 border-t border-blue-800/30">
-          <PixCheckoutButton
-            checkoutType={selectedType === 'audio' ? 'audio' : 'voice'}
-            amount={selectedAmount}
-            className="w-full bg-blue-600 hover:bg-blue-700 font-semibold py-3"
-            disabled={!selectedAmount}
-          >
-            {selectedAmount 
-              ? `Pagar com PIX` 
-              : 'Selecione um pacote'}
-          </PixCheckoutButton>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

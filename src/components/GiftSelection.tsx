@@ -3,31 +3,24 @@ import { Button } from '@/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import PixModal from './PixModal';
+import { useCredits } from '@/hooks/useCredits';
+import { useAuth } from '@/contexts/AuthContext';
+import { Database } from '@/integrations/supabase/types';
 
-interface Gift {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-}
+type Gift = Database['public']['Tables']['gifts']['Row'];
 
 interface GiftSelectionProps {
   onClose: () => void;
+  recipientId: string; // Mantido para conformidade com o código original, embora não usado na lógica de envio
 }
 
-const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose }) => {
+const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose, recipientId }) => {
+  const { user } = useAuth();
   const [gifts, setGifts] = useState<Gift[]>([]);
-  const [selectedGift, setSelectedGift] = useState<string | null>(null);
+  const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   const [loadingGifts, setLoadingGifts] = useState(true);
-  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
-  const [pixData, setPixData] = useState<{
-    qrCode: string;
-    copyPasteCode: string;
-    paymentId: string;
-  } | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const { credits, consumeCredits } = useCredits();
 
   useEffect(() => {
     const fetchGifts = async () => {
@@ -35,8 +28,8 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose }) => {
       try {
         const { data, error } = await supabase
           .from('gifts')
-          .select('id, name, description, price, image_url')
-          .order('price', { ascending: true });
+          .select('*')
+          .order('credit_cost', { ascending: true });
           
         if (error) throw error;
         setGifts(data as Gift[]);
@@ -52,73 +45,74 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose }) => {
     fetchGifts();
   }, []);
 
-  const handleGiftPurchase = async () => {
-    if (!selectedGift) return;
+  const handleSendGift = async () => {
+    if (!selectedGiftId || !user) {
+      toast.error("Por favor, selecione um presente.");
+      return;
+    }
 
-    console.log("Iniciando compra de presente:", selectedGiftDetails?.name);
-    setIsProcessing(true);
+    const selectedGiftDetails = gifts.find(g => g.id === selectedGiftId);
+    if (!selectedGiftDetails) {
+      toast.error("Presente selecionado não é válido.");
+      return;
+    }
+
+    if (credits < selectedGiftDetails.credit_cost) {
+      toast.error("Créditos insuficientes para enviar este presente.");
+      return;
+    }
+
+    setIsSending(true);
+
+    const success = await consumeCredits(selectedGiftDetails.credit_cost);
     
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error("Usuário não autenticado");
-      }
-
-      const response = await supabase.functions.invoke('create-asaas-pix-checkout', {
-        body: { giftId: selectedGift },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      console.log("Resposta da function invoke:", response);
-
-      if (response.error) {
-        console.log("Erro na function invoke:", response.error);
-        throw response.error;
-      }
-
-      if (response.data?.qrCode && response.data?.copyPasteCode) {
-        setPixData({
-          qrCode: response.data.qrCode,
-          copyPasteCode: response.data.copyPasteCode,
-          paymentId: response.data.paymentId,
-        });
-        setIsPixModalOpen(true);
-      } else {
-        throw new Error("Dados de pagamento incompletos");
-      }
-    } catch (error) {
-      console.log("Erro ao processar compra:", error);
-      toast.error("Erro ao processar compra. Tente novamente.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handlePixModalTimeout = async () => {
-    if (pixData?.paymentId) {
+    if (success) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          await supabase.functions.invoke('cancel-asaas-payment', {
-            body: { paymentId: pixData.paymentId },
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          });
+        const { data: chat, error: chatError } = await supabase
+          .from('chats')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        let chatId = chat?.id;
+
+        if (chatError && chatError.code !== 'PGRST116') throw chatError;
+
+        if (!chatId) {
+            const { data: newChat, error: newChatError } = await supabase.from('chats').insert({ user_id: user.id, title: "Presente Recebido"}).select('id').single();
+            if(newChatError || !newChat) throw new Error("Não foi possível encontrar ou criar um chat para enviar o presente.");
+            chatId = newChat.id;
         }
-      } catch (error) {
-        console.error("Erro ao cancelar pagamento:", error);
+
+        const giftMessage = `🎁 Presente recebido: ${selectedGiftDetails.name} ${selectedGiftDetails.image_url}`;
+
+        const { error: messageError } = await supabase.from('chat_messages').insert({
+          chat_id: chatId,
+          user_id: user.id,
+          message_type: 'assistant',
+          text_content: giftMessage,
+          status: 'completed'
+        });
+
+        if (messageError) throw messageError;
+
+        toast.success(`Presente '${selectedGiftDetails.name}' enviado com sucesso!`);
+        onClose();
+
+      } catch (error: any) {
+        toast.error(`Erro ao enviar o presente: ${error.message}`);
       }
     }
-    setPixData(null);
+    
+    setIsSending(false);
   };
 
-  const selectedGiftDetails = gifts.find(g => g.id === selectedGift);
+  const selectedGiftDetails = gifts.find(g => g.id === selectedGiftId);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1d29] rounded-t-3xl shadow-2xl max-h-[60vh] flex flex-col border-t border-blue-800/30">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1d29] rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col border-t border-blue-800/30">
       <div className="flex justify-between items-center p-4 border-b border-blue-800/30 flex-shrink-0">
         <h3 className="text-lg font-semibold text-white">Enviar Presente</h3>
         <button 
@@ -138,58 +132,41 @@ const GiftSelection: React.FC<GiftSelectionProps> = ({ onClose }) => {
         </div>
       ) : (
         <div className="flex-1 p-4 overflow-y-auto">
+          <div className="text-center text-sm text-blue-300 mb-4">Seu saldo: <span className="font-bold text-orange-400">{credits}</span> créditos</div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-4">
             {gifts.map((gift) => (
               <button
                 key={gift.id}
                 className={`aspect-square p-3 md:p-4 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center text-center ${
-                  selectedGift === gift.id 
+                  selectedGiftId === gift.id 
                     ? 'border-blue-500 bg-blue-900/50 shadow-lg' 
                     : 'border-blue-800/50 hover:border-blue-400 hover:bg-blue-900/30'
                 }`}
-                onClick={() => setSelectedGift(gift.id)}
+                onClick={() => setSelectedGiftId(gift.id)}
               >
                 <div className="text-4xl md:text-5xl mb-1 md:mb-2">{gift.image_url}</div>
                 <div className="text-xs md:text-sm text-white font-medium leading-tight mb-1">
                   {gift.name}
                 </div>
-                <div className="text-xs md:text-sm text-blue-400 font-bold">
-                  R$ {(gift.price / 100).toFixed(2)}
+                <div className="text-xs md:text-sm text-orange-400 font-bold">
+                  {gift.credit_cost} créditos
                 </div>
               </button>
             ))}
           </div>
           
           <Button
-            onClick={handleGiftPurchase}
-            disabled={!selectedGift || isProcessing}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            onClick={handleSendGift}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all duration-200 disabled:bg-gray-600 disabled:cursor-not-allowed"
+            disabled={!selectedGiftId || isSending}
           >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processando...
-              </>
-            ) : selectedGiftDetails ? (
-              `Pagar com PIX (R$ ${(selectedGiftDetails.price / 100).toFixed(2)})`
-            ) : (
-              'Selecione um Presente'
-            )}
+            {isSending ? <Loader2 className="animate-spin h-5 w-5" /> : 
+              selectedGiftDetails 
+              ? `Enviar por ${selectedGiftDetails.credit_cost} créditos`
+              : 'Selecione um Presente'}
           </Button>
         </div>
       )}
-
-      <PixModal
-        isOpen={isPixModalOpen}
-        onClose={() => {
-          setIsPixModalOpen(false);
-          setPixData(null);
-        }}
-        qrCodeBase64={pixData?.qrCode || ''}
-        copyPasteCode={pixData?.copyPasteCode || ''}
-        paymentId={pixData?.paymentId}
-        onTimeout={handlePixModalTimeout}
-      />
     </div>
   );
 };

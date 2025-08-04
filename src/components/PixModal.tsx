@@ -1,124 +1,135 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Copy, Clock } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { CheckCircle, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// A INTERFACE DE PROPRIEDADES CORRIGIDA
 interface PixModalProps {
   isOpen: boolean;
   onClose: () => void;
-  qrCodeBase64: string;
+  qrCode: string;
   copyPasteCode: string;
-  paymentId?: string;
-  onTimeout?: () => void;
+  paymentId: string;
+  onPaymentSuccess: () => void;
 }
 
-const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCodeBase64, copyPasteCode, paymentId, onTimeout }) => {
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutos em segundos
+const PixModal: React.FC<PixModalProps> = ({ isOpen, onClose, qrCode, copyPasteCode, paymentId, onPaymentSuccess }) => {
+  const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'CONFIRMED'>('PENDING');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(copyPasteCode)
+      .then(() => toast.success("Código PIX copiado!"))
+      .catch(err => toast.error("Falha ao copiar o código."));
+  };
 
   useEffect(() => {
-    if (!isOpen) {
-      setTimeLeft(300); // Reset quando modal abre
-      return;
+    if (isOpen) {
+      setPaymentStatus('PENDING');
     }
+  }, [isOpen, paymentId]);
 
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          // Tempo esgotado
-          clearInterval(timer);
-          toast.error("Tempo para pagamento esgotado");
-          onTimeout?.();
-          onClose();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isOpen, onClose, onTimeout]);
-
-  // Polling para verificar se o pagamento foi confirmado
   useEffect(() => {
-    if (!isOpen || !paymentId) return;
-
     const checkPayment = async () => {
+      if (!paymentId) return;
+
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        console.error("Não foi possível verificar o pagamento: usuário não autenticado ou erro de sessão.", sessionError);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        return;
+      }
+
+      console.log(`Verificando status do pagamento ${paymentId}...`);
+
       try {
-        const response = await fetch(`https://hedxxbsieoazrmbayzab.supabase.co/functions/v1/check-asaas-payment`, {
-          method: 'POST',
+        const { data, error } = await supabase.functions.invoke('check-asaas-payment', {
+          body: { paymentId },
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhlZHh4YnNpZW9henJtYmF5emFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczNjAxNjQsImV4cCI6MjA2MjkzNjE2NH0.pPjEGJ0gTtLxeGUrkDeuh_7zkQWGbD2liccv8kRPJXw'
+            'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ paymentId })
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === 'RECEIVED') {
-            toast.success("Pagamento confirmado! Presente enviado!");
-            onClose();
-          }
+        if (error) {
+          console.error("Erro ao invocar a função check-asaas-payment.", error);
+          return; 
         }
-      } catch (error) {
-        console.error("Erro ao verificar pagamento:", error);
+
+        if (data?.status === "CONFIRMED" || data?.status === "RECEIVED") {
+          console.log("✅ Pagamento confirmado pelo modal!");
+          setPaymentStatus("CONFIRMED");
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          
+          setTimeout(() => {
+            onPaymentSuccess();
+            onClose();
+          }, 2000); 
+        } else {
+          console.log("...Aguardando pagamento. Status:", data?.status);
+        }
+      } catch (e) {
+        console.error("Falha crítica na chamada da função.", e);
+        if (intervalRef.current) clearInterval(intervalRef.current);
       }
     };
 
-    // Verifica a cada 3 segundos
-    const pollInterval = setInterval(checkPayment, 3000);
-    
-    return () => clearInterval(pollInterval);
-  }, [isOpen, paymentId, onClose]);
-
-  const handleCopy = () => {
-    if (copyPasteCode) {
-      navigator.clipboard.writeText(copyPasteCode);
-      toast.success("Código PIX copiado!");
+    if (isOpen && paymentStatus === 'PENDING') {
+      intervalRef.current = setInterval(checkPayment, 5000);
     }
-  };
 
-  // Formata o tempo restante
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Constrói a Data URL completa para a imagem do QR Code
-  const qrCodeSrc = qrCodeBase64 ? `data:image/png;base64,${qrCodeBase64}` : '';
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isOpen, paymentId, paymentStatus, onPaymentSuccess, onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-[#1a1d29] border-blue-800/30 text-white">
+      <DialogContent className="bg-[#2F3349] border-blue-800/50 text-white max-w-sm w-full p-6">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl">Pague com PIX</DialogTitle>
+          <DialogTitle className="text-center text-xl font-bold">
+            {paymentStatus === 'PENDING' ? 'Pague com PIX' : 'Pagamento Aprovado!'}
+          </DialogTitle>
           <DialogDescription className="text-center text-blue-300">
-            Escaneie o QR Code com o app do seu banco.
+            {paymentStatus === 'PENDING' 
+              ? 'Abra o app do seu banco e escaneie o código abaixo.'
+              : 'Seus créditos serão adicionados em breve!'}
           </DialogDescription>
-          <div className="flex items-center justify-center gap-2 mt-2 p-2 bg-orange-900/20 rounded-lg border border-orange-500/20">
-            <Clock className="h-4 w-4 text-orange-400" />
-            <span className="text-orange-300 font-mono text-sm">
-              Tempo restante: {formatTime(timeLeft)}
-            </span>
-          </div>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-4">
-          <div className="p-2 bg-white rounded-lg">
-            {/* CORREÇÃO: Utiliza a variável qrCodeSrc que contém o prefixo correto */}
-            {qrCodeSrc && <img src={qrCodeSrc} alt="PIX QR Code" className="w-48 h-48" />}
-          </div>
-          <div className="w-full p-3 bg-[#2F3349] rounded-lg">
-            <p className="text-center font-mono text-xs break-all">
-              {copyPasteCode || 'Carregando código...'}
-            </p>
-          </div>
-          <Button onClick={handleCopy} className="w-full bg-blue-600 hover:bg-blue-700" disabled={!copyPasteCode}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copiar Código
-          </Button>
+
+        <div className="flex justify-center items-center my-6 h-64 bg-[#1a1d29] rounded-lg">
+          {paymentStatus === 'PENDING' ? (
+            qrCode ? (
+              <img src={`data:image/png;base64,${qrCode}`} alt="QR Code PIX" className="rounded-lg border-4 border-white" />
+            ) : (
+              <p className="text-red-400">Erro ao carregar QR Code.</p>
+            )
+          ) : (
+            <div className="flex flex-col items-center justify-center text-green-400">
+              <CheckCircle size={80} className="animate-pulse" />
+            </div>
+          )}
         </div>
+
+        {paymentStatus === 'PENDING' && (
+          <div className="flex flex-col space-y-4">
+            <p className="text-center text-sm text-blue-300">Ou use o PIX Copia e Cola:</p>
+            <Button
+              onClick={handleCopyToClipboard}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold w-full truncate"
+            >
+              {copyPasteCode ? 'Clique para Copiar o Código' : 'Código indisponível'}
+            </Button>
+          </div>
+        )}
+        
+        <Button variant="ghost" onClick={onClose} className="absolute top-4 right-4 text-blue-300 hover:text-white p-2">
+          <X size={20} />
+        </Button>
       </DialogContent>
     </Dialog>
   );

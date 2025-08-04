@@ -3,15 +3,14 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
-import { useAudioCredits } from '@/hooks/useAudioCredits';
-import { useVoiceCredits } from '@/hooks/useVoiceCredits';
+import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -21,19 +20,17 @@ import GiftSelection from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import CreditsPurchaseButton from '@/components/CreditsPurchaseButton';
-import CreditsSelection from '@/components/CreditsSelection';
+import CreditsPurchaseModal from '@/components/CreditsPurchaseModal'; // IMPORTANDO O NOVO MODAL
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { isTrialActive, loading: profileLoading, hasPlanActive, getPlanName } = useUserProfile();
   const { user } = useAuth();
-  const { messages, addMessage, clearMessages } = useLocalCache();
+  const { messages, addMessage, clearMessages, loadMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
-  const { credits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
-  const { refreshCredits: refreshVoiceCredits } = useVoiceCredits();
+  const { credits, consumeCredits, initializeCredits, refreshCredits, isLoading: creditsLoading } = useCredits();
       
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
@@ -43,7 +40,7 @@ const ChatTextAudioPage = () => {
   const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [selectedImageName, setSelectedImageName] = useState('');
-  const [showCreditsSelection, setShowCreditsSelection] = useState(false);
+  const [showCreditsPurchaseModal, setShowCreditsPurchaseModal] = useState(false); // NOVO ESTADO
   
   const [agentData, setAgentData] = useState({
     id: '',
@@ -55,9 +52,22 @@ const ChatTextAudioPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      initializeCredits(user.id);
+      loadMessages(user.id);
+    }
+  }, [user?.id, initializeCredits, loadMessages]);
   
   useEffect(() => {
-    // ... (seu useEffect de viewport continua igual)
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    return () => window.removeEventListener('resize', setViewportHeight);
   }, []);
   
   useEffect(() => {
@@ -90,64 +100,93 @@ const ChatTextAudioPage = () => {
   }, [messages]);
 
   useEffect(() => {
-    // ... (sua lógica de URL params continua igual, mas a lógica de 'gift_success' agora é gerenciada pelo webhook)
-  }, [refreshCredits, refreshVoiceCredits]);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('credit_purchase_success') === 'true') {
+        toast.success('Créditos adicionados com sucesso!');
+        refreshCredits();
+        navigate('/chat/text-audio', { replace: true });
+    }
+  }, [refreshCredits, navigate]);
 
   const getAssistantResponse = async (messageText: string) => {
-    // ... (sua lógica de resposta de texto continua igual)
+    const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: messageText, timestamp: new Date().toISOString() };
+    addMessage(userMessage);
+
+    const response = await sendToN8n(messageText);
+    if (response) {
+      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
+      addMessage(assistantMessage);
+    }
   };
 
-  const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
-    // ... (sua lógica de resposta de áudio continua igual)
+  const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
+    const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', audioUrl: url, timestamp: new Date().toISOString() };
+    addMessage(userMessage);
+
+    const response = await sendAudioToN8n(audioBlob);
+    if (response && response.audioUrl) {
+      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, timestamp: new Date().toISOString() };
+      addMessage(assistantMessage);
+    }
   };
 
-  const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    // ... (sua lógica de play de áudio continua igual)
+  const handlePlayAudio = (messageId: string, url: string | undefined) => {
+    if (!url) return;
+    if (currentlyPlaying === messageId) {
+      audioRef.current?.pause();
+      setCurrentlyPlaying(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play().catch(e => console.error("Erro ao tocar áudio:", e));
+        setCurrentlyPlaying(messageId);
+        audioRef.current.onended = () => setCurrentlyPlaying(null);
+      }
+    }
   };
 
   const handleSendTextMessage = async () => {
-    // ... (sua lógica de envio de texto continua igual)
+    if (input.trim() === '') return;
+    getAssistantResponse(input.trim());
+    setInput('');
   };
   
   const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
   const handleGiftClick = () => { setShowGiftSelection(!showGiftSelection); setShowEmoticonSelector(false); };
   const handleEmoticonSelect = (emoticon: string) => { setInput(prev => prev + emoticon); setShowEmoticonSelector(false); if (inputRef.current) { inputRef.current.focus(); } };
   
-  // A FUNÇÃO ANTIGA 'handleGiftSelect' FOI REMOVIDA. A LÓGICA AGORA ESTÁ NO 'PicPayCheckoutButton'.
-  
   useEffect(() => { 
     if (audioBlob && audioUrl) { 
-      // ... (sua lógica de processamento de áudio continua igual)
+      getAssistantAudioResponse(audioBlob, audioUrl);
+      resetAudio();
     } 
-  }, [audioBlob, audioUrl]);
+  }, [audioBlob, audioUrl, resetAudio]);
   
   const handleAudioToggle = async () => {
+    const AUDIO_MESSAGE_COST = 1;
     if (isRecording) { 
       stopRecording(); 
     } else {
       if (n8nLoading || audioN8nLoading) return;
-      if (credits <= 0) { 
-        setShowCreditsSelection(true);
+      if (credits < AUDIO_MESSAGE_COST) { 
+        toast.error("Créditos insuficientes para enviar uma mensagem de áudio.");
+        setShowCreditsPurchaseModal(true);
         return; 
       }
-      const creditConsumed = await consumeCredit();
-      if (!creditConsumed) { 
-        setShowCreditsSelection(true);
-        return; 
+      const success = await consumeCredits(AUDIO_MESSAGE_COST);
+      if (success) { 
+        startRecording();
+      } else {
+        setShowCreditsPurchaseModal(true);
       }
-      startRecording();
     }
-  };
-
-  const handleCreditsPurchaseClick = () => {
-    setShowCreditsSelection(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
-    return (<AudioMessage key={message.id} id={message.id!} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={handlePlayAudio} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
+    return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
   if (profileLoading) {
@@ -159,12 +198,20 @@ const ChatTextAudioPage = () => {
     );
   }
 
-  // ... (sua lógica de verificação de plano e usuário continua igual)
+  if (!isTrialActive && !hasPlanActive()) {
+    return <Navigate to="/plans" />;
+  }
+
+  const planName = getPlanName();
+  if (planName === 'free' || planName === 'text only') {
+      return <Navigate to="/chat/text-only" />;
+  }
 
   const isLoading = n8nLoading || audioN8nLoading || isRecording;
 
   return (
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
+      <audio ref={audioRef} />
       <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-blue-200 hover:text-white" onClick={() => navigate('/profile')}><ArrowLeft size={20} /></Button>
@@ -178,8 +225,15 @@ const ChatTextAudioPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
-          <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => {}} />
+          <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" className="text-orange-400 font-bold hover:bg-blue-900/50 hover:text-orange-300 px-3">
+            {creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}
+            <PlusCircle className="ml-2 h-4 w-4"/>
+          </Button>
+          <VoiceCallButton 
+            agentName={agentData.name} 
+            agentAvatar={agentData.avatar_url} 
+            onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} 
+          />
           <Button variant="ghost" size="sm" className="text-blue-200 hover:text-white hidden sm:flex" onClick={clearMessages}>Limpar Chat</Button>
         </div>
       </div>
@@ -191,10 +245,13 @@ const ChatTextAudioPage = () => {
         </div>
       </div>
       
-      {/* ===== CORREÇÃO NA CHAMADA DO GiftSelection ===== */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
-      {showGiftSelection && (<GiftSelection onClose={() => setShowGiftSelection(false)} />)}
-      {showCreditsSelection && (<CreditsSelection onClose={() => setShowCreditsSelection(false)} />)}
+      {showGiftSelection && (<GiftSelection recipientId={agentData.id} onClose={() => setShowGiftSelection(false)} />)}
+      
+      <CreditsPurchaseModal 
+        isOpen={showCreditsPurchaseModal}
+        onClose={() => setShowCreditsPurchaseModal(false)}
+      />
       
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
@@ -233,8 +290,6 @@ const ChatTextAudioPage = () => {
             </div>
           </div>
           
-          <CreditsPurchaseButton onClick={handleCreditsPurchaseClick} />
-          
           <div className="relative flex flex-col items-center">
             <Button
               variant="ghost"
@@ -245,10 +300,10 @@ const ChatTextAudioPage = () => {
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
-            {credits <= 0 && (
+            {credits <= 0 && !isRecording && (
               <div 
                 className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center"
-                onClick={() => setShowCreditsSelection(true)}
+                onClick={() => setShowCreditsPurchaseModal(true)}
               >
                 <ShieldAlert size={16} className="text-white" />
               </div>
