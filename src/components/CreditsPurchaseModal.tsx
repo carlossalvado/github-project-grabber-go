@@ -83,7 +83,6 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
                         refreshCredits();
                         onClose();
                     }}
-                    onPixModalOpen={onClose} 
                   />
                 ))
               )}
