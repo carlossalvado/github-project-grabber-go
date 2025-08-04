@@ -728,6 +728,7 @@ const ChatTrialPage = () => {
       )}
       {showGiftSelection && (
         <GiftSelection 
+          onGiftSend={() => {}}
           onClose={() => setShowGiftSelection(false)} 
         />
       )}

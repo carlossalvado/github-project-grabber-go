@@ -301,6 +301,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
       {showGiftSelection && (
         <GiftSelection 
+          onGiftSend={() => {}}
           onClose={() => setShowGiftSelection(false)} 
         />
       )}
