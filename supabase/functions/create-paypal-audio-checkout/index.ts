@@ -154,7 +154,7 @@ serve(async (req) => {
     logStep("ERROR in create-paypal-audio-checkout", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500s,
+      status: 500,
     });
   }
 });
