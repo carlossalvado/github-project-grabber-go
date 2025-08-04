@@ -57,9 +57,11 @@ serve(async (req) => {
       return new Response('Pacote de crédito não encontrado', { status: 404 });
     }
     
-    const { error: rpcError } = await supabaseClient.rpc('increment_user_credits', {
-      user_id_param: userId,
-      credits_to_add: creditPackage.credits_amount
+    // Usar a função específica para créditos de áudio
+    const { error: rpcError } = await supabaseClient.rpc('add_audio_credits', {
+      user_uuid: userId,
+      credit_amount: creditPackage.credits_amount,
+      session_id: `ASAAS_${payment.id}`
     });
 
     if (rpcError) {
