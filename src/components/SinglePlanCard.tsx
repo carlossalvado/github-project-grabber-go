@@ -1,8 +1,8 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
-import PixCheckoutButton from '@/components/PixCheckoutButton';
 
 const SinglePlanCard = ({ plan, onSelectPlan }) => {
   return (
@@ -27,14 +27,16 @@ const SinglePlanCard = ({ plan, onSelectPlan }) => {
         </ul>
       </CardContent>
       <CardFooter>
-        <PixCheckoutButton
-          checkoutType="plan"
-          planId={plan.id}
+        <Button
           className="w-full bg-pink-600 hover:bg-pink-700"
           disabled={!plan.id}
+          onClick={() => {
+            // Implement plan selection logic here
+            console.log('Plan selected:', plan.id);
+          }}
         >
           Assinar Agora
-        </PixCheckoutButton>
+        </Button>
       </CardFooter>
     </Card>
   );

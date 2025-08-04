@@ -33,7 +33,7 @@ const ChatTrialPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { selectTextAudioPlan } = useSubscription();
-  const { messages, addMessage, updateMessage } = useLocalCache();
+  const { messages, addMessage, clearMessages, loadMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
@@ -249,6 +249,7 @@ const ChatTrialPage = () => {
     setMessageCount(prev => prev + 1);
 
     addMessage({
+      id: Date.now().toString(),
       type: 'user',
       transcription: messageText,
       timestamp: new Date().toISOString()
@@ -258,6 +259,7 @@ const ChatTrialPage = () => {
       const responseText = await sendToN8n(messageText, user.email!);
       
       addMessage({
+        id: Date.now().toString() + 'a',
         type: 'assistant',
         transcription: responseText,
         timestamp: new Date().toISOString()
@@ -266,6 +268,7 @@ const ChatTrialPage = () => {
     } catch (error: any) {
       console.error('Error generating response:', error);
       addMessage({
+        id: Date.now().toString() + 'e',
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageText}"`,
         timestamp: new Date().toISOString()
@@ -346,6 +349,7 @@ const ChatTrialPage = () => {
     };
 
     addMessage({
+      id: Date.now().toString(),
       type: 'user',
       transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
       timestamp: new Date().toISOString()
@@ -355,6 +359,7 @@ const ChatTrialPage = () => {
 
     setTimeout(() => {
       addMessage({
+        id: Date.now().toString() + 'g',
         type: 'assistant',
         transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
         timestamp: new Date().toISOString()
@@ -388,7 +393,9 @@ const ChatTrialPage = () => {
     try {
       const result = await sendAudioToN8n(audioBlob, user.email!);
       
-      const assistantMessageId = addMessage({
+      const assistantMessageId = Date.now().toString() + 'au';
+      addMessage({
+        id: assistantMessageId,
         type: 'assistant',
         transcription: result.text,
         timestamp: new Date().toISOString(),
@@ -402,6 +409,7 @@ const ChatTrialPage = () => {
     } catch (error: any) {
       console.error('Error generating audio response:', error);
       addMessage({
+        id: Date.now().toString() + 'ae',
         type: 'assistant',
         transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
         timestamp: new Date().toISOString()
@@ -451,6 +459,7 @@ const ChatTrialPage = () => {
     toast.info("Processando seu áudio...");
 
     const userMessageId = addMessage({
+        id: Date.now().toString(),
         type: 'user',
         timestamp: new Date().toISOString(),
         audioUrl: url,
@@ -459,12 +468,12 @@ const ChatTrialPage = () => {
 
     try {
       await getAssistantAudioResponse(blob, url);
-      updateMessage(userMessageId, { transcription: 'Áudio enviado' });
+      // Remove updateMessage calls since they don't exist
       resetAudio();
     } catch (error) {
       console.error('Audio processing error:', error);
       toast.error('Erro ao processar o áudio.');
-      updateMessage(userMessageId, { transcription: '(Erro no processamento do áudio)' });
+      // Remove updateMessage calls since they don't exist
       resetAudio();
     }
   };
