@@ -12,10 +12,11 @@ interface PixCheckoutButtonProps {
   itemId: string;
   displayText: string;
   onPurchaseSuccess: () => void;
+  onPixModalOpen?: () => void; // A PROPRIEDADE FOI ADICIONADA AQUI
   disabled?: boolean;
 }
 
-const PixCheckoutButton: React.FC<PixCheckoutButtonProps> = ({ purchaseType, itemId, displayText, onPurchaseSuccess, disabled }) => {
+const PixCheckoutButton: React.FC<PixCheckoutButtonProps> = ({ purchaseType, itemId, displayText, onPurchaseSuccess, onPixModalOpen, disabled }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showBuyerInfoForm, setShowBuyerInfoForm] = useState(false);
@@ -51,6 +52,12 @@ const PixCheckoutButton: React.FC<PixCheckoutButtonProps> = ({ purchaseType, ite
       if (data.error) throw new Error(data.error);
 
       setPixData(data);
+      
+      // AQUI ELE CHAMA O AVISO ANTES DE ABRIR O MODAL DO PIX
+      if (onPixModalOpen) {
+        onPixModalOpen();
+      }
+
       setShowPixModal(true);
 
     } catch (error: any) {
@@ -84,7 +91,10 @@ const PixCheckoutButton: React.FC<PixCheckoutButtonProps> = ({ purchaseType, ite
           qrCode={pixData.qrCode}
           copyPasteCode={pixData.copyPasteCode}
           paymentId={pixData.paymentId}
-          onPaymentSuccess={onPurchaseSuccess}
+          onPaymentSuccess={() => {
+            setShowPixModal(false);
+            onPurchaseSuccess();
+          }}
         />
       )}
     </>

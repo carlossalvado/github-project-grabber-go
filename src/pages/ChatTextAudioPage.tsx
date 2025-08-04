@@ -16,11 +16,11 @@ import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
-import GiftSelection from '@/components/GiftSelection';
+import GiftSelection, { Gift as GiftType } from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
-import CreditsPurchaseModal from '@/components/CreditsPurchaseModal'; // IMPORTANDO O NOVO MODAL
+import CreditsPurchaseModal from '@/components/CreditsPurchaseModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ const ChatTextAudioPage = () => {
   const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [selectedImageName, setSelectedImageName] = useState('');
-  const [showCreditsPurchaseModal, setShowCreditsPurchaseModal] = useState(false); // NOVO ESTADO
+  const [showCreditsPurchaseModal, setShowCreditsPurchaseModal] = useState(false);
   
   const [agentData, setAgentData] = useState({
     id: '',
@@ -120,12 +120,13 @@ const ChatTextAudioPage = () => {
   };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
-    const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', audioUrl: url, timestamp: new Date().toISOString() };
+    const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
 
     const response = await sendAudioToN8n(audioBlob);
     if (response && response.audioUrl) {
-      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, timestamp: new Date().toISOString() };
+      // A CORREÇÃO ESTÁ AQUI: Usando `response.text` em vez de `response.transcription`
+      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
       addMessage(assistantMessage);
     }
   };
@@ -149,6 +150,20 @@ const ChatTextAudioPage = () => {
     if (input.trim() === '') return;
     getAssistantResponse(input.trim());
     setInput('');
+  };
+
+  const handleGiftSend = async (gift: GiftType) => {
+    setShowGiftSelection(false);
+
+    const creditsConsumed = await consumeCredits(gift.credit_cost);
+    if (!creditsConsumed) {
+      toast.error("Ocorreu um erro ao processar seu pagamento. Tente novamente.");
+      return;
+    }
+
+    const giftMessageText = `🎁 Presente enviado: ${gift.name} ${gift.image_url}`;
+    
+    await getAssistantResponse(giftMessageText);
   };
   
   const handleEmoticonClick = () => { setShowEmoticonSelector(!showEmoticonSelector); setShowGiftSelection(false); };
@@ -246,7 +261,7 @@ const ChatTextAudioPage = () => {
       </div>
       
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
-      {showGiftSelection && (<GiftSelection recipientId={agentData.id} onClose={() => setShowGiftSelection(false)} />)}
+      {showGiftSelection && (<GiftSelection onGiftSend={handleGiftSend} onClose={() => setShowGiftSelection(false)} />)}
       
       <CreditsPurchaseModal 
         isOpen={showCreditsPurchaseModal}
@@ -270,6 +285,7 @@ const ChatTextAudioPage = () => {
             />
             <div className="flex items-center gap-1">
               <Button 
+                type="button"
                 variant="ghost" 
                 size="icon" 
                 onClick={handleEmoticonClick} 
@@ -279,6 +295,7 @@ const ChatTextAudioPage = () => {
                 <Smile size={16} />
               </Button>
               <Button 
+                type="button"
                 variant="ghost" 
                 size="icon" 
                 onClick={handleGiftClick} 
@@ -292,6 +309,7 @@ const ChatTextAudioPage = () => {
           
           <div className="relative flex flex-col items-center">
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}

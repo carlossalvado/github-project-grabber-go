@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import PixCheckoutButton from '@/components/PixCheckoutButton';
 import { useCredits } from '@/hooks/useCredits';
 import { Database } from '@/integrations/supabase/types';
@@ -79,15 +79,16 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
                     purchaseType="credit"
                     itemId={pkg.id}
                     displayText={`${pkg.credits_amount} Créditos - R$ ${(pkg.price_in_cents / 100).toFixed(2)}`}
-                    onPurchaseSuccess={onClose}
+                    onPurchaseSuccess={() => {
+                        refreshCredits();
+                        onClose();
+                    }}
+                    onPixModalOpen={onClose} 
                   />
                 ))
               )}
             </div>
         </div>
-        
-        {/* O BOTÃO DUPLICADO FOI REMOVIDO DESTA ÁREA */}
-        
       </DialogContent>
     </Dialog>
   );

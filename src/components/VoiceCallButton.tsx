@@ -1,132 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Phone, PhoneOff, Loader2, Mic } from 'lucide-react';
-import { useElevenLabsConversation } from '@/hooks/useElevenLabsConversation';
-import { useVoiceCredits } from '@/hooks/useVoiceCredits';
-import { cn } from '@/lib/utils';
-import VoiceCallModal from './VoiceCallModal';
+import { Phone, Loader2, ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCredits } from '@/hooks/useCredits'; // Importa o novo hook de créditos unificado
 
 interface VoiceCallButtonProps {
-  agentName?: string;
-  agentAvatar?: string;
-  onRequestVoiceCredits?: () => void;
+  agentName: string;
+  agentAvatar: string;
+  onRequestVoiceCredits: () => void;
 }
 
-const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({
-  agentName = 'Isa',
-  agentAvatar = '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png',
-  onRequestVoiceCredits
-}) => {
-  const { 
-    isConnecting, 
-    isConnected, 
-    isSpeaking, 
-    startCall, 
-    endCall 
-  } = useElevenLabsConversation();
+const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({ agentName, agentAvatar, onRequestVoiceCredits }) => {
+  const [isCalling, setIsCalling] = useState(false);
+  const { credits, consumeCredits, isLoading: creditsLoading } = useCredits(); // Usa o novo hook
 
-  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useVoiceCredits();
+  const VOICE_CALL_COST = 5; // Define o custo de uma chamada de voz
 
-  const [showModal, setShowModal] = useState(false);
-
-  useEffect(() => {
-    console.log('%c--- VoiceCallButton FOI MONTADO (CRIADO) ---', 'color: green; font-weight: bold;');
-    return () => {
-      console.log('%c--- VoiceCallButton FOI DESTRUÍDO ---', 'color: red; font-weight: bold;');
-    };
-  }, []);
-
-  const handleVoiceCreditsRequest = () => {
-    console.log('VoiceCallButton: Solicitando créditos de voz via callback direto');
-    if (onRequestVoiceCredits) {
-      onRequestVoiceCredits();
+  const handleCallClick = async () => {
+    if (credits < VOICE_CALL_COST) {
+      toast.error("Créditos insuficientes para iniciar uma chamada.");
+      onRequestVoiceCredits(); // Abre o modal de compra de créditos
+      return;
     }
-  };
 
-  const handleClick = async () => {
-    if (isConnected) {
-      await endCall();
-      setShowModal(false);
+    setIsCalling(true);
+    toast.info(`Iniciando chamada com ${agentName}...`);
+
+    const success = await consumeCredits(VOICE_CALL_COST);
+
+    if (success) {
+      // Lógica para iniciar a chamada de voz aqui
+      console.log("Créditos consumidos, iniciando a chamada...");
+      // Simula o fim da chamada após 5 segundos
+      setTimeout(() => {
+        toast.success("Chamada encerrada.");
+        setIsCalling(false);
+      }, 5000);
     } else {
-      console.log('VoiceCallButton: Tentando iniciar chamada de voz', { hasCredits, credits });
-      
-      if (credits <= 0) {
-        console.log('VoiceCallButton: Sem créditos de voz, chamando callback direto');
-        handleVoiceCreditsRequest();
-        return;
-      }
-      
-      const creditConsumed = await consumeCredit();
-      if (!creditConsumed) {
-        console.log('VoiceCallButton: Falha ao consumir crédito de voz, chamando callback direto');
-        handleVoiceCreditsRequest();
-        return;
-      }
-      
-      console.log('VoiceCallButton: Crédito consumido com sucesso, iniciando chamada');
-      setShowModal(true);
-      await startCall();
+      toast.error("Não foi possível debitar os créditos. Tente novamente.");
+      setIsCalling(false);
     }
-  };
-
-  const handleEndCall = async () => {
-    await endCall();
-    setShowModal(false);
-  };
-
-  const getIcon = () => {
-    if (isConnecting) return <Loader2 size={20} className="animate-spin" />;
-    if (isConnected && isSpeaking) return <Mic size={20} className="animate-pulse" />;
-    if (isConnected) return <PhoneOff size={20} />;
-    return <Phone size={20} />;
   };
 
   return (
-    <>
-      <div className="relative flex flex-col items-center">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0",
-            isConnected && isSpeaking && "bg-green-600 hover:bg-green-700 animate-pulse",
-            isConnected && !isSpeaking && "bg-red-600 hover:bg-red-700"
-          )}
-          onClick={handleClick}
-          disabled={isConnecting}
+    <div className="relative flex flex-col items-center">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 text-white flex-shrink-0"
+        onClick={handleCallClick}
+        disabled={isCalling}
+      >
+        {isCalling ? <Loader2 className="animate-spin" /> : <Phone />}
+      </Button>
+      
+      {credits < VOICE_CALL_COST && !isCalling && (
+        <div
+          className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center"
+          onClick={onRequestVoiceCredits}
         >
-          {getIcon()}
-        </Button>
-        
-        {credits <= 0 && !isConnected && (
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log('VoiceCallButton: Máscara de voz clicada - chamando callback direto');
-              handleVoiceCreditsRequest();
-            }}
-          >
-          </div>
-        )}
-        
-        {!creditsLoading && (
-          <span className="absolute -bottom-1 text-xs text-purple-400 font-medium bg-[#1a1d29] px-1 rounded">
-            {credits}
-          </span>
-        )}
-      </div>
+          <ShieldAlert size={16} className="text-white" />
+        </div>
+      )}
 
-      <VoiceCallModal
-        isOpen={showModal}
-        onEndCall={handleEndCall}
-        agentName={agentName}
-        agentAvatar={agentAvatar}
-        isConnected={isConnected}
-        isSpeaking={isSpeaking}
-        isConnecting={isConnecting}
-      />
-    </>
+      {!creditsLoading && (
+        <span className="absolute -bottom-1 text-xs text-green-400 font-medium bg-[#1a1d29] px-1 rounded">
+          {credits}
+        </span>
+      )}
+    </div>
   );
 };
 
