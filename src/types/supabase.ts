@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_photos: {
+        Row: {
+          agent_id: string
+          created_at: string
+          credit_cost: number
+          id: string
+          photo_url: string
+          thumbnail_url: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          photo_url: string
+          thumbnail_url?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          photo_url?: string
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_photos_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agents: {
         Row: {
           avatar_url: string
@@ -121,7 +156,7 @@ export type Database = {
           error_message: string | null
           id: string
           llm_response_text: string | null
-          message_type: Database["public"]["Enums"]["message_type"]
+          message_type: string
           response_audio_url: string | null
           status: Database["public"]["Enums"]["message_status"]
           text_content: string | null
@@ -136,7 +171,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           llm_response_text?: string | null
-          message_type: Database["public"]["Enums"]["message_type"]
+          message_type: string
           response_audio_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           text_content?: string | null
@@ -151,7 +186,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           llm_response_text?: string | null
-          message_type?: Database["public"]["Enums"]["message_type"]
+          message_type?: string
           response_audio_url?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           text_content?: string | null
@@ -193,30 +228,54 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_packages: {
+        Row: {
+          created_at: string
+          credits_amount: number
+          description: string | null
+          id: string
+          price_in_cents: number
+        }
+        Insert: {
+          created_at?: string
+          credits_amount: number
+          description?: string | null
+          id?: string
+          price_in_cents: number
+        }
+        Update: {
+          created_at?: string
+          credits_amount?: number
+          description?: string | null
+          id?: string
+          price_in_cents?: number
+        }
+        Relationships: []
+      }
       gifts: {
         Row: {
+          credit_cost: number
           description: string
           id: string
           image_url: string
           name: string
           paypal_plan_id: string | null
-          price: number
         }
         Insert: {
+          credit_cost?: number
           description: string
           id?: string
           image_url: string
           name: string
           paypal_plan_id?: string | null
-          price: number
         }
         Update: {
+          credit_cost?: number
           description?: string
           id?: string
           image_url?: string
           name?: string
           paypal_plan_id?: string | null
-          price?: number
         }
         Relationships: []
       }
@@ -327,9 +386,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          asaas_customer_id: string | null
           avatar_url: string | null
           cpf: string | null
           created_at: string
+          credits: number
           full_name: string | null
           id: string
           phone: string | null
@@ -340,9 +401,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          asaas_customer_id?: string | null
           avatar_url?: string | null
           cpf?: string | null
           created_at?: string
+          credits?: number
           full_name?: string | null
           id: string
           phone?: string | null
@@ -353,9 +416,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          asaas_customer_id?: string | null
           avatar_url?: string | null
           cpf?: string | null
           created_at?: string
+          credits?: number
           full_name?: string | null
           id?: string
           phone?: string | null
@@ -470,23 +535,26 @@ export type Database = {
       }
       user_purchased_gifts: {
         Row: {
+          asaas_payment_id: string | null
+          credit_cost: number
           gift_id: string
           id: string
-          price: number
           purchase_date: string
           user_id: string
         }
         Insert: {
+          asaas_payment_id?: string | null
+          credit_cost: number
           gift_id: string
           id?: string
-          price: number
           purchase_date?: string
           user_id: string
         }
         Update: {
+          asaas_payment_id?: string | null
+          credit_cost?: number
           gift_id?: string
           id?: string
-          price?: number
           purchase_date?: string
           user_id?: string
         }
@@ -688,9 +756,17 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      decrement_user_credits: {
+        Args: { user_id_param: string; credits_to_deduct: number }
+        Returns: boolean
+      }
       give_plan_credits: {
         Args: { user_uuid: string; plan_name_param: string }
         Returns: boolean
+      }
+      increment_user_credits: {
+        Args: { user_id_param: string; credits_to_add: number }
+        Returns: undefined
       }
       is_trial_active: {
         Args: { user_uuid: string }

@@ -3,7 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Camera, Bot, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -21,10 +21,11 @@ import AudioMessage from '@/components/AudioMessage';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import CreditsPurchaseModal from '@/components/CreditsPurchaseModal';
+import PhotoSelectionModal, { AgentPhoto } from '@/components/PhotoSelectionModal';
 
 const ChatTextAudioPage = () => {
   const navigate = useNavigate();
-  const { isTrialActive, loading: profileLoading, hasPlanActive, getPlanName } = useUserProfile();
+  const { loading: profileLoading, getPlanName } = useUserProfile();
   const { user } = useAuth();
   const { messages, addMessage, clearMessages, loadMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
@@ -41,7 +42,9 @@ const ChatTextAudioPage = () => {
   const [selectedImageUrl, setSelectedImageUrl] = useState('');
   const [selectedImageName, setSelectedImageName] = useState('');
   const [showCreditsPurchaseModal, setShowCreditsPurchaseModal] = useState(false);
-  
+  const [showPhotoSelectionModal, setShowPhotoSelectionModal] = useState(false);
+  const [isSendingPhoto, setIsSendingPhoto] = useState(false);
+
   const [agentData, setAgentData] = useState({
     id: '',
     name: 'Isa',
@@ -108,6 +111,49 @@ const ChatTextAudioPage = () => {
     }
   }, [refreshCredits, navigate]);
 
+  const handlePhotoSend = async (photo: AgentPhoto) => {
+    setIsSendingPhoto(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-agent-photo', {
+        body: { photo_id: photo.id },
+      });
+
+      if (error) {
+        let errorMsg = "Erro ao desbloquear a foto.";
+        try {
+          const errorBody = JSON.parse(error.context.text);
+          errorMsg = errorBody.error || errorMsg;
+        } catch(e) {}
+        throw new Error(errorMsg);
+      }
+      
+      const photoTextMessage = `PHOTO::${data.photo_url}`;
+      const photoMessage: CachedMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        transcription: photoTextMessage,
+        timestamp: new Date().toISOString(),
+      };
+      addMessage(photoMessage);
+
+      await refreshCredits();
+      toast.success('Foto desbloqueada com sucesso!');
+
+      const followUpMessage = "isa você enviou uma foto, pergunta se o usuario gostou";
+      const response = await sendToN8n(followUpMessage);
+      if (response) {
+        const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
+        addMessage(assistantMessage);
+      }
+
+    } catch (error: any) {
+      console.error("Erro ao solicitar foto:", error);
+      toast.error(error.message === 'Créditos insuficientes.' ? 'Créditos insuficientes!' : error.message);
+    } finally {
+      setIsSendingPhoto(false);
+    }
+  };
+
   const getAssistantResponse = async (messageText: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: messageText, timestamp: new Date().toISOString() };
     addMessage(userMessage);
@@ -125,7 +171,6 @@ const ChatTextAudioPage = () => {
 
     const response = await sendAudioToN8n(audioBlob);
     if (response && response.audioUrl) {
-      // A CORREÇÃO ESTÁ AQUI: Usando `response.text` em vez de `response.transcription`
       const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
       addMessage(assistantMessage);
     }
@@ -199,30 +244,54 @@ const ChatTextAudioPage = () => {
 
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
+
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
+    const isPhotoMessage = message.transcription.startsWith('PHOTO::');
+
+    if (isPhotoMessage) {
+      const imageUrl = message.transcription.split('::')[1];
+      const messageContainerClasses = "flex items-end gap-2";
+      const bubbleClasses = "flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-2 text-sm bg-gray-700";
+      
+      return (
+        <div key={message.id} className={messageContainerClasses}>
+          <Avatar className="h-8 w-8 cursor-pointer self-end" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
+          </Avatar>
+          <div className={bubbleClasses}>
+            <div className="rounded-lg overflow-hidden">
+              <img 
+                src={imageUrl} 
+                alt="Foto exclusiva" 
+                className="max-w-full h-auto cursor-pointer"
+                onClick={() => handleAvatarClick(imageUrl, 'Foto Exclusiva')}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
+
 
   if (profileLoading) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
         <Loader2 className="animate-spin" size={32} />
-        <p className="ml-4">Verificando seu perfil...</p>
+        <p className="ml-4">Verificando seu plano...</p>
       </div>
     );
   }
-
-  if (!isTrialActive && !hasPlanActive()) {
-    return <Navigate to="/plans" />;
+  
+  if (getPlanName() !== 'Text & Audio') {
+    return <Navigate to="/chat-trial" replace />;
   }
 
-  const planName = getPlanName();
-  if (planName === 'free' || planName === 'text only') {
-      return <Navigate to="/chat/text-only" />;
-  }
-
-  const isLoading = n8nLoading || audioN8nLoading || isRecording;
+  const isLoading = n8nLoading || audioN8nLoading || isRecording || isSendingPhoto;
 
   return (
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
@@ -235,11 +304,16 @@ const ChatTextAudioPage = () => {
             <AvatarFallback className="bg-blue-800 text-white">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <span className="font-medium text-white">{agentData.name}</span>
-            <span className="text-xs text-blue-300 block">{isLoading ? 'Pensando...' : 'Online'}</span>
+            <span className="font-medium text-white cursor-pointer" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
+            <span className="text-xs text-blue-300 block">{isLoading ? 'Processando...' : 'Online'}</span>
           </div>
         </div>
         <div className="flex gap-2 items-center">
+          <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" className="text-blue-200 font-bold hover:bg-blue-900/50 hover:text-white px-3" disabled={isLoading}>
+            {isSendingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4"/>}
+            <span className="ml-2 hidden sm:inline">Solicitar Foto</span>
+          </Button>
+
           <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" className="text-orange-400 font-bold hover:bg-blue-900/50 hover:text-orange-300 px-3">
             {creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}
             <PlusCircle className="ml-2 h-4 w-4"/>
@@ -249,7 +323,6 @@ const ChatTextAudioPage = () => {
             agentAvatar={agentData.avatar_url} 
             onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} 
           />
-          <Button variant="ghost" size="sm" className="text-blue-200 hover:text-white hidden sm:flex" onClick={clearMessages}>Limpar Chat</Button>
         </div>
       </div>
 
@@ -270,6 +343,7 @@ const ChatTextAudioPage = () => {
       
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
+      <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
       
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
@@ -284,26 +358,8 @@ const ChatTextAudioPage = () => {
               disabled={isLoading} 
             />
             <div className="flex items-center gap-1">
-              <Button 
-                type="button"
-                variant="ghost" 
-                size="icon" 
-                onClick={handleEmoticonClick} 
-                className={`flex-shrink-0 w-8 h-8 ${showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} 
-                disabled={isLoading} 
-              >
-                <Smile size={16} />
-              </Button>
-              <Button 
-                type="button"
-                variant="ghost" 
-                size="icon" 
-                onClick={handleGiftClick} 
-                className={`flex-shrink-0 w-8 h-8 ${showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} 
-                disabled={isLoading} 
-              >
-                <Gift size={16} />
-              </Button>
+              <Button type="button" variant="ghost" size="icon" onClick={handleEmoticonClick} className={`flex-shrink-0 w-8 h-8 ${showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} disabled={isLoading}><Smile size={16} /></Button>
+              <Button type="button" variant="ghost" size="icon" onClick={handleGiftClick} className={`flex-shrink-0 w-8 h-8 ${showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} disabled={isLoading}><Gift size={16} /></Button>
             </div>
           </div>
           
@@ -319,17 +375,12 @@ const ChatTextAudioPage = () => {
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
             {credits <= 0 && !isRecording && (
-              <div 
-                className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center"
-                onClick={() => setShowCreditsPurchaseModal(true)}
-              >
+              <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
                 <ShieldAlert size={16} className="text-white" />
               </div>
             )}
             {!creditsLoading && (
-              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">
-                {credits}
-              </span>
+              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">{credits}</span>
             )}
           </div>
         </div>

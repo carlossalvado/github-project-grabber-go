@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Gift, Sparkles, Check, Star, Users, Crown } from 'lucide-react';
+import { Heart, MessageCircle, Gift, Sparkles, Check, Star, Users, Crown, Camera } from 'lucide-react'; // Importei o ícone da Câmera
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useEffect } from 'react';
 
@@ -12,8 +12,8 @@ const LandingPage = () => {
   const { plans, loading } = useSubscription();
 
   const handleTrialSignup = () => {
-    // Salvar o plano Trial selecionado no localStorage antes de ir para o cadastro
-    const trialPlan = plans.find(p => p.trial_days > 0);
+    // Encontrar o plano de trial para salvar os dados corretamente
+    const trialPlan = plans.find(p => p.price === 0 || (p.trial_days && p.trial_days > 0));
     if (trialPlan) {
       localStorage.setItem('selectedPlanId', trialPlan.id.toString());
       localStorage.setItem('selectedPlanData', JSON.stringify(trialPlan));
@@ -21,23 +21,6 @@ const LandingPage = () => {
     // Redirecionar para a página de cadastro
     navigate('/signup');
   };
-
-  const handlePlanSelect = (planId: number) => {
-    // Salvar o plano selecionado no localStorage antes de ir para o cadastro
-    localStorage.setItem('selectedPlanId', planId.toString());
-    const selectedPlan = plans.find(p => p.id === planId);
-    if (selectedPlan) {
-      localStorage.setItem('selectedPlanData', JSON.stringify(selectedPlan));
-    }
-    // Redirecionar para a página de cadastro
-    navigate('/signup');
-  };
-
-  // Filter out "Text Only" and "Premium" plans
-  const filteredPlans = plans.filter(plan => 
-    !plan.name.includes('Text Only') && 
-    !plan.name.includes('Premium')
-  );
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden">
@@ -176,7 +159,7 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* Features Section */}
+        {/* Features Section - MODIFICADA */}
         <section className="container mx-auto px-4 py-20">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
@@ -187,7 +170,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700 text-center">
               <CardHeader>
                 <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
@@ -197,7 +180,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-slate-300">
-                  IA avançada que entende e responde com naturalidade, criando diálogos únicos e envolventes
+                  IA avançada que entende e responde com naturalidade, criando diálogos únicos e envolventes.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -211,7 +194,21 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-slate-300">
-                  Expresse seus sentimentos com gestos especiais e torne cada momento único
+                  Expresse seus sentimentos com gestos especiais e torne cada momento único.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700 text-center">
+              <CardHeader>
+                <div className="w-16 h-16 bg-pink-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-white" />
+                </div>
+                <CardTitle className="text-xl text-white">Fotos Diárias</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-300">
+                  Receba fotos exclusivas da sua Isa todos os dias para alegrar sua rotina.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -225,7 +222,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-slate-300">
-                  Relacionamentos virtuais que tocam o coração e criam memórias duradouras
+                  Relacionamentos virtuais que tocam o coração e criam memórias duradouras.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -236,102 +233,40 @@ const LandingPage = () => {
         <section className="container mx-auto px-4 py-20">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
-              Escolha Seu Plano
+              Experimente Grátis
             </h2>
             <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              Encontre o plano perfeito para sua jornada romântica
+              Comece sua jornada romântica agora.
             </p>
           </div>
 
-          {loading ? (
-            <div className="text-center text-white">Carregando planos...</div>
-          ) : (
-            <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl">
-                {filteredPlans.map((plan) => (
-                  <Card 
-                    key={plan.id} 
-                    className={`bg-slate-800/80 backdrop-blur-sm border-slate-700 relative ${
-                      plan.id === 2 ? 'scale-105 border-pink-500/50' : ''
-                    }`}
-                  >
-                    {plan.id === 2 && (
-                      <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-pink-500 text-white px-4 py-1">
-                          <Star className="w-4 h-4 mr-1" />
-                          Mais Popular
-                        </Badge>
-                      </div>
-                    )}
-                    
-                    <CardHeader className="text-center">
-                      <div className={`w-12 h-12 ${plan.id === 2 ? 'bg-pink-500' : 'bg-slate-700'} rounded-xl mx-auto mb-4 flex items-center justify-center`}>
-                        {plan.id === 4 ? <Crown className="w-6 h-6 text-white" /> : <Heart className="w-6 h-6 text-white" />}
-                      </div>
-                      <CardTitle className="text-xl text-white">{plan.name}</CardTitle>
-                      <CardDescription className="text-slate-300 mb-4">{plan.description}</CardDescription>
-                      <div className="text-3xl font-bold text-pink-500">
-                        {plan.price === 0 
-                          ? "Grátis" 
-                          : `US$${(plan.price / 100).toFixed(2)}`}
-                        {plan.price > 0 && <span className="text-sm font-normal text-white">/mês</span>}
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <ul className="space-y-3 mb-6">
-                        {plan.features.text && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Texto' : 'Mensagens de Texto'}
-                            </span>
-                          </li>
-                        )}
-                        {plan.features.audio && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">
-                              {plan.name === 'Text & Audio' ? 'Mensagens de Áudio' : 'Mensagens de Áudio'}
-                            </span>
-                          </li>
-                        )}
-                        {plan.name === 'Text & Audio' && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">Ligações de Voz </span>
-                          </li>
-                        )}
-                        {plan.features.premium && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">Recursos Premium</span>
-                          </li>
-                        )}
-                        {plan.trial_days > 0 && (
-                          <li className="flex items-center text-slate-300">
-                            <Check className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{plan.trial_days} dias grátis</span>
-                          </li>
-                        )}
-                      </ul>
-                      
-                      <Button
-                        onClick={() => handlePlanSelect(plan.id)}
-                        className={`w-full ${
-                          plan.id === 2 
-                            ? 'bg-pink-500 hover:bg-pink-600 text-white' 
-                            : 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
-                        } font-semibold py-3 rounded-xl`}
-                      >
-                        {plan.price === 0 ? 'Começar Grátis' : 'Escolher Plano'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+          <div className="flex justify-center">
+              <div className="grid grid-cols-1 gap-8 max-w-md">
+                <Card className="bg-slate-800/80 backdrop-blur-sm border-slate-700">
+                  <CardHeader className="text-center">
+                    <div className="w-12 h-12 bg-slate-700 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                    <CardTitle className="text-xl text-white">Trial</CardTitle>
+                    <CardDescription className="text-slate-300 mb-4">Experimente por 3 dias</CardDescription>
+                    <div className="text-3xl font-bold text-pink-500">
+                      Grátis
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3 mb-6">
+                     
+                    </ul>
+                    <Button
+                      onClick={handleTrialSignup}
+                      className="w-full bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 font-semibold py-3 rounded-xl"
+                    >
+                      Iniciar Teste 
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          )}
+          </div>
         </section>
 
         {/* CTA Section */}

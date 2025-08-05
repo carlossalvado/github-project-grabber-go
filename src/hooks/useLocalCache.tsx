@@ -1,66 +1,68 @@
-import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
+import { useState, useCallback } from 'react';
 
-type DbMessage = Database['public']['Tables']['chat_messages']['Row'];
-
+// Define a estrutura de dados de uma mensagem no cache
 export interface CachedMessage {
   id: string;
-  type: 'user' | 'assistant' | 'system';
-  transcription?: string;
-  audioUrl?: string;
+  type: 'user' | 'assistant';
   timestamp: string;
+  transcription: string;
+  audioUrl?: string;
+  imageUrl?: string; // Propriedade adicionada para suportar imagens
 }
 
-interface LocalCacheState {
-  messages: CachedMessage[];
-  addMessage: (message: CachedMessage) => void;
-  clearMessages: () => void;
-  loadMessages: (userId: string) => Promise<void>;
-}
+export const useLocalCache = () => {
+  const [messages, setMessages] = useState<CachedMessage[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-const useLocalCacheStore = create<LocalCacheState>((set) => ({
-  messages: [],
-  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
-  clearMessages: () => set({ messages: [] }),
-  loadMessages: async (userId: string) => {
-    try {
-      const { data: chat, error: chatError } = await supabase
-        .from('chats')
-        .select('id')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (chatError || !chat) {
-        set({ messages: [] });
-        return;
-      }
-      
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('chat_id', chat.id)
-        .order('created_at', { ascending: true });
-
-      if (messagesError) throw messagesError;
-      
-      const formattedMessages: CachedMessage[] = messagesData.map((msg: DbMessage) => ({
-        id: msg.id,
-        type: msg.message_type as 'user' | 'assistant' | 'system',
-        transcription: msg.text_content ?? undefined,
-        // CORREÇÃO: Usando a coluna correta do banco de dados
-        audioUrl: msg.response_audio_url ?? undefined, 
-        timestamp: msg.created_at,
-      }));
-
-      set({ messages: formattedMessages });
-    } catch (error) {
-      console.error("Erro ao carregar mensagens:", error);
-      set({ messages: [] });
+  // Função para carregar as mensagens do cache
+  const loadMessages = useCallback((userId: string) => {
+    if (!userId) {
+      setMessages([]);
+      return;
     }
-  },
-}));
+    setCurrentUserId(userId);
+    try {
+      const cachedData = localStorage.getItem(`chatMessages_${userId}`);
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        // Garante que o estado seja sempre um array, evitando o erro .filter
+        const loadedMessages = Array.isArray(parsedData) ? parsedData : [];
+        setMessages(loadedMessages);
+      } else {
+        setMessages([]); // Garante que o estado seja um array vazio se não houver cache
+      }
+    } catch (error) {
+      console.error('Falha ao carregar mensagens do cache:', error);
+      setMessages([]); // Garante que o estado seja um array vazio em caso de erro
+    }
+  }, []);
 
-export const useLocalCache = useLocalCacheStore;
+  // Função para adicionar uma nova mensagem
+  const addMessage = useCallback((message: CachedMessage) => {
+    setMessages(prevMessages => {
+      const updatedMessages = [...prevMessages, message];
+      if (currentUserId) {
+        try {
+          localStorage.setItem(`chatMessages_${currentUserId}`, JSON.stringify(updatedMessages));
+        } catch (error) {
+          console.error('Falha ao salvar mensagem no cache:', error);
+        }
+      }
+      return updatedMessages;
+    });
+  }, [currentUserId]);
+  
+  // Função para limpar as mensagens
+  const clearMessages = useCallback(() => {
+    if (currentUserId) {
+      try {
+        localStorage.removeItem(`chatMessages_${currentUserId}`);
+        setMessages([]);
+      } catch (error)      {
+        console.error('Falha ao limpar mensagens do cache:', error);
+      }
+    }
+  }, [currentUserId]);
+
+  return { messages, addMessage, clearMessages, loadMessages };
+};
