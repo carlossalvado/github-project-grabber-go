@@ -5,29 +5,25 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Clock, AlertTriangle, Smile, Gift, Mic, MicOff, Play, Pause, Plus, PlusCircle, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useTrialManager } from '@/hooks/useTrialManager';
-import { useAudioCredits } from '@/hooks/useAudioCredits';
-import { useVoiceCredits } from '@/hooks/useVoiceCredits';
+import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import EmoticonSelector from '@/components/EmoticonSelector';
-import GiftSelection from '@/components/GiftSelection';
-import AudioCreditsModal from '@/components/AudioCreditsModal';
+import GiftSelection, { Gift as GiftType } from '@/components/GiftSelection';
+import CreditsPurchaseModal from '@/components/CreditsPurchaseModal';
 import VoiceCallButton from '@/components/VoiceCallButton';
-import CreditsPurchaseButton from '@/components/CreditsPurchaseButton';
-import VoiceCreditsPurchaseButton from '@/components/VoiceCreditsPurchaseButton';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { cn } from '@/lib/utils';
 import TrialTimer from '@/components/TrialTimer';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useModalManager } from '@/hooks/useModalManager';
-import CreditsPurchaseManager from '@/components/CreditsPurchaseManager';
+import AudioMessage from '@/components/AudioMessage';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
@@ -38,19 +34,19 @@ const ChatTrialPage = () => {
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
-  const { credits, hasCredits, consumeCredit, refreshCredits, isLoading: creditsLoading } = useAudioCredits();
-  const { credits: voiceCredits, refreshCredits: refreshVoiceCredits } = useVoiceCredits();
-  const { activeModal, openAudioCreditsModal, openVoiceCreditsModal, closeModal } = useModalManager();
+  const { credits, consumeCredits, initializeCredits, refreshCredits, isLoading: creditsLoading } = useCredits();
   
   const [input, setInput] = useState('');
   const [messageCount, setMessageCount] = useState(0);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showEmoticonSelector, setShowEmoticonSelector] = useState(false);
   const [showGiftSelection, setShowGiftSelection] = useState(false);
+  const [showCreditsPurchaseModal, setShowCreditsPurchaseModal] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [agentData, setAgentData] = useState({
+    id: '',
     name: 'Isa',
     avatar_url: '/lovable-uploads/05b895be-b990-44e8-970d-590610ca6e4d.png'
   });
@@ -144,7 +140,7 @@ const ChatTrialPage = () => {
         if (selectedAgent) {
           const { data: agent, error: agentError } = await supabase
             .from('ai_agents')
-            .select('name, avatar_url')
+            .select('id, name, avatar_url')
             .eq('id', selectedAgent.agent_id)
             .single();
 
@@ -155,6 +151,7 @@ const ChatTrialPage = () => {
 
           if (agent) {
             setAgentData({
+              id: agent.id,
               name: agent.name,
               avatar_url: agent.avatar_url
             });
@@ -177,54 +174,22 @@ const ChatTrialPage = () => {
   }, []);
 
   useEffect(() => {
+    if (user?.id) {
+      initializeCredits(user.id);
+      loadMessages(user.id);
+    }
+  }, [user?.id, initializeCredits, loadMessages]);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const creditsSuccess = urlParams.get('credits_success');
-    const creditsAmount = urlParams.get('credits');
-    const creditsCanceled = urlParams.get('credits_canceled');
-    
-    if (creditsSuccess === 'true' && creditsAmount) {
-      toast.success(`${creditsAmount} créditos adicionados com sucesso!`);
+    if (urlParams.get('credit_purchase_success') === 'true') {
+      toast.success('Créditos adicionados com sucesso!');
       refreshCredits();
-      window.history.replaceState({}, document.title, '/chat-trial');
+      navigate('/chat-trial', { replace: true });
     }
-    
-    if (creditsCanceled === 'true') {
-      toast.error('Compra de créditos cancelada');
-      window.history.replaceState({}, document.title, '/chat-trial');
-    }
+  }, [refreshCredits, navigate]);
 
-    const voiceCreditsSuccess = urlParams.get('voice_credits_success');
-    const voiceCreditsAmount = urlParams.get('credits');
-    const voiceCreditsCanceled = urlParams.get('voice_credits_canceled');
-    
-    if (voiceCreditsSuccess === 'true' && voiceCreditsAmount) {
-      toast.success(`${voiceCreditsAmount} créditos de chamada de voz adicionados com sucesso!`);
-      refreshVoiceCredits();
-      window.history.replaceState({}, document.title, '/chat-trial');
-    }
-    
-    if (voiceCreditsCanceled === 'true') {
-      toast.error('Compra de créditos de chamada de voz cancelada');
-      window.history.replaceState({}, document.title, '/chat-trial');
-    }
-
-    const giftSuccess = urlParams.get('gift_success');
-    const giftId = urlParams.get('gift_id');
-    const giftName = urlParams.get('gift_name');
-    const giftCanceled = urlParams.get('gift_canceled');
-    
-    if (giftSuccess === 'true' && giftId && giftName) {
-      handleGiftPaymentSuccess(giftId, decodeURIComponent(giftName));
-      window.history.replaceState({}, document.title, '/chat-trial');
-    }
-    
-    if (giftCanceled === 'true') {
-      toast.error('Compra de presente cancelada');
-      window.history.replaceState({}, document.title, '/chat-trial');
-    }
-  }, []);
-
-  const handleAvatarClick = () => {
+  const handleAvatarClickSingle = () => {
     setIsProfileModalOpen(true);
   };
 
@@ -248,31 +213,23 @@ const ChatTrialPage = () => {
     setInput('');
     setMessageCount(prev => prev + 1);
 
-    addMessage({
-      id: Date.now().toString(),
-      type: 'user',
-      transcription: messageText,
-      timestamp: new Date().toISOString()
-    });
+    const userMessage: CachedMessage = { 
+      id: Date.now().toString(), 
+      type: 'user', 
+      transcription: messageText, 
+      timestamp: new Date().toISOString() 
+    };
+    addMessage(userMessage);
 
-    try {
-      const responseText = await sendToN8n(messageText, user.email!);
-      
-      addMessage({
-        id: Date.now().toString() + 'a',
-        type: 'assistant',
-        transcription: responseText,
-        timestamp: new Date().toISOString()
-      });
-
-    } catch (error: any) {
-      console.error('Error generating response:', error);
-      addMessage({
-        id: Date.now().toString() + 'e',
-        type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar sua mensagem: "${messageText}"`,
-        timestamp: new Date().toISOString()
-      });
+    const response = await sendToN8n(messageText);
+    if (response) {
+      const assistantMessage: CachedMessage = { 
+        id: Date.now().toString() + 'a', 
+        type: 'assistant', 
+        transcription: response, 
+        timestamp: new Date().toISOString() 
+      };
+      addMessage(assistantMessage);
     }
   };
 
@@ -295,129 +252,67 @@ const ChatTrialPage = () => {
     }
   };
 
-  const handleGiftSelect = async (giftId: string, giftName: string, giftPrice: number) => {
-    try {
-      console.log("Selecionando presente:", { giftId, giftName, giftPrice });
-      
-      // Get current session to include auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("Usuário não autenticado");
-      }
+  const handleGiftSend = async (gift: GiftType) => {
+    setShowGiftSelection(false);
 
-      const { data, error } = await supabase.functions.invoke('create-paypal-gift-checkout', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: {
-          giftId
-        }
-      });
-
-      if (error) {
-        console.error("Erro na function invoke:", error);
-        throw error;
-      }
-
-      if (data?.error) {
-        console.error("Erro retornado pela função:", data.error);
-        throw new Error(data.error);
-      }
-
-      console.log("Checkout session criada:", data);
-
-      if (data?.url) {
-        console.log("Redirecionando para:", data.url);
-        window.location.href = data.url;
-      } else {
-        throw new Error("URL de checkout não recebida");
-      }
-      
-      setShowGiftSelection(false);
-    } catch (error: any) {
-      console.error('Error processing gift:', error);
-      toast.error('Erro ao processar presente: ' + (error.message || 'Tente novamente'));
+    const creditsConsumed = await consumeCredits(gift.credit_cost);
+    if (!creditsConsumed) {
+      toast.error("Créditos insuficientes ou erro ao processar pagamento.");
+      return;
     }
-  };
 
-  const handleGiftPaymentSuccess = (giftId: string, giftName: string) => {
-    const giftEmojis: { [key: string]: string } = {
-      "00000000-0000-0000-0000-000000000001": "🌹",
-      "00000000-0000-0000-0000-000000000002": "🍫", 
-      "00000000-0000-0000-0000-000000000003": "🧸",
-      "00000000-0000-0000-0000-000000000004": "💐"
-    };
-
-    addMessage({
-      id: Date.now().toString(),
-      type: 'user',
-      transcription: `Enviou um presente: ${giftName} ${giftEmojis[giftId] || '🎁'}`,
-      timestamp: new Date().toISOString()
-    });
+    const giftMessageText = `🎁 Presente enviado: ${gift.name} ${gift.image_url}`;
     
-    toast.success(`Presente ${giftName} enviado com sucesso!`);
+    const messageText = giftMessageText;
+    const userMessage: CachedMessage = { 
+      id: Date.now().toString(), 
+      type: 'user', 
+      transcription: messageText, 
+      timestamp: new Date().toISOString() 
+    };
+    addMessage(userMessage);
 
-    setTimeout(() => {
-      addMessage({
-        id: Date.now().toString() + 'g',
-        type: 'assistant',
-        transcription: `Que presente lindo! Muito obrigada pelo ${giftName}! ${giftEmojis[giftId] || '🎁'} ❤️`,
-        timestamp: new Date().toISOString()
-      });
-    }, 1500);
-  };
-
-  const handlePlayAudio = (messageId: string, audioUrl: string) => {
-    if (audioRef.current && currentlyPlaying === messageId) {
-        audioRef.current.pause();
-        setCurrentlyPlaying(null);
-    } else {
-        if (audioRef.current) {
-            audioRef.current.pause();
-        }
-        audioRef.current = new Audio(audioUrl);
-        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-        setCurrentlyPlaying(messageId);
-        audioRef.current.onended = () => {
-            setCurrentlyPlaying(null);
-        };
-        audioRef.current.onerror = () => {
-            setCurrentlyPlaying(null);
-            toast.error("Erro ao reproduzir o áudio.");
-        }
+    const response = await sendToN8n(messageText);
+    if (response) {
+      const assistantMessage: CachedMessage = { 
+        id: Date.now().toString() + 'a', 
+        type: 'assistant', 
+        transcription: response, 
+        timestamp: new Date().toISOString() 
+      };
+      addMessage(assistantMessage);
     }
   };
 
-  const getAssistantAudioResponse = async (audioBlob: Blob, audioUrl: string) => {
-    if (!user) return;
-    try {
-      const result = await sendAudioToN8n(audioBlob, user.email!);
-      
-      const assistantMessageId = Date.now().toString() + 'au';
-      addMessage({
-        id: assistantMessageId,
-        type: 'assistant',
-        transcription: result.text,
-        timestamp: new Date().toISOString(),
-        audioUrl: result.audioUrl
-      });
 
-      if (result.audioUrl) {
-        handlePlayAudio(assistantMessageId, result.audioUrl);
+  const handlePlayAudio = (messageId: string, url: string | undefined) => {
+    if (!url) return;
+    if (currentlyPlaying === messageId) {
+      audioRef.current?.pause();
+      setCurrentlyPlaying(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play().catch(e => console.error("Erro ao tocar áudio:", e));
+        setCurrentlyPlaying(messageId);
+        audioRef.current.onended = () => setCurrentlyPlaying(null);
       }
+    }
+  };
 
-    } catch (error: any) {
-      console.error('Error generating audio response:', error);
-      addMessage({
-        id: Date.now().toString() + 'ae',
-        type: 'assistant',
-        transcription: `Desculpe, ocorreu um erro ao processar seu áudio.`,
-        timestamp: new Date().toISOString()
-      });
+  const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
+    const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
+    addMessage(userMessage);
+
+    const response = await sendAudioToN8n(audioBlob);
+    if (response && response.audioUrl) {
+      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
+      addMessage(assistantMessage);
     }
   };
 
   const handleAudioToggle = async () => {
+    const AUDIO_MESSAGE_COST = 1;
     if (isRecording) { 
       stopRecording(); 
     } else {
@@ -426,56 +321,49 @@ const ChatTrialPage = () => {
         toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
         return;
       }
-      
-      console.log('ChatTrialPage: Verificando créditos de áudio:', { credits, hasCredits });
-      
-      if (credits <= 0) {
-        console.log('ChatTrialPage: Sem créditos de áudio, abrindo popup de compra');
-        openAudioCreditsModal();
-        return;
+      if (credits < AUDIO_MESSAGE_COST) { 
+        toast.error("Créditos insuficientes para enviar uma mensagem de áudio.");
+        setShowCreditsPurchaseModal(true);
+        return; 
       }
-      
-      const creditConsumed = await consumeCredit();
-      if (!creditConsumed) {
-        console.log('ChatTrialPage: Falha ao consumir crédito de áudio');
-        openAudioCreditsModal();
-        return;
+      const success = await consumeCredits(AUDIO_MESSAGE_COST);
+      if (success) { 
+        startRecording();
+      } else {
+        setShowCreditsPurchaseModal(true);
       }
-      
-      startRecording();
     }
   };
 
-  useEffect(() => {
-    if (audioBlob && audioUrl) {
-      processAudioMessage(audioBlob, audioUrl);
-    }
-  }, [audioBlob, audioUrl]);
-
-  const processAudioMessage = async (blob: Blob, url: string) => {
-    if (!user) return;
-
-    setMessageCount(prev => prev + 1);
-    toast.info("Processando seu áudio...");
-
-    const userMessageId = addMessage({
-        id: Date.now().toString(),
-        type: 'user',
-        timestamp: new Date().toISOString(),
-        audioUrl: url,
-        transcription: 'Processando áudio...'
-    });
-
-    try {
-      await getAssistantAudioResponse(blob, url);
-      // Remove updateMessage calls since they don't exist
+  useEffect(() => { 
+    if (audioBlob && audioUrl) { 
+      getAssistantAudioResponse(audioBlob, audioUrl);
       resetAudio();
-    } catch (error) {
-      console.error('Audio processing error:', error);
-      toast.error('Erro ao processar o áudio.');
-      // Remove updateMessage calls since they don't exist
-      resetAudio();
-    }
+    } 
+  }, [audioBlob, audioUrl, resetAudio]);
+
+  const handleAvatarClick = (imageUrl: string, name: string) => { 
+    setIsProfileModalOpen(true); 
+  };
+
+  const renderMessage = (message: CachedMessage) => {
+    const isUserMessage = message.type === 'user';
+    return (
+      <AudioMessage 
+        key={message.id} 
+        id={message.id} 
+        content={message.transcription} 
+        audioUrl={message.audioUrl} 
+        isUser={isUserMessage} 
+        timestamp={message.timestamp} 
+        isPlaying={currentlyPlaying === message.id} 
+        onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} 
+        onAvatarClick={handleAvatarClick} 
+        agentData={agentData} 
+        userEmail={user?.email} 
+        userAvatarUrl={userAvatarUrl} 
+      />
+    );
   };
 
   const formatTime = (date: string) => {
@@ -603,7 +491,7 @@ const ChatTrialPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <Avatar className="cursor-pointer" onClick={handleAvatarClick}>
+          <Avatar className="cursor-pointer" onClick={handleAvatarClickSingle}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-orange-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
@@ -616,14 +504,15 @@ const ChatTrialPage = () => {
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1">
-            <VoiceCallButton 
-              agentName={agentData.name}
-              agentAvatar={agentData.avatar_url}
-              onRequestVoiceCredits={openVoiceCreditsModal}
-            />
-            <VoiceCreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
-          </div>
+          <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 px-3">
+            {creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}
+            <PlusCircle className="ml-2 h-4 w-4"/>
+          </Button>
+          <VoiceCallButton 
+            agentName={agentData.name}
+            agentAvatar={agentData.avatar_url}
+            onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)}
+          />
         </div>
       </div>
 
@@ -662,71 +551,16 @@ const ChatTrialPage = () => {
           WebkitOverflowScrolling: 'touch'
         }}>
           <div className="space-y-4">
-            {messages.map((message) => {
-              const isUserMessage = message.type === 'user';
-              
-              return (
-                <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}>
-                  {!isUserMessage && (
-                    <Avatar className="h-8 w-8 mr-2 flex-shrink-0 cursor-pointer" onClick={handleAvatarClick}>
-                      <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                      <AvatarFallback className="bg-orange-600 text-white">
-                        {agentData.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-
-                  <div className="max-w-[70%] space-y-1">
-                    <div className={`px-4 py-3 rounded-2xl shadow-md ${
-                      isUserMessage 
-                        ? 'bg-orange-600 text-white rounded-br-none' 
-                        : 'bg-gray-700 text-white rounded-bl-none'
-                    }`}>
-                      <p className="whitespace-pre-wrap break-words text-sm">{message.transcription}</p>
-                      {message.audioUrl && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="w-8 h-8 text-white hover:bg-white/20 rounded-full"
-                            onClick={() => handlePlayAudio(message.id!, message.audioUrl!)}
-                          >
-                            {currentlyPlaying === message.id ? <Pause size={16} /> : <Play size={16} />}
-                          </Button>
-                          <div className="flex-1 h-1 bg-white bg-opacity-30 rounded-full">
-                            <div className="w-1/3 h-full bg-white rounded-full"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className={`text-xs text-gray-500 mt-1 ${isUserMessage ? 'text-right' : 'text-left'}`}>
-                      {formatTime(message.timestamp)}
-                    </div>
-                  </div>
-
-                  {isUserMessage && (
-                    <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-                      {userAvatarUrl ? (
-                        <AvatarImage src={userAvatarUrl} alt="User" />
-                      ) : (
-                        <AvatarFallback className="bg-blue-600 text-white">
-                          {user.email?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
-                </div>
-              );
-            })}
+            {messages.map(renderMessage)}
           </div>
           
           <div ref={messagesEndRef} />
         </div>
       </div>
       
-      <CreditsPurchaseManager
-        activeModal={activeModal}
-        onClose={closeModal}
+      <CreditsPurchaseModal 
+        isOpen={showCreditsPurchaseModal}
+        onClose={() => setShowCreditsPurchaseModal(false)}
       />
 
       {showEmoticonSelector && (
@@ -737,7 +571,7 @@ const ChatTrialPage = () => {
       )}
       {showGiftSelection && (
         <GiftSelection 
-          onGiftSend={() => {}}
+          onGiftSend={handleGiftSend}
           onClose={() => setShowGiftSelection(false)} 
         />
       )}
@@ -810,14 +644,12 @@ const ChatTrialPage = () => {
                 {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
               </Button>
               
-              {credits <= 0 && (
+              {credits <= 0 && !isRecording && (
                 <div 
-                  className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center z-10"
-                  onClick={() => {
-                    console.log('ChatTrialPage: Máscara clicada - abrindo popup de compra de áudio');
-                    openAudioCreditsModal();
-                  }}
+                  className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center"
+                  onClick={() => setShowCreditsPurchaseModal(true)}
                 >
+                  <ShieldAlert size={16} className="text-white" />
                 </div>
               )}
               
@@ -827,7 +659,7 @@ const ChatTrialPage = () => {
                 </span>
               )}
             </div>
-            <CreditsPurchaseButton className="bg-green-600 hover:bg-green-700" />
+            
           </div>
         </div>
         <br></br>
