@@ -57,11 +57,26 @@ serve(async (req) => {
       return new Response('Pacote de crédito não encontrado', { status: 404 });
     }
     
+    // Buscar créditos atuais do usuário
+    const { data: currentProfile, error: fetchError } = await supabaseClient
+      .from('profiles')
+      .select('credits')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError) {
+      console.error('Erro ao buscar profile do usuário:', fetchError);
+      return new Response('Erro ao buscar dados do usuário', { status: 500 });
+    }
+
+    const currentCredits = currentProfile?.credits || 0;
+    const newCreditsTotal = currentCredits + creditPackage.credits_amount;
+
     // Adicionar créditos na tabela profiles
     const { error: updateError } = await supabaseClient
       .from('profiles')
       .update({
-        credits: supabaseClient.raw(`credits + ${creditPackage.credits_amount}`)
+        credits: newCreditsTotal
       })
       .eq('id', userId);
 
