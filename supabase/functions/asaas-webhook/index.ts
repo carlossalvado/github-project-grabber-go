@@ -57,36 +57,17 @@ serve(async (req) => {
       return new Response('Pacote de crédito não encontrado', { status: 404 });
     }
     
-    // Adicionar créditos diretamente sem usar a função RPC que tem problema com stripe_session_id
+    // Adicionar créditos na tabela profiles
     const { error: updateError } = await supabaseClient
-      .from('user_audio_credits')
-      .upsert({
-        user_id: userId,
-        credits: creditPackage.credits_amount
-      }, {
-        onConflict: 'user_id',
-        ignoreDuplicates: false
-      });
+      .from('profiles')
+      .update({
+        credits: supabaseClient.raw(`credits + ${creditPackage.credits_amount}`)
+      })
+      .eq('id', userId);
 
     if (updateError) {
-      console.error('Erro ao atualizar créditos de áudio:', updateError);
+      console.error('Erro ao atualizar créditos no profile:', updateError);
       return new Response('Erro ao processar a adição de créditos', { status: 500 });
-    }
-
-    // Registrar transação
-    const { error: transactionError } = await supabaseClient
-      .from('audio_credit_transactions')
-      .insert({
-        user_id: userId,
-        transaction_type: 'purchase',
-        amount: creditPackage.credits_amount,
-        description: 'Compra de créditos de áudio via ASAAS',
-        paypal_session_id: `ASAAS_${payment.id}` // Usando o campo paypal_session_id para armazenar o ID do ASAAS
-      });
-
-    if (transactionError) {
-      console.error('Erro ao registrar transação de áudio:', transactionError);
-      // Não falha a operação se não conseguir registrar a transação
     }
     
     console.log(`${creditPackage.credits_amount} créditos adicionados com sucesso ao usuário ${userId}.`);
