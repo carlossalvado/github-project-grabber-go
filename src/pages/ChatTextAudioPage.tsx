@@ -3,8 +3,8 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge'; // Importado para o novo indicador de status
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Camera, Bot, User, AlertTriangle } from 'lucide-react'; // Importado Badge e outros ícones
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Camera, Bot, User, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -99,7 +99,6 @@ const ChatTextAudioPage = () => {
     fetchAgentData();
   }, [user?.id]);
 
-  // MODIFICAÇÃO: Adicionado 'n8nLoading' e 'audioN8nLoading' para rolar a tela.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, n8nLoading, audioN8nLoading]);
@@ -226,7 +225,7 @@ const ChatTextAudioPage = () => {
   }, [audioBlob, audioUrl, resetAudio]);
   
   const handleAudioToggle = async () => {
-    const AUDIO_MESSAGE_COST = 1;
+    const AUDIO_MESSAGE_COST = 10;
     if (isRecording) { 
       stopRecording(); 
     } else {
@@ -248,7 +247,6 @@ const ChatTextAudioPage = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
 
-  // MODIFICAÇÃO: Posição do avatar da foto e remoção de 'self-end'.
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
     const isPhotoMessage = message.transcription.startsWith('PHOTO::');
@@ -310,7 +308,6 @@ const ChatTextAudioPage = () => {
           </Avatar>
           <div className="flex flex-col">
             <span className="font-medium text-white cursor-pointer" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
-            {/* MODIFICAÇÃO: Indicador de status dinâmico no cabeçalho */}
             <Badge variant="secondary" className="text-xs bg-blue-800 text-white min-w-[100px] flex justify-center">
               {audioN8nLoading ? (
                 <div className="flex items-center gap-1.5 text-blue-200">
@@ -352,7 +349,6 @@ const ChatTextAudioPage = () => {
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
           {messages.map(renderMessage)}
 
-          {/* MODIFICAÇÃO: Bolha de mensagem "Digitando" */}
           {n8nLoading && (
             <div className="flex items-start gap-2">
               <Avatar className="h-8 w-8 cursor-pointer">
@@ -367,7 +363,6 @@ const ChatTextAudioPage = () => {
             </div>
           )}
           
-          {/* MODIFICAÇÃO: Bolha de mensagem "Gravando Áudio" */}
           {audioN8nLoading && (
             <div className="flex items-start gap-2 mt-2">
               <Avatar className="h-8 w-8 cursor-pointer">
@@ -395,14 +390,14 @@ const ChatTextAudioPage = () => {
         onClose={() => setShowCreditsPurchaseModal(false)}
       />
       
-      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
+      {/* MODIFICAÇÃO: Adicionado 'mode="simple"' para o modal do perfil do agente. */}
+      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} mode="simple" />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
       
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
-            {/* MODIFICAÇÃO: Indicador de "Digitando" no campo de input */}
             {n8nLoading ? (
               <div className="w-full flex items-center justify-start text-blue-300 px-0 text-sm">
                 <span className="mr-1.5">Isa está digitando</span>

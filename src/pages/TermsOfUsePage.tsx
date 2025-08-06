@@ -3,15 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-const TermsAndPrivacyPage = () => {
+const TermsOfUsePage = () => {
   const navigate = useNavigate();
+
+  // MODIFICAÇÃO: Lógica de "voltar" mais robusta.
+  const handleGoBack = () => {
+    // A chave 'key' no estado do histórico nos ajuda a saber se navegamos dentro do app.
+    // 'default' geralmente significa que a página foi o primeiro ponto de entrada.
+    if (window.history.state && window.history.state.key !== 'default') {
+      // Se houver um histórico de navegação, volte uma página.
+      navigate(-1);
+    } else {
+      // Se não houver histórico (página aberta em nova aba), vá para a home.
+      navigate('/');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-300">
       <div className="container mx-auto px-4 py-12 md:py-20">
         <div className="max-w-4xl mx-auto">
           <Button 
-            onClick={() => navigate(-1)} 
+            // MODIFICAÇÃO: O clique agora chama a nova função 'handleGoBack'.
+            onClick={handleGoBack} 
             variant="ghost" 
             className="mb-8 text-pink-400 hover:bg-slate-800 hover:text-pink-300"
           >
@@ -106,4 +120,4 @@ const TermsAndPrivacyPage = () => {
   );
 };
 
-export default TermsAndPrivacyPage;
+export default TermsOfUsePage;
