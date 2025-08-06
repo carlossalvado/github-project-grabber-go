@@ -261,11 +261,11 @@ const ChatTextAudioPage = () => {
             <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
           </Avatar>
           <div className={bubbleClasses}>
-            <div className="rounded-lg overflow-hidden">
+            <div className="rounded-lg overflow-hidden w-[70%]">
               <img 
                 src={imageUrl} 
                 alt="Foto exclusiva" 
-                className="max-w-full h-auto cursor-pointer transform scale-[0.7] origin-top-left"
+                className="w-full h-auto cursor-pointer"
                 onClick={() => handleAvatarClick(imageUrl, 'Foto Exclusiva')}
               />
             </div>
