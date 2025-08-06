@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection, { Gift as GiftType } from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
+import WhatsAppMessage from '@/components/WhatsAppMessage';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import CreditsPurchaseModal from '@/components/CreditsPurchaseModal';
@@ -232,7 +233,21 @@ const ChatTrialPage = () => {
   
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
-    return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClickInMessage} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
+    return (
+      <WhatsAppMessage
+        key={message.id}
+        id={message.id}
+        content={message.transcription}
+        audioUrl={message.audioUrl}
+        isUser={isUserMessage}
+        timestamp={message.timestamp}
+        isPlaying={currentlyPlaying === message.id}
+        onPlayAudio={(messageId, audioUrl) => handlePlayAudio(messageId, audioUrl)}
+        agentData={agentData}
+        userEmail={user?.email}
+        userAvatarUrl={userAvatarUrl}
+      />
+    );
   };
 
   const remainingMessages = maxTrialMessages - messageCount;
