@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Clock, AlertTriangle, Camera, Bot, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
@@ -24,6 +24,7 @@ import AgentProfileModal from '@/components/AgentProfileModal';
 import { useTrialManager } from '@/hooks/useTrialManager';
 import TrialTimer from '@/components/TrialTimer';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import PhotoSelectionModal, { AgentPhoto } from '@/components/PhotoSelectionModal';
 
 const ChatTrialPage = () => {
   const navigate = useNavigate();
@@ -52,6 +53,9 @@ const ChatTrialPage = () => {
   });
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [messageCount, setMessageCount] = useState(0);
+  // --- ADIÇÕES PARA FOTOS ---
+  const [showPhotoSelectionModal, setShowPhotoSelectionModal] = useState(false);
+  const [isSendingPhoto, setIsSendingPhoto] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -120,7 +124,6 @@ const ChatTrialPage = () => {
   const getAssistantResponse = async (messageText: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: messageText, timestamp: new Date().toISOString() };
     addMessage(userMessage);
-
     const response = await sendToN8n(messageText);
     if (response) {
       const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
@@ -131,7 +134,6 @@ const ChatTrialPage = () => {
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
-
     const response = await sendAudioToN8n(audioBlob);
     if (response && response.audioUrl) {
       const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
@@ -156,12 +158,10 @@ const ChatTrialPage = () => {
   
   const handleSendMessage = async () => {
     if (!input.trim() || n8nLoading || !user || !isTrialActive) return;
-
     if (messageCount >= maxTrialMessages) {
       toast.error('Limite de mensagens do trial atingido! Faça upgrade para continuar.');
       return;
     }
-
     await getAssistantResponse(input.trim());
     setInput('');
   };
@@ -178,7 +178,6 @@ const ChatTrialPage = () => {
       setShowCreditsPurchaseModal(true);
       return;
     }
-
     const giftMessageText = `🎁 Presente enviado: ${gift.name} ${gift.image_url}`;
     await getAssistantResponse(giftMessageText);
   };
@@ -219,50 +218,74 @@ const ChatTrialPage = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } };
-  
-  // Função que abre o modal de imagem simples (para avatares nas mensagens)
-  const handleAvatarClickInMessage = (imageUrl: string, name: string) => { 
-    setSelectedImageUrl(imageUrl); 
-    setSelectedImageName(name); 
-    setIsProfileImageModalOpen(true); 
-  };
-  
+  const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
   const handleGoBack = () => navigate('/profile');
   const handleUpgrade = async () => await selectTextAudioPlan();
   
+  const handlePhotoSend = async (photo: AgentPhoto) => {
+    if (messageCount >= maxTrialMessages) {
+      toast.error('Limite de interações do trial atingido! Faça upgrade para continuar.');
+      return;
+    }
+    setIsSendingPhoto(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-agent-photo', { body: { photo_id: photo.id } });
+      if (error) {
+        let errorMsg = "Erro ao desbloquear a foto.";
+        try { const errorBody = JSON.parse(error.context.text); errorMsg = errorBody.error || errorMsg; } catch(e) {}
+        throw new Error(errorMsg);
+      }
+      const photoTextMessage = `PHOTO::${data.photo_url}`;
+      const photoMessage: CachedMessage = { id: Date.now().toString(), type: 'assistant', transcription: photoTextMessage, timestamp: new Date().toISOString() };
+      addMessage(photoMessage);
+      await refreshCredits();
+      toast.success('Foto desbloqueada com sucesso!');
+      const followUpMessage = "isa você enviou uma foto, pergunta se o usuario gostou";
+      const response = await sendToN8n(followUpMessage);
+      if (response) {
+        const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
+        addMessage(assistantMessage);
+      }
+    } catch (error: any) {
+      console.error("Erro ao solicitar foto:", error);
+      toast.error(error.message === 'Créditos insuficientes.' ? 'Créditos insuficientes!' : error.message);
+    } finally {
+      setIsSendingPhoto(false);
+    }
+  };
+  
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
-    return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClickInMessage} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
+    const isPhotoMessage = message.transcription.startsWith('PHOTO::');
+    if (isPhotoMessage) {
+      const imageUrl = message.transcription.split('::')[1];
+      const messageContainerClasses = "flex items-end gap-2";
+      const bubbleClasses = "flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-2 text-sm bg-gray-700";
+      return (
+        <div key={message.id} className={messageContainerClasses}>
+          <Avatar className="h-8 w-8 cursor-pointer self-end" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-orange-600"><Bot size={16} /></AvatarFallback>
+          </Avatar>
+          <div className={bubbleClasses}><div className="rounded-lg overflow-hidden"><img src={imageUrl} alt="Foto exclusiva" className="max-w-full h-auto cursor-pointer" onClick={() => handleAvatarClick(imageUrl, 'Foto Exclusiva')} /></div></div>
+        </div>
+      );
+    }
+    return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
   const remainingMessages = maxTrialMessages - messageCount;
   
   if (trialLoading) {
-    return (
-      <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
-        <Loader2 className="animate-spin" size={32} />
-        <p className="ml-4">Verificando seu trial...</p>
-      </div>
-    );
+    return (<div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center"><Loader2 className="animate-spin" size={32} /><p className="ml-4">Verificando seu trial...</p></div>);
   }
 
   if (!isTrialActive) {
-    return (
-      <div className="h-screen bg-gray-900 text-white flex items-center justify-center p-4">
-        <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Trial Expirado</h2>
-          <p className="text-gray-300 mb-6">Seu trial de 72 horas expirou. Faça upgrade para continuar!</p>
-          <div className="mt-8 flex flex-col items-center gap-4 w-full px-4">
-            <Button onClick={handleUpgrade} className="w-full max-w-xs bg-orange-600 hover:bg-orange-700 font-semibold">Fazer Upgrade</Button>
-            <Button onClick={handleGoBack} variant="outline" className="w-full max-w-xs border-gray-500 text-gray-300 hover:bg-gray-800 hover:text-white">Voltar para o Perfil</Button>
-          </div>
-        </div>
-      </div>
-    );
+    return (<div className="h-screen bg-gray-900 text-white flex items-center justify-center p-4"><div className="text-center"><AlertTriangle className="w-16 h-16 text-orange-500 mx-auto mb-4" /><h2 className="text-2xl font-bold mb-2">Trial Expirado</h2><p className="text-gray-300 mb-6">Seu trial de 72 horas expirou. Faça upgrade para continuar!</p><div className="mt-8 flex flex-col items-center gap-4 w-full px-4"><Button onClick={handleUpgrade} className="w-full max-w-xs bg-orange-600 hover:bg-orange-700 font-semibold">Fazer Upgrade</Button><Button onClick={handleGoBack} variant="outline" className="w-full max-w-xs border-gray-500 text-gray-300 hover:bg-gray-800 hover:text-white">Voltar para o Perfil</Button></div></div></div>);
   }
 
-  const isLoading = n8nLoading || audioN8nLoading || isRecording;
+  const isProcessing = n8nLoading || audioN8nLoading || isSendingPhoto;
+  const isLoading = isProcessing || isRecording;
 
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
@@ -271,19 +294,20 @@ const ChatTrialPage = () => {
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={handleGoBack}><ArrowLeft size={20} /></Button>
-          <Avatar className="cursor-pointer" onClick={() => handleAvatarClickInMessage(agentData.avatar_url, agentData.name)}>
+          <Avatar className="cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-orange-600">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
             <span className="font-medium" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
-            <Badge variant="secondary" className="text-xs bg-orange-600 text-white">
-              <Clock size={12} className="mr-1" />
-              Trial - {hoursRemaining}h restantes
-            </Badge>
+            <Badge variant="secondary" className="text-xs bg-orange-600 text-white"><Clock size={12} className="mr-1" />Trial - {hoursRemaining}h restantes</Badge>
           </div>
         </div>
         <div className="flex gap-2 items-center">
+          <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" className="text-blue-200 font-bold hover:bg-gray-700 hover:text-white px-3" disabled={isLoading || remainingMessages <= 0}>
+            {isSendingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4"/>}
+            <span className="ml-2 hidden sm:inline">Solicitar Foto</span>
+          </Button>
           <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 px-3">
             {creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}
             <PlusCircle className="ml-2 h-4 w-4"/>
@@ -291,34 +315,26 @@ const ChatTrialPage = () => {
           <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
         </div>
       </div>
-
       <div className="w-full flex justify-center items-center py-2 px-4 bg-gray-800 border-b border-gray-700">
         <Button onClick={handleUpgrade} className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold" size="sm">Fazer Upgrade Agora</Button>
       </div>
-
       {(hoursRemaining <= 12 || remainingMessages <= 3) && remainingMessages > 0 && (
         <div className="bg-orange-600/20 border-b border-orange-500/30 p-3 text-center flex-shrink-0">
-          <p className="text-orange-300 text-sm">
-            ⚠️ {remainingMessages <= 3 ? `${remainingMessages} mensagens restantes` : `${hoursRemaining} horas restantes no seu trial`}. 
-            <Button variant="link" className="text-orange-400 underline p-0 ml-1 h-auto" onClick={handleUpgrade}>Faça upgrade agora!</Button>
-          </p>
+          <p className="text-orange-300 text-sm">⚠️ {remainingMessages <= 3 ? `${remainingMessages} mensagens restantes` : `${hoursRemaining} horas restantes no seu trial`}. <Button variant="link" className="text-orange-400 underline p-0 ml-1 h-auto" onClick={handleUpgrade}>Faça upgrade agora!</Button></p>
         </div>
       )}
-
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
           {messages.map(renderMessage)}
           <div ref={messagesEndRef} />
         </div>
       </div>
-      
+      <CreditsPurchaseModal isOpen={showCreditsPurchaseModal} onClose={() => setShowCreditsPurchaseModal(false)} />
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onGiftSend={handleGiftSend} onClose={() => setShowGiftSelection(false)} />)}
-      
-      <CreditsPurchaseModal isOpen={showCreditsPurchaseModal} onClose={() => setShowCreditsPurchaseModal(false)} />
+      <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
-      
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
@@ -338,7 +354,14 @@ const ChatTrialPage = () => {
           </div>
           
           <div className="relative flex flex-col items-center">
-            <Button type="button" variant="ghost" size="icon" className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")} onClick={handleAudioToggle} disabled={isLoading || remainingMessages <= 0}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
+              onClick={handleAudioToggle}
+              disabled={isProcessing || remainingMessages <= 0}
+            >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
             {credits <= 0 && !isRecording && (
