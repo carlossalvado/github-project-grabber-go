@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox'; // Importando o Checkbox
 import { useAuth } from '@/contexts/AuthContext';
 import { Heart, Mail, Lock, User, ArrowRight, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,6 +16,11 @@ const SignupPage = () => {
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  
+  // Estados para os checkboxes de consentimento
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -41,6 +47,16 @@ const SignupPage = () => {
 
     if (password.length < 6) {
       toast.error('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    // Validação dos checkboxes
+    if (!ageConfirmed) {
+      toast.error('Você precisa confirmar que é maior de 18 anos.');
+      return;
+    }
+    if (!termsAccepted) {
+      toast.error('Você precisa aceitar os Termos de Uso e a Política de Privacidade.');
       return;
     }
 
@@ -74,8 +90,11 @@ const SignupPage = () => {
     }
   };
 
+  // Adicionando a validação dos checkboxes ao botão
+  const isButtonDisabled = isLoading || !ageConfirmed || !termsAccepted;
+
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden p-4">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-pink-900/20"></div>
       
@@ -244,18 +263,38 @@ const SignupPage = () => {
                     />
                   </div>
 
+                  {/* --- CHECKBOXES DE CONSENTIMENTO ADICIONADOS AQUI --- */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox id="age" checked={ageConfirmed} onCheckedChange={(checked) => setAgeConfirmed(Boolean(checked))} className="border-slate-600" />
+                      <Label htmlFor="age" className="text-sm font-medium leading-none text-white cursor-pointer">
+                        Declaro ser maior de 18 anos.
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(Boolean(checked))} className="border-slate-600" />
+                      <Label htmlFor="terms" className="text-sm font-medium leading-none text-white cursor-pointer">
+                        Eu li e aceito os{' '}
+                        <Link to="/terms-of-use" target="_blank" className="underline text-pink-400 hover:text-pink-300">
+                          Termos de Uso e a Política de Privacidade
+                        </Link>
+                        .
+                      </Label>
+                    </div>
+                  </div>
+
                   <Button
                     type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl"
+                    disabled={isButtonDisabled}
+                    className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                         Criando conta...
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <User className="w-5 h-5" />
                         Criar Conta
                         <ArrowRight className="w-5 h-5" />

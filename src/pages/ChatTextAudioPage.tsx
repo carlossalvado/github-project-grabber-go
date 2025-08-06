@@ -261,7 +261,7 @@ const ChatTextAudioPage = () => {
             <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
           </Avatar>
           <div className={bubbleClasses}>
-            <div className="rounded-lg overflow-hidden w-[70%]">
+            <div className="rounded-lg overflow-hidden w-[100%]">
               <img 
                 src={imageUrl} 
                 alt="Foto exclusiva" 

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +23,7 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TermsOfUsePage from "./pages/TermsOfUsePage"; // 1. Importe a nova página
 
 const queryClient = new QueryClient();
 
@@ -41,6 +41,8 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/auth" element={<Auth />} />
+                {/* 2. Adicione a nova rota aqui */}
+                <Route path="/terms-of-use" element={<TermsOfUsePage />} />
                 <Route
                   path="/home"
                   element={
