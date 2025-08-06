@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_photos: {
+        Row: {
+          agent_id: string
+          created_at: string
+          credit_cost: number
+          id: string
+          photo_url: string
+          thumbnail_url: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          photo_url: string
+          thumbnail_url?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          photo_url?: string
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_photos_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agents: {
         Row: {
           avatar_url: string
@@ -724,6 +759,15 @@ export type Database = {
       decrement_user_credits: {
         Args: { user_id_param: string; credits_to_deduct: number }
         Returns: boolean
+      }
+      get_agent_photos: {
+        Args: { p_agent_id: string }
+        Returns: {
+          id: string
+          photo_url: string
+          thumbnail_url: string
+          credit_cost: number
+        }[]
       }
       give_plan_credits: {
         Args: { user_uuid: string; plan_name_param: string }

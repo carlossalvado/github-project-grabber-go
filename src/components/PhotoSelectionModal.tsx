@@ -30,23 +30,21 @@ const PhotoSelectionModal: React.FC<PhotoSelectionModalProps> = ({ isOpen, onClo
       const fetchPhotos = async () => {
         setLoading(true);
         try {
-          // Fazendo query SQL direta para acessar a tabela agent_photos
           const { data, error } = await supabase.rpc('get_agent_photos', { 
             p_agent_id: agentId 
           });
 
           if (error) {
-            // Se a função não existir, vamos criar uma consulta alternativa
-            console.error("Erro com função RPC:", error);
-            throw new Error("Não foi possível carregar as fotos. Tente novamente.");
-          }
-          
-          if (data) {
-            setPhotos(data);
+            console.error("Erro ao buscar fotos:", error);
+            toast.error("Não foi possível carregar as fotos.");
+            setPhotos([]);
+          } else {
+            setPhotos(data || []);
           }
         } catch (error) {
           console.error("Erro ao buscar fotos:", error);
           toast.error("Não foi possível carregar as fotos.");
+          setPhotos([]);
         } finally {
           setLoading(false);
         }
