@@ -3,7 +3,8 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Camera, Bot, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge'; // Importado para o novo indicador de status
+import { ArrowLeft, Mic, Send, Loader2, Play, Pause, MicOff, Smile, Gift, ShieldAlert, PlusCircle, Camera, Bot, User, AlertTriangle } from 'lucide-react'; // Importado Badge e outros ícones
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -27,7 +28,7 @@ const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { loading: profileLoading, getPlanName } = useUserProfile();
   const { user } = useAuth();
-  const { messages, addMessage, clearMessages, loadMessages } = useLocalCache();
+  const { messages, addMessage, loadMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
@@ -98,9 +99,10 @@ const ChatTextAudioPage = () => {
     fetchAgentData();
   }, [user?.id]);
 
+  // MODIFICAÇÃO: Adicionado 'n8nLoading' e 'audioN8nLoading' para rolar a tela.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, n8nLoading, audioN8nLoading]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -192,7 +194,7 @@ const ChatTextAudioPage = () => {
   };
 
   const handleSendTextMessage = async () => {
-    if (input.trim() === '') return;
+    if (input.trim() === '' || n8nLoading || audioN8nLoading) return;
     getAssistantResponse(input.trim());
     setInput('');
   };
@@ -202,7 +204,8 @@ const ChatTextAudioPage = () => {
 
     const creditsConsumed = await consumeCredits(gift.credit_cost);
     if (!creditsConsumed) {
-      toast.error("Ocorreu um erro ao processar seu pagamento. Tente novamente.");
+      toast.error("Créditos insuficientes. Por favor, recarregue.");
+      setShowCreditsPurchaseModal(true);
       return;
     }
 
@@ -245,18 +248,19 @@ const ChatTextAudioPage = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendTextMessage(); } };
   const handleAvatarClick = (imageUrl: string, name: string) => { setSelectedImageUrl(imageUrl); setSelectedImageName(name); setIsProfileImageModalOpen(true); };
 
+  // MODIFICAÇÃO: Posição do avatar da foto e remoção de 'self-end'.
   const renderMessage = (message: CachedMessage) => {
     const isUserMessage = message.type === 'user';
     const isPhotoMessage = message.transcription.startsWith('PHOTO::');
 
     if (isPhotoMessage) {
       const imageUrl = message.transcription.split('::')[1];
-      const messageContainerClasses = "flex items-end gap-2";
+      const messageContainerClasses = "flex items-start gap-2";
       const bubbleClasses = "flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-2 text-sm bg-gray-700";
       
       return (
         <div key={message.id} className={messageContainerClasses}>
-          <Avatar className="h-8 w-8 cursor-pointer self-end" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
+          <Avatar className="h-8 w-8 cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
           </Avatar>
@@ -290,8 +294,9 @@ const ChatTextAudioPage = () => {
   if (getPlanName() !== 'Text & Audio') {
     return <Navigate to="/chat-trial" replace />;
   }
-
-  const isLoading = n8nLoading || audioN8nLoading || isRecording || isSendingPhoto;
+  
+  const isProcessing = n8nLoading || audioN8nLoading || isSendingPhoto;
+  const isLoading = isProcessing || isRecording;
 
   return (
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen">
@@ -303,9 +308,26 @@ const ChatTextAudioPage = () => {
             <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
             <AvatarFallback className="bg-blue-800 text-white">{agentData.name.charAt(0)}</AvatarFallback>
           </Avatar>
-          <div>
+          <div className="flex flex-col">
             <span className="font-medium text-white cursor-pointer" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
-            <span className="text-xs text-blue-300 block">{isLoading ? 'Processando...' : 'Online'}</span>
+            {/* MODIFICAÇÃO: Indicador de status dinâmico no cabeçalho */}
+            <Badge variant="secondary" className="text-xs bg-blue-800 text-white min-w-[100px] flex justify-center">
+              {audioN8nLoading ? (
+                <div className="flex items-center gap-1.5 text-blue-200">
+                  <Mic size={12} className="pulse-mic" />
+                  <span>Gravando...</span>
+                </div>
+              ) : n8nLoading ? (
+                <div className="flex items-center gap-1 text-blue-200">
+                  <span>Digitando</span>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                </div>
+              ) : (
+                <span className="text-xs text-blue-300 block">Online</span>
+              )}
+            </Badge>
           </div>
         </div>
         <div className="flex gap-2 items-center">
@@ -329,6 +351,38 @@ const ChatTextAudioPage = () => {
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
           {messages.map(renderMessage)}
+
+          {/* MODIFICAÇÃO: Bolha de mensagem "Digitando" */}
+          {n8nLoading && (
+            <div className="flex items-start gap-2">
+              <Avatar className="h-8 w-8 cursor-pointer">
+                <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
+              </Avatar>
+              <div className="flex items-center w-fit max-w-[80%] rounded-lg p-3 text-sm bg-gray-700 text-white pulse-bubble-animation">
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
+              </div>
+            </div>
+          )}
+          
+          {/* MODIFICAÇÃO: Bolha de mensagem "Gravando Áudio" */}
+          {audioN8nLoading && (
+            <div className="flex items-start gap-2 mt-2">
+              <Avatar className="h-8 w-8 cursor-pointer">
+                <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+                <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
+              </Avatar>
+              <div className="flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-3 text-sm bg-gray-700 text-gray-300">
+                <div className="flex items-center gap-2">
+                  <Mic size={14} className="pulse-mic" />
+                  <span>Gravando áudio...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -348,15 +402,25 @@ const ChatTextAudioPage = () => {
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
-            <Input 
-              ref={inputRef} 
-              className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0" 
-              placeholder="Digite uma mensagem..." 
-              value={input} 
-              onChange={(e) => setInput(e.target.value)} 
-              onKeyDown={handleKeyPress} 
-              disabled={isLoading} 
-            />
+            {/* MODIFICAÇÃO: Indicador de "Digitando" no campo de input */}
+            {n8nLoading ? (
+              <div className="w-full flex items-center justify-start text-blue-300 px-0 text-sm">
+                <span className="mr-1.5">Isa está digitando</span>
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
+                <div className="typing-dot"></div>
+              </div>
+            ) : (
+              <Input 
+                ref={inputRef} 
+                className="bg-transparent border-0 text-white placeholder:text-blue-300 focus-visible:ring-0 focus-visible:ring-offset-0 px-0" 
+                placeholder="Digite uma mensagem..." 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                onKeyDown={handleKeyPress} 
+                disabled={isLoading} 
+              />
+            )}
             <div className="flex items-center gap-1">
               <Button type="button" variant="ghost" size="icon" onClick={handleEmoticonClick} className={`flex-shrink-0 w-8 h-8 ${showEmoticonSelector ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} disabled={isLoading}><Smile size={16} /></Button>
               <Button type="button" variant="ghost" size="icon" onClick={handleGiftClick} className={`flex-shrink-0 w-8 h-8 ${showGiftSelection ? 'text-blue-400 bg-blue-900/50' : 'text-blue-200 hover:text-white'}`} disabled={isLoading}><Gift size={16} /></Button>
@@ -370,7 +434,7 @@ const ChatTextAudioPage = () => {
               size="icon"
               className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
               onClick={handleAudioToggle}
-              disabled={n8nLoading || audioN8nLoading}
+              disabled={isProcessing}
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </Button>
