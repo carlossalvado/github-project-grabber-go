@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import EmoticonSelector from '@/components/EmoticonSelector';
 import GiftSelection, { Gift as GiftType } from '@/components/GiftSelection';
 import AudioMessage from '@/components/AudioMessage';
-import WhatsAppMessage from '@/components/WhatsAppMessage';
 import VoiceCallButton from '@/components/VoiceCallButton';
 import ProfileImageModal from '@/components/ProfileImageModal';
 import CreditsPurchaseModal from '@/components/CreditsPurchaseModal';
@@ -252,36 +251,30 @@ const ChatTextAudioPage = () => {
 
     if (isPhotoMessage) {
       const imageUrl = message.transcription.split('::')[1];
+      const messageContainerClasses = "flex items-end gap-2";
+      const bubbleClasses = "flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-2 text-sm bg-gray-700";
+      
       return (
-        <WhatsAppMessage
-          key={message.id}
-          id={message.id}
-          imageUrl={imageUrl}
-          isUser={false}
-          timestamp={message.timestamp}
-          onImageClick={handleAvatarClick}
-          agentData={agentData}
-          userEmail={user?.email}
-          userAvatarUrl={userAvatarUrl}
-        />
+        <div key={message.id} className={messageContainerClasses}>
+          <Avatar className="h-8 w-8 cursor-pointer self-end" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
+            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+            <AvatarFallback className="bg-blue-800"><Bot size={16} /></AvatarFallback>
+          </Avatar>
+          <div className={bubbleClasses}>
+            <div className="rounded-lg overflow-hidden w-[70%]">
+              <img 
+                src={imageUrl} 
+                alt="Foto exclusiva" 
+                className="w-full h-auto cursor-pointer"
+                onClick={() => handleAvatarClick(imageUrl, 'Foto Exclusiva')}
+              />
+            </div>
+          </div>
+        </div>
       );
     }
     
-    return (
-      <WhatsAppMessage
-        key={message.id}
-        id={message.id}
-        content={message.transcription}
-        audioUrl={message.audioUrl}
-        isUser={isUserMessage}
-        timestamp={message.timestamp}
-        isPlaying={currentlyPlaying === message.id}
-        onPlayAudio={handlePlayAudio}
-        agentData={agentData}
-        userEmail={user?.email}
-        userAvatarUrl={userAvatarUrl}
-      />
-    );
+    return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
 
 
