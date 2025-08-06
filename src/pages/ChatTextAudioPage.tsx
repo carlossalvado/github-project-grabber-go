@@ -265,7 +265,7 @@ const ChatTextAudioPage = () => {
               <img 
                 src={imageUrl} 
                 alt="Foto exclusiva" 
-                className="max-w-full h-auto cursor-pointer"
+                className="max-w-full h-auto cursor-pointer transform scale-[0.7] origin-top-left"
                 onClick={() => handleAvatarClick(imageUrl, 'Foto Exclusiva')}
               />
             </div>
