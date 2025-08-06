@@ -1,16 +1,19 @@
 project_id = "hedxxbsieoazrmbayzab"
 
-# Edge Functions - Configurações de JWT
+# Edge Functions - Configurações
 [functions]
-[functions.create-checkout]
-verify_jwt = true
-[functions.check-subscription]
-verify_jwt = true
-[functions.customer-portal]
-verify_jwt = true
-[functions.create-gift-checkout]
-verify_jwt = true
-[functions.stripe-webhook]
-verify_jwt = false
-[functions.asaas-webhook]
-verify_jwt = false
+  # ESTA É A LINHA QUE FALTAVA E QUE RESOLVE O PROBLEMA
+  import_map = "./import_map.json" 
+
+  [functions.create-checkout]
+    verify_jwt = true
+  [functions.check-subscription]
+    verify_jwt = true
+  [functions.customer-portal]
+    verify_jwt = true
+  [functions.create-gift-checkout]
+    verify_jwt = true
+  [functions.stripe-webhook]
+    verify_jwt = false
+  [functions.asaas-webhook]
+    verify_jwt = false
