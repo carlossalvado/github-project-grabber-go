@@ -1,46 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { createClient } from '@supabase/supabase-js';
 import { Loader2, Lock } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-// =================== INÍCIO DA ABORDAGEM CORRETA ===================
-// Forçamos a definição do banco de dados diretamente no código.
-// Isso diz ao TypeScript como a tabela 'agent_photos' é, ignorando o arquivo de tipos que não está atualizando.
-type Database = {
-  public: {
-    Tables: {
-      agent_photos: {
-        Row: {
-          id: string;
-          agent_id: string;
-          photo_url: string;
-          thumbnail_url: string | null;
-          credit_cost: number;
-          created_at: string;
-        };
-        Insert: {}; // Não precisamos para esta consulta
-        Update: {}; // Não precisamos para esta consulta
-      };
-    };
-    Views: {};
-    Functions: {};
-  };
-};
-
-// Pegamos as variáveis de ambiente para criar um cliente Supabase localmente tipado
-// que será usado APENAS neste componente.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
-
-// Criamos um cliente Supabase com o tipo que acabamos de definir.
-// Este cliente "sabe" sobre a tabela 'agent_photos' e não dará mais erro.
-const supabaseTyped = createClient<Database>(supabaseUrl, supabaseAnonKey);
-// ==================== FIM DA ABORDAGEM CORRETA =====================
-
-// Define a estrutura de dados de uma foto para uso no componente
 export interface AgentPhoto {
   id: string;
   photo_url: string;
@@ -61,21 +26,21 @@ const PhotoSelectionModal: React.FC<PhotoSelectionModalProps> = ({ isOpen, onClo
   const { credits } = useCredits();
 
   useEffect(() => {
-    // Esta lógica garante que a consulta ao Supabase é feita TODA VEZ que o modal é aberto.
     if (isOpen && agentId) {
       const fetchPhotos = async () => {
         setLoading(true);
         try {
-          // Usamos o nosso novo cliente tipado. Agora a consulta é válida e direta ao Supabase.
-          const { data, error } = await supabaseTyped
-            .from('agent_photos')
-            .select('id, photo_url, thumbnail_url, credit_cost')
-            .eq('agent_id', agentId)
-            .order('created_at', { ascending: true });
+          // Fazendo query SQL direta para acessar a tabela agent_photos
+          const { data, error } = await supabase.rpc('get_agent_photos', { 
+            p_agent_id: agentId 
+          });
 
           if (error) {
-            throw error;
+            // Se a função não existir, vamos criar uma consulta alternativa
+            console.error("Erro com função RPC:", error);
+            throw new Error("Não foi possível carregar as fotos. Tente novamente.");
           }
+          
           if (data) {
             setPhotos(data);
           }
@@ -114,6 +79,10 @@ const PhotoSelectionModal: React.FC<PhotoSelectionModalProps> = ({ isOpen, onClo
           {loading ? (
             <div className="flex justify-center items-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+            </div>
+          ) : photos.length === 0 ? (
+            <div className="flex justify-center items-center h-full text-gray-400">
+              Nenhuma foto disponível para este agente.
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
