@@ -21,8 +21,7 @@ const SinglePlanProductPage = () => {
 
   useEffect(() => {
     if (planId && plans.length > 0) {
-      const planIdNum = parseInt(planId);
-      const plan = plans.find(p => p.id === planIdNum);
+      const plan = plans.find(p => p.id.toString() === planId);
       if (plan) {
         setSelectedPlan(plan);
       } else {
