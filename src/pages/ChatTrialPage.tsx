@@ -333,8 +333,14 @@ const ChatTrialPage = () => {
           <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
         </div>
       </div>
-      <div className="w-full flex justify-center items-center py-2 px-4 bg-gray-800 border-b border-gray-700">
-        <Button onClick={handleUpgrade} className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold" size="sm">Fazer Upgrade Agora</Button>
+      <div className="w-full flex justify-center items-center py-3 px-4 bg-gradient-to-r from-orange-600 to-orange-700 border-b border-orange-500/30">
+        <Button 
+          onClick={handleUpgrade} 
+          className="bg-white hover:bg-gray-100 text-orange-600 w-full max-w-sm font-bold shadow-lg transition-all duration-200 hover:scale-105" 
+          size="sm"
+        >
+          🚀 Upgrade para Text & Audio - 20 Créditos
+        </Button>
       </div>
 
       {!isTrialActive && (
