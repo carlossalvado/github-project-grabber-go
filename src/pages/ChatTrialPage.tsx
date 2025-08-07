@@ -35,7 +35,7 @@ const ChatTrialPage = () => {
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, consumeCredits, initializeCredits, refreshCredits, isLoading: creditsLoading } = useCredits();
   const { isTrialActive, hoursRemaining, loading: trialLoading } = useTrialManager();
-  const { selectTextAudioPlan } = useSubscription();
+  const { plans } = useSubscription();
 
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
@@ -216,7 +216,20 @@ const ChatTrialPage = () => {
   };
 
   const handleGoBack = () => navigate('/profile');
-  const handleUpgrade = async () => await selectTextAudioPlan();
+  
+  const handleUpgrade = async () => {
+    // Redirecionar para a página do plano Text & Audio
+    const textAudioPlan = plans.find(plan => 
+      plan.name.toLowerCase().includes('text') && 
+      plan.name.toLowerCase().includes('audio')
+    );
+    
+    if (textAudioPlan) {
+      navigate(`/plan/${textAudioPlan.id}`);
+    } else {
+      toast.error('Plano Text & Audio não encontrado');
+    }
+  };
 
   const handlePhotoSend = async (photo: AgentPhoto) => {
     setIsSendingPhoto(true);
