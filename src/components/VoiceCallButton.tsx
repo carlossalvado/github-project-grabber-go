@@ -17,7 +17,7 @@ const VoiceCallButton: React.FC<VoiceCallButtonProps> = ({ agentName, agentAvata
   const { credits, consumeCredits, isLoading: creditsLoading } = useCredits();
   const { isConnecting, isConnected, isSpeaking, startCall, endCall } = useElevenLabsConversation();
 
-  const VOICE_CALL_COST = 1;
+  const VOICE_CALL_COST = 50;
 
   const handleCallClick = async () => {
     if (credits < VOICE_CALL_COST) {
