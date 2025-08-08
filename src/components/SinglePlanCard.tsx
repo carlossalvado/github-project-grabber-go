@@ -3,8 +3,45 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const SinglePlanCard = ({ plan, onSelectPlan }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleUpgrade = async () => {
+    if (!user?.id) {
+      toast.error('Você precisa estar logado para fazer o upgrade.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('upgrade_to_text_audio_with_subscription', {
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Erro ao fazer upgrade:', error);
+        toast.error('Erro ao processar upgrade. Tente novamente.');
+        return;
+      }
+
+      if (data) {
+        toast.success('Upgrade realizado com sucesso! Plano ativo por 30 dias.');
+        // Redirecionar para o chat Text & Audio
+        navigate('/chat/text-audio');
+      } else {
+        toast.error('Créditos insuficientes para o upgrade. Compre mais créditos primeiro.');
+      }
+    } catch (error) {
+      console.error('Erro ao processar upgrade:', error);
+      toast.error('Erro interno. Tente novamente.');
+    }
+  };
+
   return (
     <Card className={`flex flex-col ${plan.highlight ? 'border-pink-500' : 'border-gray-700'} bg-gray-800 text-white`}>
       <CardHeader>
@@ -30,12 +67,9 @@ const SinglePlanCard = ({ plan, onSelectPlan }) => {
         <Button
           className="w-full bg-pink-600 hover:bg-pink-700"
           disabled={!plan.id}
-          onClick={() => {
-            // Implement plan selection logic here
-            console.log('Plan selected:', plan.id);
-          }}
+          onClick={handleUpgrade}
         >
-          Assinar Agora
+          Assinar Agora (20 Créditos)
         </Button>
       </CardFooter>
     </Card>

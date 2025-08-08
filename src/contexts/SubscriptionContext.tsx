@@ -83,6 +83,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (data) {
           const transformedPlans: Plan[] = data.map(plan => ({
             ...plan,
+            id: parseInt(plan.id),
             features: transformFeatures(plan.features as Json)
           }));
           

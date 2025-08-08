@@ -296,7 +296,7 @@ const ChatTextAudioPage = () => {
   };
 
 
-  if (profileLoading) {
+  if (profileLoading || subscriptionLoading) {
     return (
       <div className="h-screen bg-[#1a1d29] text-white flex items-center justify-center">
         <Loader2 className="animate-spin" size={32} />

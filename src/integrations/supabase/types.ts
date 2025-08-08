@@ -284,7 +284,7 @@ export type Database = {
           created_at: string
           id: number
           picpay_authorization_id: string | null
-          plan_id: number | null
+          plan_id: string | null
           reference_id: string
           status: string
           user_id: string
@@ -294,7 +294,7 @@ export type Database = {
           created_at?: string
           id?: number
           picpay_authorization_id?: string | null
-          plan_id?: number | null
+          plan_id?: string | null
           reference_id: string
           status?: string
           user_id: string
@@ -304,20 +304,13 @@ export type Database = {
           created_at?: string
           id?: number
           picpay_authorization_id?: string | null
-          plan_id?: number | null
+          plan_id?: string | null
           reference_id?: string
           status?: string
           user_id?: string
           value?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "picpay_payments_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "picpay_payments_user_id_fkey"
             columns: ["user_id"]
@@ -358,7 +351,7 @@ export type Database = {
         Row: {
           description: string
           features: Json
-          id: number
+          id: string
           name: string
           paypal_plan_id: string | null
           price: number
@@ -367,7 +360,7 @@ export type Database = {
         Insert: {
           description: string
           features: Json
-          id?: number
+          id?: string
           name: string
           paypal_plan_id?: string | null
           price: number
@@ -376,7 +369,7 @@ export type Database = {
         Update: {
           description?: string
           features?: Json
-          id?: number
+          id?: string
           name?: string
           paypal_plan_id?: string | null
           price?: number
@@ -398,6 +391,7 @@ export type Database = {
           plan_name: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          text_access_expires_at: string | null
           updated_at: string
         }
         Insert: {
@@ -413,6 +407,7 @@ export type Database = {
           plan_name?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          text_access_expires_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -428,6 +423,7 @@ export type Database = {
           plan_name?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          text_access_expires_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -437,10 +433,11 @@ export type Database = {
           created_at: string
           end_date: string | null
           id: string
-          plan_id: number
+          plan_id: string
           plan_name: string | null
           start_date: string
           status: string
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
@@ -448,10 +445,11 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
-          plan_id: number
+          plan_id: string
           plan_name?: string | null
           start_date?: string
           status: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -459,10 +457,11 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
-          plan_id?: number
+          plan_id?: string
           plan_name?: string | null
           start_date?: string
           status?: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -748,6 +747,14 @@ export type Database = {
         Args: { user_uuid: string; credit_amount: number; session_id?: string }
         Returns: boolean
       }
+      check_subscription_trial_status: {
+        Args: { p_user_id: string }
+        Returns: {
+          is_active: boolean
+          hours_remaining: number
+          trial_ends_at: string
+        }[]
+      }
       consume_audio_credit: {
         Args: { user_uuid: string }
         Returns: boolean
@@ -783,6 +790,14 @@ export type Database = {
       }
       start_trial: {
         Args: { user_uuid: string }
+        Returns: boolean
+      }
+      upgrade_plan_with_credits: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      upgrade_to_text_audio_with_subscription: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
     }

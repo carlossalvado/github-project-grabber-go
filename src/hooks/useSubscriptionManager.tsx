@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface SubscriptionData {
   id: string;
   user_id: string;
-  plan_id: number;
+  plan_id: string;
   status: string;
   plan_name: string | null;
   start_date: string;
@@ -113,7 +113,7 @@ export const useSubscriptionManager = () => {
         .from('subscriptions')
         .insert({
           user_id: user.id,
-          plan_id: 2,
+          plan_id: '2',
           status: 'active',
           plan_name: 'Text & Audio',
           start_date: now.toISOString(),
