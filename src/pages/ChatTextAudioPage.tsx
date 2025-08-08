@@ -12,6 +12,7 @@ import { useLocalCache, CachedMessage } from '@/hooks/useLocalCache';
 import { useN8nWebhook } from '@/hooks/useN8nWebhook';
 import { useN8nAudioWebhook } from '@/hooks/useN8nAudioWebhook';
 import { useCredits } from '@/hooks/useCredits';
+import { useSubscriptionManager } from '@/hooks/useSubscriptionManager';
 import { supabase } from '@/integrations/supabase/client';
 import AgentProfileModal from '@/components/AgentProfileModal';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
@@ -33,6 +34,7 @@ const ChatTextAudioPage = () => {
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
   const { credits, consumeCredits, initializeCredits, refreshCredits, isLoading: creditsLoading } = useCredits();
+  const { isSubscriptionActive, daysRemaining, hoursRemaining, minutesRemaining, secondsRemaining, loading: subscriptionLoading } = useSubscriptionManager();
       
   const [input, setInput] = useState('');
   const [isAgentProfileModalOpen, setIsAgentProfileModalOpen] = useState(false);
@@ -193,9 +195,23 @@ const ChatTextAudioPage = () => {
   };
 
   const handleSendTextMessage = async () => {
+    if (!isSubscriptionActive) {
+      toast.error('Sua assinatura do plano Text & Audio expirou. Renove seu plano!', {
+        action: {
+          label: 'Renovar',
+          onClick: () => handleRenewPlan(),
+        },
+      });
+      return;
+    }
     if (input.trim() === '' || n8nLoading || audioN8nLoading) return;
     getAssistantResponse(input.trim());
     setInput('');
+  };
+
+  const handleRenewPlan = async () => {
+    // Redirecionar para a página do plano Text & Audio usando planId 2
+    navigate('/plan/2');
   };
 
   const handleGiftSend = async (gift: GiftType) => {
@@ -321,8 +337,12 @@ const ChatTextAudioPage = () => {
                   <div className="typing-dot"></div>
                   <div className="typing-dot"></div>
                 </div>
+              ) : isSubscriptionActive ? (
+                <div className="flex items-center gap-1 text-blue-200">
+                  <span className="text-xs">{daysRemaining}d {hoursRemaining}h {minutesRemaining}m {secondsRemaining}s</span>
+                </div>
               ) : (
-                <span className="text-xs text-blue-300 block">Online</span>
+                <span className="text-xs text-red-300 block">Expirado</span>
               )}
             </Badge>
           </div>
@@ -344,6 +364,26 @@ const ChatTextAudioPage = () => {
           />
         </div>
       </div>
+
+      {!isSubscriptionActive && (
+        <div className="w-full flex justify-center items-center py-2 px-4 bg-[#1a1d29] border-b border-red-500/30">
+          <Button onClick={handleRenewPlan} className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold" size="sm">
+            Renovar Plano Agora
+          </Button>
+        </div>
+      )}
+
+      {!isSubscriptionActive && (
+        <div className="bg-red-600/20 border-b border-red-500/30 p-3 text-center flex-shrink-0">
+          <p className="text-red-300 text-sm">
+            <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+            Sua assinatura do plano Text & Audio expirou. Funções pagas (áudio, fotos, chamadas) continuam ativas.
+            <Button variant="link" className="text-orange-400 underline p-0 ml-1 h-auto" onClick={handleRenewPlan}>
+              Renove para texto ilimitado!
+            </Button>
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
