@@ -58,6 +58,7 @@ const ChatTextAudioPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const AUDIO_MESSAGE_COST = 5; // Custo centralizado
 
   useEffect(() => {
     if (user?.id) {
@@ -168,16 +169,41 @@ const ChatTextAudioPage = () => {
     }
   };
 
+  // *** INÍCIO DA CORREÇÃO ***
+  // Adicionada a lógica de reembolso em caso de erro.
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
 
-    const response = await sendAudioToN8n(audioBlob);
-    if (response && response.audioUrl) {
-      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
-      addMessage(assistantMessage);
+    try {
+      const response = await sendAudioToN8n(audioBlob);
+
+      if (response && response.audioUrl) {
+        const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
+        addMessage(assistantMessage);
+      } else {
+        throw new Error("A resposta do servidor de áudio foi inválida.");
+      }
+    } catch (error) {
+      console.error("Erro ao enviar áudio para o n8n:", error);
+      toast.error("Ocorreu um erro ao processar seu áudio. Seus créditos foram devolvidos.");
+
+      if (user?.id) {
+        const { error: refundError } = await supabase.rpc('increment_user_credits', {
+          user_id_param: user.id,
+          credits_to_add: AUDIO_MESSAGE_COST
+        });
+        
+        if (refundError) {
+          console.error("Falha crítica ao tentar reembolsar créditos:", refundError);
+          toast.error("Houve um problema ao tentar devolver seus créditos. Por favor, contate o suporte.");
+        } else {
+          refreshCredits();
+        }
+      }
     }
   };
+  // *** FIM DA CORREÇÃO ***
 
   const handlePlayAudio = (messageId: string, url: string | undefined) => {
     if (!url) return;
@@ -210,7 +236,6 @@ const ChatTextAudioPage = () => {
   };
 
   const handleRenewPlan = async () => {
-    // Redirecionar para a página do plano Text & Audio usando planId 2
     navigate('/plan/2');
   };
 
@@ -241,7 +266,6 @@ const ChatTextAudioPage = () => {
   }, [audioBlob, audioUrl, resetAudio]);
   
   const handleAudioToggle = async () => {
-    const AUDIO_MESSAGE_COST = 5;
     if (isRecording) { 
       stopRecording(); 
     } else {
@@ -294,7 +318,6 @@ const ChatTextAudioPage = () => {
     
     return (<AudioMessage key={message.id} id={message.id} content={message.transcription} audioUrl={message.audioUrl} isUser={isUserMessage} timestamp={message.timestamp} isPlaying={currentlyPlaying === message.id} onPlayAudio={() => handlePlayAudio(message.id, message.audioUrl)} onAvatarClick={handleAvatarClick} agentData={agentData} userEmail={user?.email} userAvatarUrl={userAvatarUrl} />);
   };
-
 
   if (profileLoading || subscriptionLoading) {
     return (
@@ -430,7 +453,6 @@ const ChatTextAudioPage = () => {
         onClose={() => setShowCreditsPurchaseModal(false)}
       />
       
-      {/* MODIFICAÇÃO: Adicionado 'mode="simple"' para o modal do perfil do agente. */}
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />

@@ -58,6 +58,7 @@ const ChatTrialPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const AUDIO_MESSAGE_COST = 5; // Custo centralizado para fácil manutenção
 
   useEffect(() => {
     if (user?.id) {
@@ -124,15 +125,46 @@ const ChatTrialPage = () => {
     }
   };
 
+  // *** INÍCIO DA CORREÇÃO ***
+  // Adicionada a lógica de reembolso em caso de erro.
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
-    const response = await sendAudioToN8n(audioBlob);
-    if (response && response.audioUrl) {
-      const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
-      addMessage(assistantMessage);
+
+    try {
+      // Tenta enviar o áudio para o n8n
+      const response = await sendAudioToN8n(audioBlob);
+
+      if (response && response.audioUrl) {
+        // Se houver sucesso, adiciona a mensagem da assistente
+        const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
+        addMessage(assistantMessage);
+      } else {
+        // Se o n8n não retornar uma resposta válida, considera como erro e reembolsa.
+        throw new Error("A resposta do servidor de áudio foi inválida.");
+      }
+    } catch (error) {
+      console.error("Erro ao enviar áudio para o n8n:", error);
+      toast.error("Ocorreu um erro ao processar seu áudio. Seus créditos foram devolvidos.");
+
+      // Chama a função de reembolso seguro no Supabase
+      if (user?.id) {
+        const { error: refundError } = await supabase.rpc('increment_user_credits', {
+          user_id_param: user.id,
+          credits_to_add: AUDIO_MESSAGE_COST
+        });
+        
+        if (refundError) {
+          console.error("Falha crítica ao tentar reembolsar créditos:", refundError);
+          toast.error("Houve um problema ao tentar devolver seus créditos. Por favor, contate o suporte.");
+        } else {
+          // Atualiza o estado dos créditos no frontend após o reembolso
+          refreshCredits();
+        }
+      }
     }
   };
+  // *** FIM DA CORREÇÃO ***
 
   const handlePlayAudio = (messageId: string, url: string | undefined) => {
     if (!url) return;
@@ -188,7 +220,6 @@ const ChatTrialPage = () => {
   }, [audioBlob, audioUrl, resetAudio]);
 
   const handleAudioToggle = async () => {
-    const AUDIO_MESSAGE_COST = 5;
     if (isRecording) {
       stopRecording();
     } else {
@@ -218,7 +249,6 @@ const ChatTrialPage = () => {
   const handleGoBack = () => navigate('/profile');
   
   const handleUpgrade = async () => {
-    // Redirecionar para a página do plano Text & Audio usando planId 2
     navigate('/plan/2');
   };
 
@@ -342,7 +372,6 @@ const ChatTrialPage = () => {
         <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
           {messages.map(renderMessage)}
           
-          {/* MODIFICAÇÃO VISCERAL: Bolha de mensagem pulsante com pontos animados */}
           {n8nLoading && (
             <div className="flex items-start gap-2">
               <Avatar className="h-8 w-8 cursor-pointer">
