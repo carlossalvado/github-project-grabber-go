@@ -241,7 +241,7 @@ const ChatTextAudioPage = () => {
   }, [audioBlob, audioUrl, resetAudio]);
   
   const handleAudioToggle = async () => {
-    const AUDIO_MESSAGE_COST = 20;
+    const AUDIO_MESSAGE_COST = 5;
     if (isRecording) { 
       stopRecording(); 
     } else {

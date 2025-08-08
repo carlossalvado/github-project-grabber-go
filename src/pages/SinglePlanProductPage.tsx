@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,8 +15,44 @@ const SinglePlanProductPage = () => {
   const { plans, selectPlan } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [userCredits, setUserCredits] = useState(0);
   const UPGRADE_COST = 20;
+
+  const [userCredits, setUserCredits] = useState(0);
+  const [isLoadingCredits, setIsLoadingCredits] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      const fetchUserCredits = async () => {
+        setIsLoadingCredits(true);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) {
+            if (error.code !== 'PGRST116') {
+              throw error;
+            }
+          }
+          
+          setUserCredits(data?.credits || 0);
+
+        } catch (error: any) {
+          console.error("Erro ao carregar os créditos do perfil:", error);
+          toast.error("Não foi possível carregar seu saldo de créditos.");
+          setUserCredits(0);
+        } finally {
+          setIsLoadingCredits(false);
+        }
+      };
+
+      fetchUserCredits();
+    } else {
+        setIsLoadingCredits(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (planId && plans.length > 0) {
@@ -31,27 +66,8 @@ const SinglePlanProductPage = () => {
     }
   }, [planId, plans, navigate]);
 
-  // Buscar créditos do usuário
-  useEffect(() => {
-    if (user?.id) {
-      const fetchUserCredits = async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('credits')
-            .eq('id', user.id)
-            .single();
-          
-          if (profile) {
-            setUserCredits(profile.credits || 0);
-          }
-        } catch (error) {
-          console.error('Erro ao buscar créditos:', error);
-        }
-      };
-      fetchUserCredits();
-    }
-  }, [user?.id]);
+  const isTextAudioPlan = selectedPlan?.name.toLowerCase().includes('text') && 
+                         selectedPlan?.name.toLowerCase().includes('audio');
 
   const handleProceedToCheckout = async () => {
     if (!selectedPlan) {
@@ -64,12 +80,7 @@ const SinglePlanProductPage = () => {
       return;
     }
 
-    // Verificar se é o plano Text & Audio
-    const isTextAudioPlan = selectedPlan.name.toLowerCase().includes('text') && 
-                           selectedPlan.name.toLowerCase().includes('audio');
-
     if (isTextAudioPlan) {
-      // Verificar se tem créditos suficientes
       if (userCredits < UPGRADE_COST) {
         toast.error(`Créditos insuficientes. Você precisa de ${UPGRADE_COST - userCredits} créditos a mais.`);
         return;
@@ -78,44 +89,36 @@ const SinglePlanProductPage = () => {
       setLoading(true);
       
       try {
-        // Primeiro, verificar e consumir créditos
-        const { data: creditResult, error: creditError } = await supabase.rpc('decrement_user_credits', {
-          user_id_param: user.id,
-          credits_to_deduct: UPGRADE_COST
+        // *** INÍCIO DA CORREÇÃO ***
+        // A lógica agora chama a função RPC segura e centralizada no Supabase.
+        // Isso resolve o erro '403 Forbidden' porque a operação é executada no servidor com as permissões corretas.
+        const { data: upgradeSuccessful, error } = await supabase.rpc('upgrade_to_text_audio_with_subscription', {
+          p_user_id: user.id,
+          p_plan_id: selectedPlan.id
         });
 
-        if (creditError || !creditResult) {
-          throw new Error('Créditos insuficientes ou erro ao debitar créditos');
+        if (error) {
+          throw new Error(error.message || 'Ocorreu um erro no servidor durante o upgrade.');
         }
 
-        // Atualizar o perfil do usuário para ativar o plano
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            plan_name: 'Text & Audio',
-            plan_active: true
-          })
-          .eq('id', user.id);
-
-        if (profileError) {
-          // Se falhou ao atualizar o perfil, tentar reverter os créditos
-          await supabase.rpc('increment_user_credits', {
-            user_id_param: user.id,
-            credits_to_add: UPGRADE_COST
-          });
-          throw new Error('Erro ao ativar o plano');
+        if (!upgradeSuccessful) {
+          // A própria função RPC já valida os créditos, então esta mensagem é um fallback.
+          toast.error('Créditos insuficientes. A transação foi recusada pelo servidor.');
+          return;
         }
-
-        toast.success('Plano atualizado com sucesso!');
+        
+        toast.success('Upgrade realizado com sucesso! Sua assinatura de 30 dias foi ativada.');
         navigate('/chat-text-audio');
+        // *** FIM DA CORREÇÃO ***
+
       } catch (error: any) {
         console.error('Erro ao processar upgrade:', error);
-        toast.error(error.message || 'Erro ao processar upgrade');
+        toast.error(error.message || 'Ocorreu um erro inesperado durante o upgrade.');
       } finally {
         setLoading(false);
       }
     } else {
-      // Para outros planos, usar o fluxo normal
+      // Lógica para outros planos (pagamento normal)
       setLoading(true);
       try {
         await selectPlan(selectedPlan.id);
@@ -209,19 +212,18 @@ const SinglePlanProductPage = () => {
               </div>
             )}
 
-            {/* Mostrar informação sobre créditos para plano Text & Audio */}
-            {selectedPlan.name.toLowerCase().includes('text') && selectedPlan.name.toLowerCase().includes('audio') && (
+            {isTextAudioPlan && (
               <div className="space-y-3">
                 <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
                   <p className="text-sm text-gray-300 mb-2">
                     <strong>Upgrade com Créditos:</strong> Este plano custa {UPGRADE_COST} créditos
                   </p>
                   <p className="text-sm text-gray-400">
-                    Seus créditos atuais: <span className="font-bold text-white">{userCredits}</span>
+                    Seus créditos atuais: <span className="font-bold text-white">{isLoadingCredits ? 'Carregando...' : userCredits}</span>
                   </p>
                 </div>
 
-                {userCredits < UPGRADE_COST && (
+                {userCredits < UPGRADE_COST && !isLoadingCredits && (
                   <div className="flex items-center p-3 text-sm text-red-300 rounded-lg bg-red-900/20 border border-red-500/30">
                     <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3" />
                     <div>
@@ -235,10 +237,10 @@ const SinglePlanProductPage = () => {
             <Button 
               onClick={handleProceedToCheckout}
               className="btn-isa-primary w-full py-3 text-lg"
-              disabled={loading || (selectedPlan.name.toLowerCase().includes('text') && selectedPlan.name.toLowerCase().includes('audio') && userCredits < UPGRADE_COST)}
+              disabled={loading || isLoadingCredits || (isTextAudioPlan && userCredits < UPGRADE_COST)}
             >
-              {loading ? 'Processando...' : 
-               selectedPlan.name.toLowerCase().includes('text') && selectedPlan.name.toLowerCase().includes('audio') 
+              {loading || isLoadingCredits ? 'Processando...' : 
+               isTextAudioPlan 
                  ? `Upgrade com ${UPGRADE_COST} Créditos` 
                  : 'Finalizar Assinatura'}
             </Button>
