@@ -125,29 +125,23 @@ const ChatTrialPage = () => {
     }
   };
 
-  // *** INÍCIO DA CORREÇÃO ***
-  // Adicionada a lógica de reembolso em caso de erro.
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
 
     try {
-      // Tenta enviar o áudio para o n8n
       const response = await sendAudioToN8n(audioBlob);
 
       if (response && response.audioUrl) {
-        // Se houver sucesso, adiciona a mensagem da assistente
         const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
         addMessage(assistantMessage);
       } else {
-        // Se o n8n não retornar uma resposta válida, considera como erro e reembolsa.
         throw new Error("A resposta do servidor de áudio foi inválida.");
       }
     } catch (error) {
       console.error("Erro ao enviar áudio para o n8n:", error);
       toast.error("Ocorreu um erro ao processar seu áudio. Seus créditos foram devolvidos.");
 
-      // Chama a função de reembolso seguro no Supabase
       if (user?.id) {
         const { error: refundError } = await supabase.rpc('increment_user_credits', {
           user_id_param: user.id,
@@ -158,13 +152,11 @@ const ChatTrialPage = () => {
           console.error("Falha crítica ao tentar reembolsar créditos:", refundError);
           toast.error("Houve um problema ao tentar devolver seus créditos. Por favor, contate o suporte.");
         } else {
-          // Atualiza o estado dos créditos no frontend após o reembolso
           refreshCredits();
         }
       }
     }
   };
-  // *** FIM DA CORREÇÃO ***
 
   const handlePlayAudio = (messageId: string, url: string | undefined) => {
     if (!url) return;
@@ -410,6 +402,8 @@ const ChatTrialPage = () => {
       <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
+      
+      {/* SEÇÃO MODIFICADA */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
@@ -438,23 +432,39 @@ const ChatTrialPage = () => {
           </div>
 
           <div className="relative flex flex-col items-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
-              onClick={handleAudioToggle}
-              disabled={isProcessing}
-            >
-              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-            </Button>
-            {credits <= 0 && !isRecording && (
-              <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
-                <ShieldAlert size={16} className="text-white" />
-              </div>
-            )}
-            {!creditsLoading && (
-              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">{credits}</span>
+            {/* Botão Condicional: Enviar ou Microfone */}
+            {input.trim().length > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
+                onClick={handleSendMessage}
+                disabled={isLoading}
+              >
+                <Send size={20} />
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
+                  onClick={handleAudioToggle}
+                  disabled={isProcessing}
+                >
+                  {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                </Button>
+                {credits <= 0 && !isRecording && (
+                  <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
+                    <ShieldAlert size={16} className="text-white" />
+                  </div>
+                )}
+                {!creditsLoading && (
+                  <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">{credits}</span>
+                )}
+              </>
             )}
           </div>
         </div>

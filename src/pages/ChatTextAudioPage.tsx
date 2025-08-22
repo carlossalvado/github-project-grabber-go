@@ -169,8 +169,6 @@ const ChatTextAudioPage = () => {
     }
   };
 
-  // *** INÍCIO DA CORREÇÃO ***
-  // Adicionada a lógica de reembolso em caso de erro.
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
     addMessage(userMessage);
@@ -203,7 +201,6 @@ const ChatTextAudioPage = () => {
       }
     }
   };
-  // *** FIM DA CORREÇÃO ***
 
   const handlePlayAudio = (messageId: string, url: string | undefined) => {
     if (!url) return;
@@ -457,6 +454,7 @@ const ChatTextAudioPage = () => {
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
       
+      {/* SEÇÃO MODIFICADA */}
       <div className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
@@ -485,23 +483,39 @@ const ChatTextAudioPage = () => {
           </div>
           
           <div className="relative flex flex-col items-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
-              onClick={handleAudioToggle}
-              disabled={isProcessing}
-            >
-              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-            </Button>
-            {credits <= 0 && !isRecording && (
-              <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
-                <ShieldAlert size={16} className="text-white" />
-              </div>
-            )}
-            {!creditsLoading && (
-              <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">{credits}</span>
+            {/* Botão Condicional: Enviar ou Microfone */}
+            {input.trim().length > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
+                onClick={handleSendTextMessage}
+                disabled={isLoading}
+              >
+                <Send size={20} />
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
+                  onClick={handleAudioToggle}
+                  disabled={isProcessing}
+                >
+                  {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                </Button>
+                {credits <= 0 && !isRecording && (
+                  <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
+                    <ShieldAlert size={16} className="text-white" />
+                  </div>
+                )}
+                {!creditsLoading && (
+                  <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-[#1a1d29] px-1 rounded">{credits}</span>
+                )}
+              </>
             )}
           </div>
         </div>
