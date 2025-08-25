@@ -334,14 +334,15 @@ const ChatTrialPage = () => {
             </Badge>
           </div>
         </div>
+        {/* ***** SEÇÃO CORRIGIDA ***** */}
         <div className="flex gap-2 items-center">
-          <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" className="text-blue-200 font-bold hover:bg-gray-700 hover:text-white px-3" disabled={isLoading}>
+          <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" size="icon" className="text-blue-200 font-bold hover:bg-gray-700 hover:text-white sm:w-auto sm:px-3" disabled={isLoading}>
             {isSendingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4"/>}
-            <span className="ml-2 hidden sm:inline">Solicitar Foto</span>
+            <span className="ml-2 hidden sm:inline">Foto</span>
           </Button>
-          <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 px-3">
-            {creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}
-            <PlusCircle className="ml-2 h-4 w-4"/>
+          <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" size="icon" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 sm:w-auto sm:px-3">
+            <PlusCircle className="h-4 w-4 sm:mr-2"/>
+            <span className="hidden sm:inline">{creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}</span>
           </Button>
           <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
         </div>
@@ -403,7 +404,6 @@ const ChatTrialPage = () => {
       <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
       <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
       
-      {/* SEÇÃO MODIFICADA */}
       <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
@@ -432,7 +432,6 @@ const ChatTrialPage = () => {
           </div>
 
           <div className="relative flex flex-col items-center">
-            {/* Botão Condicional: Enviar ou Microfone */}
             {input.trim().length > 0 ? (
               <Button
                 type="button"

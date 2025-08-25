@@ -43,8 +43,13 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-gradient-to-br from-[#0f172a] via-[#101629] to-[#0c0a09] border border-blue-500/30 text-white max-w-md w-full p-0 shadow-2xl shadow-blue-500/10">
-        <DialogHeader className="p-6 text-center border-b border-blue-500/20">
+      {/* ***** ESTRUTURA DO MODAL CORRIGIDA ***** */}
+      <DialogContent className="bg-gradient-to-br from-[#0f172a] via-[#101629] to-[#0c0a09] border border-blue-500/30 text-white 
+                                w-[95%] sm:max-w-md p-0 shadow-2xl shadow-blue-500/10 
+                                flex flex-col max-h-[90vh]">
+        
+        {/* CABEÇALHO (FIXO) */}
+        <DialogHeader className="p-6 text-center border-b border-blue-500/20 flex-shrink-0">
           <DialogTitle className="text-2xl font-bold text-white text-shadow-[0_0_12px_rgba(59,130,246,0.7)]">
             Comprar Créditos
           </DialogTitle>
@@ -53,19 +58,20 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
           </DialogDescription>
         </DialogHeader>
         
-        <div className="p-6 space-y-6">
+        {/* ÁREA DE CONTEÚDO (ROLÁVEL) */}
+        <div className="p-6 space-y-6 overflow-y-auto">
             {/* Seção de Custo dos Créditos */}
             <div className="p-4 bg-black/30 rounded-lg border border-blue-500/20 text-sm">
-              <div className="space-y-3 text-blue-200/90">
-                <div className="flex items-start">
-                  <Mic className="w-5 h-5 mr-3 mt-0.5 text-orange-400 flex-shrink-0" />
+              <div className="space-y-4 text-blue-200/90">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
+                  <Mic className="w-5 h-5 text-orange-400 flex-shrink-0" />
                   <div>
                     <span className="font-semibold">Mensagem de Áudio:</span> 5 Créditos por envio.
                     <p className="text-xs text-blue-400/60">(Tempo de resposta de até 5 minutos)</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <Phone className="w-5 h-5 mr-3 mt-0.5 text-orange-400 flex-shrink-0" />
+                <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
+                  <Phone className="w-5 h-5 text-orange-400 flex-shrink-0" />
                   <div>
                     <span className="font-semibold">Chamada de Voz:</span> 50 Créditos por chamada.
                     <p className="text-xs text-blue-400/60">(Chamada iniciada imediatamente após o uso dos créditos)</p>
@@ -110,7 +116,9 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
               )}
             </div>
         </div>
-        <div className="p-4 bg-black/20 border-t border-blue-500/20 flex justify-end">
+
+        {/* RODAPÉ (FIXO) */}
+        <div className="p-4 bg-black/20 border-t border-blue-500/20 flex justify-end flex-shrink-0">
             <Button onClick={onClose} variant="ghost" className="text-blue-300 hover:bg-blue-500/10 hover:text-white">
                 Fechar
             </Button>
