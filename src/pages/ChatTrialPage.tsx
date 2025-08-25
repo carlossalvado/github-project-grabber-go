@@ -58,7 +58,7 @@ const ChatTrialPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const AUDIO_MESSAGE_COST = 5; // Custo centralizado para fácil manutenção
+  const AUDIO_MESSAGE_COST = 5;
 
   useEffect(() => {
     if (user?.id) {
@@ -300,120 +300,85 @@ const ChatTrialPage = () => {
   const isLoading = isProcessing || isRecording;
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden mobile-fullscreen" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className="h-screen bg-gray-900 text-white flex flex-col w-full relative overflow-hidden" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       <audio ref={audioRef} />
-      <TrialTimer />
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 flex-shrink-0 sticky top-0 z-20 pt-safe">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={handleGoBack}><ArrowLeft size={20} /></Button>
-          <Avatar className="cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
-            <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-            <AvatarFallback className="bg-orange-600">{agentData.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="font-medium" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
-            <Badge variant="secondary" className="text-xs bg-orange-600 text-white min-w-[100px] flex justify-center">
-              {audioN8nLoading ? (
-                <div className="flex items-center gap-1.5">
-                  <Mic size={12} className="pulse-mic" />
-                  <span>Gravando...</span>
-                </div>
-              ) : n8nLoading ? (
-                <div className="flex items-center gap-1">
-                  <span>Digitando</span>
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                  <div className="typing-dot"></div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <Clock size={12} className="mr-1" />
-                  {isTrialActive ? `${hoursRemaining}h restantes` : 'Créditos Ativos'}
-                </div>
-              )}
-            </Badge>
+      
+      {/* ***** CABEÇALHO CORRIGIDO E AGRUPADO ***** */}
+      <header className="flex-shrink-0 z-20">
+        <TrialTimer />
+        <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={handleGoBack}><ArrowLeft size={20} /></Button>
+            <Avatar className="cursor-pointer" onClick={() => handleAvatarClick(agentData.avatar_url, agentData.name)}>
+              <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
+              <AvatarFallback className="bg-orange-600">{agentData.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="font-medium" onClick={() => setIsAgentProfileModalOpen(true)}>{agentData.name}</span>
+              <Badge variant="secondary" className="text-xs bg-orange-600 text-white min-w-[100px] flex justify-center">
+                {audioN8nLoading ? (
+                  <div className="flex items-center gap-1.5"><Mic size={12} className="pulse-mic" /><span>Gravando...</span></div>
+                ) : n8nLoading ? (
+                  <div className="flex items-center gap-1"><span>Digitando</span><div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div></div>
+                ) : (
+                  <div className="flex items-center gap-1.5"><Clock size={12} className="mr-1" />{isTrialActive ? `${hoursRemaining}h restantes` : 'Créditos Ativos'}</div>
+                )}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" size="icon" className="text-blue-200 font-bold hover:bg-gray-700 hover:text-white sm:w-auto sm:px-3" disabled={isLoading}>
+              {isSendingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4"/>}
+              <span className="ml-2 hidden sm:inline">Foto</span>
+            </Button>
+            <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" size="icon" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 sm:w-auto sm:px-3">
+              <PlusCircle className="h-4 w-4 sm:mr-2"/>
+              <span className="hidden sm:inline">{creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}</span>
+            </Button>
+            <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
           </div>
         </div>
-        {/* ***** SEÇÃO CORRIGIDA ***** */}
-        <div className="flex gap-2 items-center">
-          <Button onClick={() => setShowPhotoSelectionModal(true)} variant="ghost" size="icon" className="text-blue-200 font-bold hover:bg-gray-700 hover:text-white sm:w-auto sm:px-3" disabled={isLoading}>
-            {isSendingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4"/>}
-            <span className="ml-2 hidden sm:inline">Foto</span>
-          </Button>
-          <Button onClick={() => setShowCreditsPurchaseModal(true)} variant="ghost" size="icon" className="text-orange-400 font-bold hover:bg-gray-700 hover:text-orange-300 sm:w-auto sm:px-3">
-            <PlusCircle className="h-4 w-4 sm:mr-2"/>
-            <span className="hidden sm:inline">{creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}</span>
-          </Button>
-          <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
+        <div className="w-full flex justify-center items-center py-2 px-4 bg-gray-800 border-b border-gray-700">
+          <Button onClick={handleUpgrade} className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold" size="sm">Fazer Upgrade Agora</Button>
         </div>
-      </div>
-      <div className="w-full flex justify-center items-center py-2 px-4 bg-gray-800 border-b border-gray-700">
-        <Button onClick={handleUpgrade} className="bg-orange-600 hover:bg-orange-700 text-white w-full max-w-sm font-semibold" size="sm">Fazer Upgrade Agora</Button>
-      </div>
+        {!isTrialActive && (
+          <div className="bg-red-600/20 border-b border-red-500/30 p-3 text-center">
+            <p className="text-red-300 text-sm">
+              <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+              Seu trial para chat de texto gratuito terminou. Funções pagas (áudio, fotos) continuam ativas.
+              <Button variant="link" className="text-orange-400 underline p-0 ml-1 h-auto" onClick={handleUpgrade}>Faça upgrade para texto ilimitado!</Button>
+            </p>
+          </div>
+        )}
+      </header>
 
-      {!isTrialActive && (
-        <div className="bg-red-600/20 border-b border-red-500/30 p-3 text-center flex-shrink-0">
-          <p className="text-red-300 text-sm">
-            <AlertTriangle className="inline-block h-4 w-4 mr-2" />
-            Seu trial para chat de texto gratuito terminou. Funções pagas (áudio, fotos) continuam ativas.
-            <Button variant="link" className="text-orange-400 underline p-0 ml-1 h-auto" onClick={handleUpgrade}>Faça upgrade para texto ilimitado!</Button>
-          </p>
-        </div>
-      )}
+      {/* ***** ÁREA DE MENSAGENS CORRIGIDA (AGORA É O ÚNICO ELEMENTO ROLÁVEL) ***** */}
+      <main className="flex-1 min-h-0 overflow-y-auto p-4">
+        {messages.map(renderMessage)}
+        
+        {n8nLoading && (
+          <div className="flex items-start gap-2">
+            <Avatar className="h-8 w-8 cursor-pointer"><AvatarImage src={agentData.avatar_url} alt={agentData.name} /><AvatarFallback className="bg-orange-600"><Bot size={16} /></AvatarFallback></Avatar>
+            <div className="flex items-center w-fit max-w-[80%] rounded-lg p-3 text-sm bg-gray-700 text-white pulse-bubble-animation"><div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div></div>
+          </div>
+        )}
+        
+        {audioN8nLoading && (
+          <div className="flex items-start gap-2 mt-2">
+            <Avatar className="h-8 w-8 cursor-pointer"><AvatarImage src={agentData.avatar_url} alt={agentData.name} /><AvatarFallback className="bg-orange-600"><Bot size={16} /></AvatarFallback></Avatar>
+            <div className="flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-3 text-sm bg-gray-700 text-gray-300"><div className="flex items-center gap-2"><Mic size={14} className="pulse-mic" /><span>Gravando áudio...</span></div></div>
+          </div>
+        )}
 
-      <div className="flex-1 min-h-0 relative overflow-hidden">
-        <div className="h-full overflow-y-auto scrollbar-hide touch-pan-y p-4">
-          {messages.map(renderMessage)}
-          
-          {n8nLoading && (
-            <div className="flex items-start gap-2">
-              <Avatar className="h-8 w-8 cursor-pointer">
-                <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                <AvatarFallback className="bg-orange-600"><Bot size={16} /></AvatarFallback>
-              </Avatar>
-              <div className="flex items-center w-fit max-w-[80%] rounded-lg p-3 text-sm bg-gray-700 text-white pulse-bubble-animation">
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-              </div>
-            </div>
-          )}
-          
-          {audioN8nLoading && (
-            <div className="flex items-start gap-2 mt-2">
-              <Avatar className="h-8 w-8 cursor-pointer">
-                <AvatarImage src={agentData.avatar_url} alt={agentData.name} />
-                <AvatarFallback className="bg-orange-600"><Bot size={16} /></AvatarFallback>
-              </Avatar>
-              <div className="flex w-fit max-w-[80%] flex-col gap-2 rounded-lg p-3 text-sm bg-gray-700 text-gray-300">
-                <div className="flex items-center gap-2">
-                  <Mic size={14} className="pulse-mic" />
-                  <span>Gravando áudio...</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-      <CreditsPurchaseModal isOpen={showCreditsPurchaseModal} onClose={() => setShowCreditsPurchaseModal(false)} />
-      {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
-      {showGiftSelection && (<GiftSelection onGiftSend={handleGiftSend} onClose={() => setShowGiftSelection(false)} />)}
-      <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
-      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
-      <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
+        <div ref={messagesEndRef} />
+      </main>
       
-      <div className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 sticky bottom-0 z-20 pb-safe">
+      {/* ***** RODAPÉ CORRIGIDO E FIXO ***** */}
+      <footer className="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0 z-20">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
             {n8nLoading ? (
-              <div className="w-full flex items-center justify-start text-gray-400 px-0 text-sm">
-                <span className="mr-1.5">Isa está digitando</span>
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-              </div>
+              <div className="w-full flex items-center justify-start text-gray-400 px-0 text-sm"><span className="mr-1.5">Isa está digitando</span><div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div></div>
             ) : (
               <Input
                 ref={inputRef}
@@ -433,32 +398,14 @@ const ChatTrialPage = () => {
 
           <div className="relative flex flex-col items-center">
             {input.trim().length > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0"
-                onClick={handleSendMessage}
-                disabled={isLoading}
-              >
-                <Send size={20} />
-              </Button>
+              <Button type="button" variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0" onClick={handleSendMessage} disabled={isLoading}><Send size={20} /></Button>
             ) : (
               <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")}
-                  onClick={handleAudioToggle}
-                  disabled={isProcessing}
-                >
+                <Button type="button" variant="ghost" size="icon" className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")} onClick={handleAudioToggle} disabled={isProcessing}>
                   {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
                 </Button>
                 {credits <= 0 && !isRecording && (
-                  <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}>
-                    <ShieldAlert size={16} className="text-white" />
-                  </div>
+                  <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full cursor-pointer flex items-center justify-center" onClick={() => setShowCreditsPurchaseModal(true)}><ShieldAlert size={16} className="text-white" /></div>
                 )}
                 {!creditsLoading && (
                   <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">{credits}</span>
@@ -467,7 +414,15 @@ const ChatTrialPage = () => {
             )}
           </div>
         </div>
-      </div>
+      </footer>
+
+      {/* Modais permanecem fora do fluxo principal para cobrir a tela inteira */}
+      <CreditsPurchaseModal isOpen={showCreditsPurchaseModal} onClose={() => setShowCreditsPurchaseModal(false)} />
+      {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
+      {showGiftSelection && (<GiftSelection onGiftSend={handleGiftSend} onClose={() => setShowGiftSelection(false)} />)}
+      <PhotoSelectionModal isOpen={showPhotoSelectionModal} onClose={() => setShowPhotoSelectionModal(false)} onPhotoSend={handlePhotoSend} agentId={agentData.id} />
+      <AgentProfileModal isOpen={isAgentProfileModalOpen} onClose={() => setIsAgentProfileModalOpen(false)} agentId={agentData.id} />
+      <ProfileImageModal isOpen={isProfileImageModalOpen} onClose={() => setIsProfileImageModalOpen(false)} imageUrl={selectedImageUrl} agentName={selectedImageName} />
     </div>
   );
 };

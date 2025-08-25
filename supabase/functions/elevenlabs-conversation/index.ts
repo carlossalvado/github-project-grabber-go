@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ELEVENLABS_API_KEY = 'sk_f0beced1b6efe6c6afb3c20de76539f1bb4900210b9c38f6';
-const AGENT_ID = 'agent_9901k39fbypgfjbb7r9c6rmvsbw8';
+const ELEVENLABS_API_KEY = 'sk_44befffe90f448a6962d9bceac16c16997377ca662775425';
+const AGENT_ID = 'agent_7601k3h6m35fevvt44cyzd28qsf9';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
