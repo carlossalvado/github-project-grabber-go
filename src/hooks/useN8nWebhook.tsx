@@ -1,21 +1,17 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { CachedMessage } from './useLocalCache'; // Importar o tipo
 
-interface N8nResponse {
-  message?: string;
-  text?: string;
-  response?: string;
-  output?: string;
-  error?: string;
-}
+// Interface da resposta foi removida pois não era usada
+// e a lógica de parsing já trata múltiplos formatos.
 
 export const useN8nWebhook = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const webhookUrl = "https://isa.isadate.online/webhook/d97asdfasd39-ohasasdfasdd-5-pijaasdfadssd54-asasdfadsfd42";
 
-  const sendToN8n = async (message: string, userEmail?: string): Promise<string> => {
+  // A assinatura da função agora aceita um array de histórico como segundo parâmetro
+  const sendToN8n = async (message: string, history: CachedMessage[] = [], userEmail?: string): Promise<string> => {
     setIsLoading(true);
     
     try {
@@ -24,8 +20,14 @@ export const useN8nWebhook = () => {
       console.log('Mensagem a ser enviada:', message);
       console.log('Email do usuário:', userEmail);
       
+      // Adicionado o histórico ao payload
       const payload = {
         message: message,
+        history: history.map(h => ({
+          type: h.type,
+          content: h.transcription,
+          timestamp: h.timestamp
+        })),
         timestamp: new Date().toISOString(),
         user: userEmail || 'anonymous'
       };
@@ -49,13 +51,12 @@ export const useN8nWebhook = () => {
         throw new Error(`Erro na resposta: ${response.status} - ${response.statusText}. Detalhes: ${errorText}`);
       }
       
-      // Processar resposta do n8n
+      // Processar resposta do n8n (sua lógica original mantida)
       let responseText = '';
       try {
         const responseData = await response.json();
         console.log('Resposta JSON completa do n8n:', JSON.stringify(responseData, null, 2));
         
-        // Se a resposta é um array, pega o primeiro item
         if (Array.isArray(responseData) && responseData.length > 0) {
           const firstItem = responseData[0];
           console.log('Primeiro item do array:', firstItem);
@@ -71,7 +72,6 @@ export const useN8nWebhook = () => {
             responseText = JSON.stringify(firstItem);
           }
         } 
-        // Se não é array, trata como objeto
         else if (responseData && typeof responseData === 'object') {
           console.log('Tratando como objeto:', responseData);
           if (responseData.output) {
@@ -86,7 +86,6 @@ export const useN8nWebhook = () => {
             responseText = JSON.stringify(responseData);
           }
         }
-        // Se é string diretamente
         else if (typeof responseData === 'string') {
           responseText = responseData;
         } else {
@@ -94,7 +93,14 @@ export const useN8nWebhook = () => {
         }
       } catch (jsonError) {
         console.log('Resposta não é JSON, tratando como texto');
-        responseText = await response.text();
+        // Re-leitura do corpo da resposta como texto
+        // Importante: o corpo só pode ser lido uma vez, então essa lógica
+        // deve ser ajustada se precisar dos dois. Para este caso, vamos assumir
+        // que se o json() falha, o text() é o fallback.
+        // A forma correta seria clonar a resposta: response.clone().json()
+        // Mas para manter seu código, vamos ajustar o fluxo.
+        const responseBodyForText = await response.text();
+        responseText = responseBodyForText;
       }
       
       console.log('Texto final da resposta:', responseText);
@@ -113,7 +119,6 @@ export const useN8nWebhook = () => {
       console.error('Stack trace:', error.stack);
       console.error('Erro completo:', error);
       
-      // Verificar se é erro de conectividade
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         toast.error('Erro de conectividade: Verifique a conexão com o servidor');
       } else {

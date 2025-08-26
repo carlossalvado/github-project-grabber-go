@@ -29,7 +29,8 @@ const ChatTextAudioPage = () => {
   const navigate = useNavigate();
   const { loading: profileLoading, getPlanName } = useUserProfile();
   const { user } = useAuth();
-  const { messages, addMessage, loadMessages } = useLocalCache();
+  // MODIFICAÇÃO: Adicionado getRecentMessages
+  const { messages, addMessage, loadMessages, getRecentMessages } = useLocalCache();
   const { sendToN8n, isLoading: n8nLoading } = useN8nWebhook();
   const { sendAudioToN8n, isLoading: audioN8nLoading } = useN8nAudioWebhook();
   const { isRecording, startRecording, stopRecording, audioBlob, resetAudio, audioUrl } = useAudioRecording();
@@ -138,16 +139,20 @@ const ChatTextAudioPage = () => {
         transcription: photoTextMessage,
         timestamp: new Date().toISOString(),
       };
-      addMessage(photoMessage);
+      addMessage(photoMessage, user?.id);
 
       await refreshCredits();
       toast.success('Foto desbloqueada com sucesso!');
 
       const followUpMessage = "isa você enviou uma foto, pergunta se o usuario gostou";
-      const response = await sendToN8n(followUpMessage);
+      
+      // MODIFICAÇÃO: Enviar histórico na mensagem de follow-up da foto
+      const history = getRecentMessages();
+      const response = await sendToN8n(followUpMessage, history, user?.email);
+
       if (response) {
         const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
-        addMessage(assistantMessage);
+        addMessage(assistantMessage, user?.id);
       }
 
     } catch (error: any) {
@@ -160,25 +165,30 @@ const ChatTextAudioPage = () => {
 
   const getAssistantResponse = async (messageText: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: messageText, timestamp: new Date().toISOString() };
-    addMessage(userMessage);
-
-    const response = await sendToN8n(messageText);
+    addMessage(userMessage, user?.id);
+    
+    // MODIFICAÇÃO: Obter e enviar histórico com a mensagem
+    const history = getRecentMessages();
+    const response = await sendToN8n(messageText, history, user?.email);
+    
     if (response) {
       const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', transcription: response, timestamp: new Date().toISOString() };
-      addMessage(assistantMessage);
+      addMessage(assistantMessage, user?.id);
     }
   };
 
   const getAssistantAudioResponse = async (audioBlob: Blob, url: string) => {
     const userMessage: CachedMessage = { id: Date.now().toString(), type: 'user', transcription: '', audioUrl: url, timestamp: new Date().toISOString() };
-    addMessage(userMessage);
+    addMessage(userMessage, user?.id);
 
     try {
-      const response = await sendAudioToN8n(audioBlob);
+      // MODIFICAÇÃO: Obter e enviar histórico com o áudio
+      const history = getRecentMessages();
+      const response = await sendAudioToN8n(audioBlob, history);
 
       if (response && response.audioUrl) {
         const assistantMessage: CachedMessage = { id: Date.now().toString() + 'a', type: 'assistant', audioUrl: response.audioUrl, transcription: response.text || '', timestamp: new Date().toISOString() };
-        addMessage(assistantMessage);
+        addMessage(assistantMessage, user?.id);
       } else {
         throw new Error("A resposta do servidor de áudio foi inválida.");
       }
@@ -336,7 +346,6 @@ const ChatTextAudioPage = () => {
     <div className="h-screen bg-[#1a1d29] text-white flex flex-col w-full relative overflow-hidden" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       <audio ref={audioRef} />
       
-      {/* ***** CABEÇALHO CORRIGIDO E AGRUPADO ***** */}
       <header className="flex-shrink-0 z-20">
         <div className="flex items-center justify-between p-4 bg-[#1a1d29] border-b border-blue-800/30">
           <div className="flex items-center gap-3">
@@ -369,7 +378,13 @@ const ChatTextAudioPage = () => {
               <PlusCircle className="h-4 w-4 sm:mr-2"/>
               <span className="hidden sm:inline">{creditsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${credits} Créditos`}</span>
             </Button>
-            <VoiceCallButton agentName={agentData.name} agentAvatar={agentData.avatar_url} onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)} />
+            {/* MODIFICAÇÃO: Passar getHistory para o VoiceCallButton */}
+            <VoiceCallButton 
+              agentName={agentData.name} 
+              agentAvatar={agentData.avatar_url} 
+              onRequestVoiceCredits={() => setShowCreditsPurchaseModal(true)}
+              getHistory={getRecentMessages}
+            />
           </div>
         </div>
         {!isSubscriptionActive && (
@@ -388,7 +403,6 @@ const ChatTextAudioPage = () => {
         )}
       </header>
 
-      {/* ***** ÁREA DE MENSAGENS CORRIGIDA (AGORA É O ÚNICO ELEMENTO ROLÁVEL) ***** */}
       <main className="flex-1 min-h-0 overflow-y-auto p-4">
         {messages.map(renderMessage)}
 
@@ -409,7 +423,6 @@ const ChatTextAudioPage = () => {
         <div ref={messagesEndRef} />
       </main>
       
-      {/* ***** RODAPÉ CORRIGIDO E FIXO ***** */}
       <footer className="p-4 bg-[#1a1d29] border-t border-blue-800/30 flex-shrink-0 z-20">
         <div className="flex items-center space-x-3">
           <div className="flex-1 bg-[#2F3349] rounded-full px-4 py-2 flex items-center space-x-2">
@@ -452,7 +465,6 @@ const ChatTextAudioPage = () => {
         </div>
       </footer>
 
-      {/* Modais permanecem fora do fluxo principal para cobrir a tela inteira */}
       {showEmoticonSelector && (<EmoticonSelector onSelect={handleEmoticonSelect} onClose={() => setShowEmoticonSelector(false)} />)}
       {showGiftSelection && (<GiftSelection onGiftSend={handleGiftSend} onClose={() => setShowGiftSelection(false)} />)}
       <CreditsPurchaseModal isOpen={showCreditsPurchaseModal} onClose={() => setShowCreditsPurchaseModal(false)} />

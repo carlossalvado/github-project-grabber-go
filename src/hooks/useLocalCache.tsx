@@ -1,68 +1,63 @@
 import { useState, useCallback } from 'react';
 
-// Define a estrutura de dados de uma mensagem no cache
 export interface CachedMessage {
   id: string;
   type: 'user' | 'assistant';
-  timestamp: string;
   transcription: string;
   audioUrl?: string;
-  imageUrl?: string; // Propriedade adicionada para suportar imagens
+  timestamp: string;
 }
+
+const CACHE_VERSION = '1.0'; 
+const getCacheKey = (userId: string) => `chatMessages_${userId}_v${CACHE_VERSION}`;
 
 export const useLocalCache = () => {
   const [messages, setMessages] = useState<CachedMessage[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Função para carregar as mensagens do cache
   const loadMessages = useCallback((userId: string) => {
-    if (!userId) {
-      setMessages([]);
-      return;
-    }
-    setCurrentUserId(userId);
     try {
-      const cachedData = localStorage.getItem(`chatMessages_${userId}`);
-      if (cachedData) {
-        const parsedData = JSON.parse(cachedData);
-        // Garante que o estado seja sempre um array, evitando o erro .filter
-        const loadedMessages = Array.isArray(parsedData) ? parsedData : [];
-        setMessages(loadedMessages);
+      const cachedMessages = localStorage.getItem(getCacheKey(userId));
+      if (cachedMessages) {
+        setMessages(JSON.parse(cachedMessages));
       } else {
-        setMessages([]); // Garante que o estado seja um array vazio se não houver cache
+        setMessages([]);
       }
     } catch (error) {
-      console.error('Falha ao carregar mensagens do cache:', error);
-      setMessages([]); // Garante que o estado seja um array vazio em caso de erro
+      console.error("Erro ao carregar mensagens do cache:", error);
+      setMessages([]);
     }
   }, []);
 
-  // Função para adicionar uma nova mensagem
-  const addMessage = useCallback((message: CachedMessage) => {
+  const addMessage = useCallback((message: CachedMessage, userId?: string) => {
+    if (!userId) {
+      const authUser = JSON.parse(localStorage.getItem('sb-auth-token') || '{}');
+      userId = authUser?.user?.id;
+    }
+
+    if (!userId) {
+      console.error("Não foi possível salvar a mensagem: ID do usuário não encontrado.");
+      setMessages(prevMessages => [...prevMessages, message]);
+      return;
+    }
+
     setMessages(prevMessages => {
       const updatedMessages = [...prevMessages, message];
-      if (currentUserId) {
-        try {
-          localStorage.setItem(`chatMessages_${currentUserId}`, JSON.stringify(updatedMessages));
-        } catch (error) {
-          console.error('Falha ao salvar mensagem no cache:', error);
-        }
+      try {
+        localStorage.setItem(getCacheKey(userId!), JSON.stringify(updatedMessages));
+      } catch (error) {
+        console.error("Erro ao salvar mensagens no cache:", error);
       }
       return updatedMessages;
     });
-  }, [currentUserId]);
-  
-  // Função para limpar as mensagens
-  const clearMessages = useCallback(() => {
-    if (currentUserId) {
-      try {
-        localStorage.removeItem(`chatMessages_${currentUserId}`);
-        setMessages([]);
-      } catch (error)      {
-        console.error('Falha ao limpar mensagens do cache:', error);
-      }
-    }
-  }, [currentUserId]);
+  }, []);
 
-  return { messages, addMessage, clearMessages, loadMessages };
+  const getRecentMessages = useCallback((): CachedMessage[] => {
+    const twentyFourHoursAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
+    return messages.filter(message => {
+      const messageTimestamp = new Date(message.timestamp).getTime();
+      return messageTimestamp > twentyFourHoursAgo;
+    });
+  }, [messages]);
+
+  return { messages, addMessage, loadMessages, getRecentMessages };
 };
