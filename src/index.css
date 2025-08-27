@@ -1,3 +1,11 @@
+/* Compatibilidade para appearance em inputs, selects e botões */
+input,
+select,
+button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
 
 @tailwind base;
 @tailwind components;

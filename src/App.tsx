@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 import Index from "./pages/Index";
 import ChatTrialPage from "./pages/ChatTrialPage";
 import ChatTextAudioPage from "./pages/ChatTextAudioPage";
@@ -23,7 +25,10 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProtectedRoute from "./components/ProtectedRoute";
-import TermsOfUsePage from "./pages/TermsOfUsePage"; // 1. Importe a nova página
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import TermsOfUsePage from "./pages/TermsOfUsePage";
+import PushNotificationsPage from "./pages/PushNotificationsPage";
+import SendPushNotificationPage from "./pages/SendPushNotificationPage";
 
 const queryClient = new QueryClient();
 
@@ -33,119 +38,151 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <BrowserRouter>
-            <SubscriptionProvider>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/index" element={<Index />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/auth" element={<Auth />} />
-                {/* 2. Adicione a nova rota aqui */}
-                <Route path="/terms-of-use" element={<TermsOfUsePage />} />
-                <Route
-                  path="/home"
-                  element={
-                    <ProtectedRoute>
-                      <Home />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat-trial"
-                  element={
-                    <ProtectedRoute>
-                      <ChatTrialPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat-text-audio"
-                  element={
-                    <ProtectedRoute>
-                      <ChatTextAudioPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/personalize"
-                  element={
-                    <ProtectedRoute>
-                      <PersonalizePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/plan"
-                  element={
-                    <ProtectedRoute>
-                      <PlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/plan/:planId"
-                  element={
-                    <ProtectedRoute>
-                      <SinglePlanProductPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/selected-plan"
-                  element={
-                    <ProtectedRoute>
-                      <SelectedPlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/free-plan"
-                  element={
-                    <ProtectedRoute>
-                      <FreePlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/basic-plan"
-                  element={
-                    <ProtectedRoute>
-                      <BasicPlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/premium-plan"
-                  element={
-                    <ProtectedRoute>
-                      <PremiumPlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/ultimate-plan"
-                  element={
-                    <ProtectedRoute>
-                      <UltimatePlanPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <ProfilePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </SubscriptionProvider>
-          </BrowserRouter>
+          <AppContent />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppContent() {
+  const { showBanner, installPWA, closeBanner, isInstalling } = usePWAInstall();
+
+  return (
+    <>
+      <BrowserRouter>
+        <SubscriptionProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/index" element={<Index />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/terms-of-use" element={<TermsOfUsePage />} />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat-trial"
+              element={
+                <ProtectedRoute>
+                  <ChatTrialPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat-text-audio"
+              element={
+                <ProtectedRoute>
+                  <ChatTextAudioPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/personalize"
+              element={
+                <ProtectedRoute>
+                  <PersonalizePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/plan"
+              element={
+                <ProtectedRoute>
+                  <PlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/plan/:planId"
+              element={
+                <ProtectedRoute>
+                  <SinglePlanProductPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/selected-plan"
+              element={
+                <ProtectedRoute>
+                  <SelectedPlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/free-plan"
+              element={
+                <ProtectedRoute>
+                  <FreePlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/basic-plan"
+              element={
+                <ProtectedRoute>
+                  <BasicPlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/premium-plan"
+              element={
+                <ProtectedRoute>
+                  <PremiumPlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ultimate-plan"
+              element={
+                <ProtectedRoute>
+                  <UltimatePlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <PushNotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/send-notification"
+              element={
+                <AdminProtectedRoute>
+                  <SendPushNotificationPage />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SubscriptionProvider>
+      </BrowserRouter>
+
+      <PWAInstallBanner
+        isVisible={showBanner}
+        onInstall={installPWA}
+        onClose={closeBanner}
+        isInstalling={isInstalling}
+      />
+    </>
   );
 }
 
