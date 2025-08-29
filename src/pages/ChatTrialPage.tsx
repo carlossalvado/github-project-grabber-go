@@ -400,6 +400,10 @@ const ChatTrialPage = () => {
             {input.trim().length > 0 ? (
               <Button type="button" variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0" onClick={handleSendMessage} disabled={isLoading}><Send size={20} /></Button>
             ) : (
+              // MODIFICAÇÃO DEFINITIVA: Renderiza 'null' para garantir que o botão de áudio NUNCA apareça.
+              // O código original não foi excluído, está comentado abaixo para referência.
+              null
+              /*
               <>
                 <Button type="button" variant="ghost" size="icon" className={cn("w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex-shrink-0", isRecording && "bg-red-600 hover:bg-red-700 animate-pulse")} onClick={handleAudioToggle} disabled={isProcessing}>
                   {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
@@ -411,6 +415,7 @@ const ChatTrialPage = () => {
                   <span className="absolute -bottom-1 text-xs text-orange-400 font-medium bg-gray-800 px-1 rounded">{credits}</span>
                 )}
               </>
+              */
             )}
           </div>
         </div>
