@@ -73,7 +73,7 @@ const CreditsPurchaseModal: React.FC<CreditsPurchaseModalProps> = ({ isOpen, onC
                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2">
                   <Phone className="w-5 h-5 text-orange-400 flex-shrink-0" />
                   <div>
-                    <span className="font-semibold">Chamada de Voz:</span> 50 Créditos por chamada.
+                    <span className="font-semibold">Chamada de Voz:</span> 20 Créditos por chamada.
                     <p className="text-xs text-blue-400/60">(Chamada iniciada imediatamente após o uso dos créditos)</p>
                   </div>
                 </div>

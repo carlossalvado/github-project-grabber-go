@@ -183,14 +183,41 @@ const SignupPage = () => {
       const isTrialPlan = selectedPlan?.name?.toLowerCase().includes('trial');
       const planType = isTrialPlan ? 'trial' : selectedPlan?.name?.toLowerCase();
 
-      await signUp(email, password, fullName, planType);
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
 
-      // Agendar emails de boas-vindas para usuários trial
-      // Aguardar um pouco para o usuário ser criado
-      setTimeout(async () => {
+      if (signUpError) throw signUpError;
+
+      // Aguardar um pouco para garantir que o usuário foi criado
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não foi criado');
+
+      // Para usuários trial, iniciar trial e agendar emails imediatamente
+      if (isTrialPlan) {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && isTrialPlan) {
+          console.log('🚀 Iniciando trial para usuário...');
+
+          // Iniciar trial usando a função RPC
+          const { data: trialData, error: trialError } = await supabase.rpc('start_trial', {
+            user_uuid: user.id
+          });
+
+          if (trialError) {
+            console.error('Erro ao iniciar trial:', trialError);
+            // Não falhar o cadastro por causa do trial
+          } else {
+            console.log('✅ Trial iniciado com sucesso - 72 horas');
+
+            // Agendar emails de boas-vindas
             const currentTime = new Date();
 
             // Email inicial: 2 minutos após cadastro
@@ -228,13 +255,31 @@ const SignupPage = () => {
               scheduled_at: dayAfterTomorrow.toISOString()
             });
 
-            console.log('Emails de boas-vindas agendados para usuário trial');
+            console.log('📧 Emails de boas-vindas agendados');
           }
-        } catch (scheduleError) {
-          console.error('Erro ao agendar emails:', scheduleError);
+        } catch (error) {
+          console.error('Erro no processamento do trial:', error);
+          // Não falhar o cadastro
         }
-      }, 2000);
+      }
 
+      // Salvar perfil no Supabase
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: fullName,
+          credits: 30,
+          plan_name: planType || null,
+          plan_active: planType ? true : false,
+          updated_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        console.error('Erro ao salvar perfil:', profileError);
+      }
+
+      // Preparar dados para o próximo passo
       const userData = {
         email,
         fullName,

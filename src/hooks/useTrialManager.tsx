@@ -61,20 +61,53 @@ export const useTrialManager = () => {
 
       if (data) {
         setTrialData(data);
-        
-        // Verificar se o trial ainda está ativo
-        const now = new Date();
-        const trialEnd = new Date(data.trial_end);
-        const isActive = data.trial_active && trialEnd > now;
-        
-        setIsTrialActive(isActive);
-        
-        // Calcular horas restantes
-        if (isActive) {
-          const diffMs = trialEnd.getTime() - now.getTime();
-          const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
-          setHoursRemaining(diffHours);
-        } else {
+
+        try {
+          // Verificar se o trial ainda está ativo
+          const now = new Date();
+          let trialEnd: Date;
+
+          // A data já vem com timezone do PostgreSQL, só precisamos converter
+          if (data.trial_end.includes('+')) {
+            // Já tem timezone, usar diretamente
+            trialEnd = new Date(data.trial_end);
+          } else {
+            // Não tem timezone, assumir UTC
+            trialEnd = new Date(data.trial_end + 'Z');
+          }
+
+          // Verificar se a data é válida
+          if (isNaN(trialEnd.getTime())) {
+            console.error('❌ Data de fim do trial inválida:', data.trial_end);
+            setIsTrialActive(false);
+            setHoursRemaining(0);
+            return;
+          }
+
+          const isActive = data.trial_active && trialEnd > now;
+
+          console.log('🔍 Verificação de trial:', {
+            trial_active: data.trial_active,
+            trial_end: data.trial_end,
+            trialEndParsed: trialEnd.toISOString(),
+            now: now.toISOString(),
+            isActive,
+            diffMs: trialEnd.getTime() - now.getTime()
+          });
+
+          setIsTrialActive(isActive);
+
+          // Calcular horas restantes
+          if (isActive) {
+            const diffMs = trialEnd.getTime() - now.getTime();
+            const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+            setHoursRemaining(diffHours);
+          } else {
+            setHoursRemaining(0);
+          }
+        } catch (error) {
+          console.error('❌ Erro ao processar datas do trial:', error);
+          setIsTrialActive(false);
           setHoursRemaining(0);
         }
       }
@@ -155,8 +188,8 @@ export const useTrialManager = () => {
 
     const interval = setInterval(() => {
       const now = new Date();
-      const trialEnd = new Date(trialData.trial_end);
-      
+      const trialEnd = new Date(trialData.trial_end + 'Z'); // Garantir UTC
+
       if (trialEnd <= now) {
         setIsTrialActive(false);
         setHoursRemaining(0);

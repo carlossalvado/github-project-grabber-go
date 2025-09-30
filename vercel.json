@@ -5,12 +5,6 @@
       "maxDuration": 30
     }
   },
-  "crons": [
-    {
-      "path": "/api/send-welcome-emails",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/send-welcome-emails",

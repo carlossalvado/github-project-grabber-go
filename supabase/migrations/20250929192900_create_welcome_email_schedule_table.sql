@@ -23,3 +23,11 @@ ALTER TABLE welcome_email_schedule ENABLE ROW LEVEL SECURITY;
 -- Policy to allow service role to manage schedules
 CREATE POLICY "Allow service role to manage welcome email schedules" ON welcome_email_schedule
   FOR ALL USING (auth.role() = 'service_role');
+
+-- Policy to allow users to view their own email schedules
+CREATE POLICY "Users can view their own email schedules" ON welcome_email_schedule
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Policy to allow service role to insert schedules (for signup process)
+CREATE POLICY "Service role can insert email schedules" ON welcome_email_schedule
+  FOR INSERT WITH CHECK (auth.role() = 'service_role');
