@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/send-welcome-emails.js": {
-      "runtime": "nodejs18.x",
+      "runtime": "nodejs@18",
       "maxDuration": 30
     }
   },
