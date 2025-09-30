@@ -3,6 +3,9 @@
     "api/send-welcome-emails.js": {
       "runtime": "nodejs@18",
       "maxDuration": 30
+    },
+    "supabase/functions/**/*.ts": {
+      "runtime": "deno@1.0.0"
     }
   },
   "rewrites": [
