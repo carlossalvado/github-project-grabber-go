@@ -148,7 +148,7 @@ const VoiceCreditsModal: React.FC<VoiceCreditsModalProps> = ({
               Você tem <span className="font-bold text-purple-600">{currentCredits} créditos</span> restantes
             </p>
             <p className="text-xs text-gray-500">
-              Cada chamada de voz consome 1 crédito
+              Cada chamada de voz consome 20 créditos
             </p>
           </div>
 

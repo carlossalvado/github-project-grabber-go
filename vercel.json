@@ -1,8 +1,20 @@
 {
+  "functions": {
+    "api/send-welcome-emails.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/send-welcome-emails",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/send-welcome-emails",
+      "destination": "/api/send-welcome-emails"
     }
   ]
 }

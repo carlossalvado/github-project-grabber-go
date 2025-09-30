@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       },
     });
-    
+
     if (error) {
       throw error;
     }
@@ -95,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .upsert({
             id: data.user.id,
             full_name: fullName,
+            credits: 30, // Adicionar 30 créditos iniciais para todos os usuários
             plan_name: planType || null,
             plan_active: planType ? true : false,
             updated_at: new Date().toISOString()
@@ -106,21 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('✅ Perfil salvo no Supabase com sucesso');
         }
 
-        // Se for plano trial, iniciar o trial
+        // Se for plano trial, apenas logar (trial será gerenciado pelo frontend)
         if (planType === 'trial') {
-          try {
-            const { error: trialError } = await supabase.rpc('start_trial', {
-              user_uuid: data.user.id
-            });
-
-            if (trialError) {
-              console.error('Erro ao iniciar trial:', trialError);
-            } else {
-              console.log('✅ Trial iniciado com sucesso');
-            }
-          } catch (error) {
-            console.error('Erro ao processar trial:', error);
-          }
+          console.log('✅ Plano trial selecionado - será gerenciado pelo frontend');
         }
       } catch (error) {
         console.error('Erro ao processar dados pós-registro:', error);
