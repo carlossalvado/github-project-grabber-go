@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/send-welcome-emails.js": {
-      "runtime": "now-node@16.0.0"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/send-welcome-emails",
