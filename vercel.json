@@ -3,6 +3,10 @@
     {
       "source": "/api/send-welcome-emails",
       "destination": "/api/send-welcome-emails"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }
